@@ -1,0 +1,243 @@
+<title>Білімтест</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="description" content="4–11 сыныптарға арналған тегін тесттер: барлық пәндер, тақырыптар бойынша. Қазақша, орысша, ағылшынша.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=PT+Sans:ital,wght@0,400;0,700;1,400&family=Unbounded:wght@500;700&display=swap">
+<style>
+/* Layout: a steppe-sky header band, a big numeral grade picker as the hero, then a subject grid; quiz is a single focused column. */
+:root{
+  --bg:#F2F5F7; --surface:#FFFFFF; --ink:#13232E; --muted:#566874; --line:#D6DFE5;
+  --accent:#0B6A86; --accent-ink:#FFFFFF; --accent-soft:#E1EFF4;
+  --gold:#B8871E; --gold-soft:#F6EBD2;
+  --good:#1D8048; --good-soft:#E2F3E9; --bad:#B83535; --bad-soft:#F8E3E3;
+  --display:"Unbounded","PT Sans",system-ui,sans-serif;
+  --body:"PT Sans","Segoe UI",system-ui,-apple-system,sans-serif;
+  --r:10px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0E181F; --surface:#15232C; --ink:#E5EDF1; --muted:#93A5B1; --line:#25363F;
+  --accent:#53B4D0; --accent-ink:#06222C; --accent-soft:#163542;
+  --gold:#E2B550; --gold-soft:#3A2F17;
+  --good:#52C385; --good-soft:#163526; --bad:#EE7171; --bad-soft:#401C1E; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0E181F; --surface:#15232C; --ink:#E5EDF1; --muted:#93A5B1; --line:#25363F;
+  --accent:#53B4D0; --accent-ink:#06222C; --accent-soft:#163542;
+  --gold:#E2B550; --gold-soft:#3A2F17;
+  --good:#52C385; --good-soft:#163526; --bad:#EE7171; --bad-soft:#401C1E; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:17px;line-height:1.5;margin:0}
+button{font:inherit;color:inherit;cursor:pointer}
+:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+.wrap{max-width:1040px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+header.top{border-bottom:1px solid var(--line);background:var(--surface)}
+header.top .wrap{display:flex;align-items:center;justify-content:space-between;gap:12px;padding-block:12px;flex-wrap:wrap}
+.logo{display:flex;align-items:center;gap:10px;font-family:var(--display);font-weight:700;font-size:20px;letter-spacing:-.01em;background:none;border:0;padding:0}
+.logo-mark{width:30px;height:30px;border-radius:8px;background:var(--accent);display:grid;place-items:center}
+.logo-mark svg{display:block}
+.langs{display:flex;border:1px solid var(--line);border-radius:999px;padding:3px;gap:2px;background:var(--bg)}
+.langs button{border:0;background:none;padding:5px 12px;border-radius:999px;font-weight:700;font-size:14px;letter-spacing:.04em;color:var(--muted)}
+.langs button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}
+main{padding-block:28px 56px}
+.hero{display:grid;gap:10px;margin-bottom:26px}
+h1,h2,h3{font-family:var(--display);font-weight:700;letter-spacing:-.015em;text-wrap:balance;margin:0}
+h1{font-size:clamp(26px,4.4vw,40px);line-height:1.15;max-width:22ch}
+h2{font-size:clamp(22px,3.2vw,30px);line-height:1.2}
+.lede{color:var(--muted);max-width:60ch;margin:0}
+.facts{display:flex;flex-wrap:wrap;gap:8px 18px;color:var(--muted);font-size:15px;font-variant-numeric:tabular-nums}
+.facts b{color:var(--ink)}
+.label{font-size:13px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--muted)}
+.grades{display:grid;grid-template-columns:repeat(8,1fr);gap:8px;margin:10px 0 30px}
+.grades button{border:1px solid var(--line);background:var(--surface);border-radius:var(--r);padding:12px 0 10px;display:grid;justify-items:center;gap:2px;transition:border-color .15s,background .15s}
+.grades button:hover{border-color:var(--accent)}
+.grades .n{font-family:var(--display);font-size:clamp(22px,4vw,34px);font-weight:700;line-height:1}
+.grades .s{font-size:12px;color:var(--muted)}
+.grades button[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.grades button[aria-pressed="true"] .s{color:var(--accent-ink);opacity:.85}
+@media (max-width:560px){.grades{grid-template-columns:repeat(4,1fr)}}
+.subjects{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px}
+.subj{text-align:left;border:1px solid var(--line);background:var(--surface);border-radius:var(--r);padding:16px;display:grid;grid-template-columns:44px 1fr;gap:4px 14px;align-items:center;transition:border-color .15s,transform .15s}
+.subj:hover{border-color:var(--accent);transform:translateY(-1px)}
+.subj .ic{grid-row:span 2;width:44px;height:44px;border-radius:9px;background:var(--accent-soft);color:var(--accent);display:grid;place-items:center;font-family:var(--display);font-weight:700;font-size:17px}
+.subj .nm{font-weight:700;font-size:17px;line-height:1.25;min-width:0}
+.subj .mt{font-size:14px;color:var(--muted);font-variant-numeric:tabular-nums}
+.tag{display:inline-block;font-size:12px;font-weight:700;letter-spacing:.05em;background:var(--gold-soft);color:var(--gold);border-radius:5px;padding:1px 6px;margin-left:6px;vertical-align:1px}
+.back{border:0;background:none;padding:0;color:var(--accent);font-weight:700;margin-bottom:14px;display:inline-flex;gap:6px}
+.sub-head{display:flex;flex-wrap:wrap;align-items:end;justify-content:space-between;gap:14px;margin-bottom:20px}
+.sub-head .kicker{color:var(--muted);font-weight:700;margin-bottom:4px}
+.btn{border:1px solid var(--accent);background:var(--accent);color:var(--accent-ink);border-radius:999px;padding:10px 20px;font-weight:700}
+.btn.ghost{background:transparent;color:var(--accent)}
+.btn:disabled{opacity:.45;cursor:default}
+.note{background:var(--gold-soft);color:var(--ink);border-radius:var(--r);padding:10px 14px;font-size:15px;margin-bottom:16px}
+.topics{list-style:none;margin:0;padding:0;border-top:1px solid var(--line)}
+.topics li{display:grid;grid-template-columns:36px 1fr auto;gap:14px;align-items:center;padding:14px 4px;border-bottom:1px solid var(--line)}
+.topics .ix{font-family:var(--display);color:var(--muted);font-size:15px;font-variant-numeric:tabular-nums}
+.topics .tt{min-width:0}
+.topics .tt b{display:block;font-size:17px;line-height:1.3}
+.topics .tt span{font-size:14px;color:var(--muted)}
+.best{font-size:13px;font-weight:700;border-radius:5px;padding:1px 7px;margin-left:8px}
+.best.hi{background:var(--good-soft);color:var(--good)} .best.mid{background:var(--gold-soft);color:var(--gold)} .best.lo{background:var(--bad-soft);color:var(--bad)}
+.quiz{max-width:680px;margin:0 auto}
+.qmeta{display:flex;justify-content:space-between;gap:10px;color:var(--muted);font-size:15px;margin-bottom:8px;font-variant-numeric:tabular-nums}
+.bar{height:6px;background:var(--line);border-radius:3px;overflow:hidden;margin-bottom:26px}
+.bar i{display:block;height:100%;background:var(--accent);transition:width .3s}
+.qtext{font-size:clamp(20px,2.8vw,25px);font-weight:700;line-height:1.35;margin:0 0 20px;text-wrap:pretty}
+.code{font-family:ui-monospace,"Cascadia Code","SFMono-Regular",Consolas,monospace;font-size:16px;line-height:1.5;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:12px 16px;margin:-6px 0 20px;overflow-x:auto;white-space:pre}
+.opt span,.review b{white-space:pre-line}
+.opts{display:grid;gap:10px}
+.opt{display:grid;grid-template-columns:34px 1fr;gap:12px;align-items:center;text-align:left;border:1.5px solid var(--line);background:var(--surface);border-radius:var(--r);padding:12px 14px;font-size:17px}
+.opt:hover:not(:disabled){border-color:var(--accent)}
+.opt .k{width:34px;height:34px;border-radius:8px;background:var(--bg);display:grid;place-items:center;font-weight:700;color:var(--muted)}
+.opt span{min-width:0;overflow-wrap:anywhere}
+.opt:disabled{cursor:default}
+.opt.ok{border-color:var(--good);background:var(--good-soft)} .opt.ok .k{background:var(--good);color:var(--surface)}
+.opt.no{border-color:var(--bad);background:var(--bad-soft)} .opt.no .k{background:var(--bad);color:var(--surface)}
+.fb{min-height:30px;margin:16px 0 8px;font-weight:700}
+.fb.ok{color:var(--good)} .fb.no{color:var(--bad)}
+.qnav{display:flex;justify-content:space-between;gap:10px;align-items:center}
+.score{display:grid;gap:6px;justify-items:start;margin-bottom:22px}
+.score .big{font-family:var(--display);font-size:clamp(54px,10vw,84px);font-weight:700;line-height:1;font-variant-numeric:tabular-nums}
+.score .big small{font-size:.45em;color:var(--muted)}
+.actions{display:flex;flex-wrap:wrap;gap:10px;margin:18px 0 30px}
+.review{list-style:none;padding:0;margin:0;display:grid;gap:10px}
+.review li{border:1px solid var(--line);border-left-width:4px;background:var(--surface);border-radius:var(--r);padding:12px 14px;font-size:15px}
+.review li.ok{border-left-color:var(--good)} .review li.no{border-left-color:var(--bad)}
+.review b{display:block;font-size:16px;margin-bottom:4px}
+.review .yours{color:var(--bad)} .review .right{color:var(--good)}
+footer{border-top:1px solid var(--line);color:var(--muted);font-size:14px}
+footer .wrap{padding-block:18px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<header class="top"><div class="wrap">
+  <button class="logo" id="logo" type="button"><span class="logo-mark"><svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><path d="M3 9.5l3.6 3.6L15 4.7" fill="none" stroke="var(--accent-ink)" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span>Білімтест</button>
+  <div class="langs" role="group" aria-label="Language" id="langs"></div>
+</div></header>
+<main><div class="wrap" id="app"></div></main>
+<footer><div class="wrap" id="foot"></div></footer>
+
+<script>
+const DATA = /*DATA*/[];
+const LANGS = ["kk","ru","en"];
+const UI = {
+  kk:{h1:"4–11 сыныптарға арналған тегін тесттер",lede:"Сыныбыңды және пәнді таңда, тақырып бойынша тест тапсыр. Нәтиже бірден шығады, қателеріңді көресің.",grade:"Сынып",subjects:"Пәндер",topics:"тақырып",qs:"сұрақ",start:"Бастау",mixed:"Аралас тест",mixedHint:"барлық тақырыптан 10 сұрақ",all:"← Барлық пәндер",toTopics:"← Тақырыптар",question:"Сұрақ",next:"Келесі",finish:"Нәтижені көру",right:"Дұрыс!",wrong:"Қате. Дұрыс жауап:",result:"Нәтиже",retry:"Қайта тапсыру",nextTopic:"Келесі тақырып",best:"ең жақсы",yours:"Сенің жауабың",correct:"Дұрыс жауап",free:"Тегін, тіркелусіз. Нәтижелер тек осы құрылғыда сақталады.",subjCount:"пән",langCount:"тіл",onlyLang:{kk:"Бұл пәннің тесттері қазақ тілінде.",ru:"Бұл пәннің тесттері орыс тілінде.",en:"Бұл пәннің тесттері ағылшын тілінде."},msg:["Тақырыпты қайталап, тағы көр.","Жақсы, бірақ әлі де жетілдіруге болады.","Тамаша нәтиже!"],keys:"Пернетақта: 1–4 жауап, Enter келесі",gl:g=>g+"-сынып",gs:"сынып"},
+  ru:{h1:"Бесплатные тесты для 4–11 классов",lede:"Выбери класс и предмет, пройди тест по теме. Результат сразу, с разбором ошибок.",grade:"Класс",subjects:"Предметы",topics:"темы",qs:"вопросов",start:"Начать",mixed:"Смешанный тест",mixedHint:"10 вопросов из всех тем",all:"← Все предметы",toTopics:"← К темам",question:"Вопрос",next:"Дальше",finish:"Показать результат",right:"Верно!",wrong:"Неверно. Правильный ответ:",result:"Результат",retry:"Пройти ещё раз",nextTopic:"Следующая тема",best:"лучший",yours:"Твой ответ",correct:"Правильный ответ",free:"Бесплатно и без регистрации. Результаты хранятся только на этом устройстве.",subjCount:"предметов",langCount:"языка",onlyLang:{kk:"Тесты по этому предмету на казахском языке.",ru:"Тесты по этому предмету на русском языке.",en:"Тесты по этому предмету на английском языке."},msg:["Повтори тему и попробуй ещё раз.","Хорошо, но есть что подтянуть.","Отличный результат!"],keys:"Клавиатура: 1–4 ответ, Enter дальше",gl:g=>g+" класс",gs:"класс"},
+  en:{h1:"Free tests for grades 4–11",lede:"Pick your grade and subject, then take a test on any topic. You get your score right away, with every mistake explained.",grade:"Grade",subjects:"Subjects",topics:"topics",qs:"questions",start:"Start",mixed:"Mixed test",mixedHint:"10 questions from all topics",all:"← All subjects",toTopics:"← Topics",question:"Question",next:"Next",finish:"See result",right:"Correct!",wrong:"Wrong. The correct answer:",result:"Result",retry:"Try again",nextTopic:"Next topic",best:"best",yours:"Your answer",correct:"Correct answer",free:"Free, no sign-up. Results are saved only on this device.",subjCount:"subjects",langCount:"languages",onlyLang:{kk:"Tests for this subject are in Kazakh.",ru:"Tests for this subject are in Russian.",en:"Tests for this subject are in English."},msg:["Review the topic and try again.","Good, with room to improve.","Excellent result!"],keys:"Keyboard: 1–4 to answer, Enter for next",gl:g=>"Grade "+g,gs:"grade"}
+};
+const GRADES=[4,5,6,7,8,9,10,11];
+let st={lang:"kk",grade:5,view:"home",sid:null,quiz:null};
+let best={};
+try{const p=JSON.parse(localStorage.getItem("bt-prefs")||"{}");if(LANGS.includes(p.lang))st.lang=p.lang;if(GRADES.includes(p.grade))st.grade=p.grade;}catch(e){}
+try{best=JSON.parse(localStorage.getItem("bt-best")||"{}")||{};}catch(e){best={};}
+function save(){try{localStorage.setItem("bt-prefs",JSON.stringify({lang:st.lang,grade:st.grade}));localStorage.setItem("bt-best",JSON.stringify(best));}catch(e){}}
+const T=()=>UI[st.lang];
+function tx(v){let s=Array.isArray(v)?(v[LANGS.indexOf(st.lang)]??v[0]):String(v);if(st.lang==="en")s=s.replace(/(\d),(\d)/g,"$1.$2");return s;}
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));}
+const $=s=>document.querySelector(s);
+const subj=id=>DATA.find(s=>s.id===id);
+function shuffle(a){a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
+function badge(p){if(p==null)return"";const c=p>=90?"hi":p>=60?"mid":"lo";return `<span class="best ${c}">${T().best} ${p}%</span>`;}
+
+function renderLangs(){
+  $("#langs").innerHTML=LANGS.map(l=>`<button type="button" data-l="${l}" aria-pressed="${l===st.lang}">${l.toUpperCase()}</button>`).join("");
+  document.documentElement.lang=st.lang;
+  $("#foot").textContent=T().free;
+}
+function render(){renderLangs();({home:home,subject:subjectView,quiz:quizView,result:resultView})[st.view]();}
+
+function home(){
+  const t=T(), list=DATA.filter(s=>s.grades[st.grade]);
+  const totalQ=DATA.reduce((n,s)=>n+Object.values(s.grades).reduce((m,tp)=>m+tp.reduce((k,x)=>k+x[1].length,0),0),0);
+  $("#app").innerHTML=`<section class="hero"><h1>${t.h1}</h1><p class="lede">${t.lede}</p>
+  <div class="facts"><span><b>${DATA.length}</b> ${t.subjCount}</span><span><b>${totalQ}</b> ${t.qs}</span><span><b>3</b> ${t.langCount}: қазақша · русский · English</span></div></section>
+  <div class="label">${t.grade}</div>
+  <div class="grades" role="group" aria-label="${t.grade}">${GRADES.map(g=>`<button type="button" data-g="${g}" aria-pressed="${g===st.grade}"><span class="n">${g}</span><span class="s">${t.gs}</span></button>`).join("")}</div>
+  <div class="label" style="margin-bottom:10px">${t.subjects} · ${t.gl(st.grade)}</div>
+  <div class="subjects">${list.map(s=>{const tp=s.grades[st.grade];const q=tp.reduce((k,x)=>k+x[1].length,0);
+    return `<button type="button" class="subj" data-s="${s.id}"><span class="ic">${esc(s.icon)}</span><span class="nm">${esc(tx(s.name))}${s.lang&&s.lang!==st.lang?`<span class="tag">${s.lang.toUpperCase()}</span>`:""}</span><span class="mt">${tp.length} ${t.topics} · ${q} ${t.qs}</span></button>`}).join("")}</div>`;
+}
+
+function subjectView(){
+  const t=T(), s=subj(st.sid), tp=s.grades[st.grade];
+  $("#app").innerHTML=`<button type="button" class="back" data-go="home">${t.all}</button>
+  <div class="sub-head"><div><div class="kicker">${t.gl(st.grade)}</div><h2>${esc(tx(s.name))}</h2></div>
+  <button type="button" class="btn ghost" data-mix="1" title="${t.mixedHint}">${t.mixed} · 10 ${t.qs}</button></div>
+  ${s.lang&&s.lang!==st.lang?`<div class="note">${t.onlyLang[s.lang]}</div>`:""}
+  <ol class="topics">${tp.map((x,i)=>{const k=`${s.id}|${st.grade}|${i}`;
+    return `<li><span class="ix">${String(i+1).padStart(2,"0")}</span><span class="tt"><b>${esc(tx(x[0]))}</b><span>${x[1].length} ${t.qs}</span>${badge(best[k])}</span><button type="button" class="btn" data-t="${i}">${t.start}</button></li>`}).join("")}</ol>`;
+}
+
+function startQuiz(ti){
+  const s=subj(st.sid), tp=s.grades[st.grade];
+  let qs, title;
+  if(ti===-1){qs=shuffle(tp.flatMap(x=>x[1])).slice(0,10);title=null;}
+  else{qs=tp[ti][1];title=tp[ti][0];}
+  st.quiz={ti,title,i:0,picked:null,answers:[],items:qs.map(q=>({q:q[0],opts:shuffle(q.slice(1).map((o,j)=>({o,ok:j===0})))}))};
+  st.view="quiz";render();
+  const b=document.querySelector(".opt");if(b)b.focus();
+}
+
+function quizView(){
+  const t=T(), z=st.quiz, s=subj(st.sid), it=z.items[z.i], n=z.items.length;
+  const done=z.picked!==null;
+  $("#app").innerHTML=`<div class="quiz"><button type="button" class="back" data-go="subject">${t.toTopics}</button>
+  <div class="qmeta"><span>${esc(tx(s.name))} · ${esc(z.title?tx(z.title):t.mixed)}</span><span>${t.question} ${z.i+1} / ${n}</span></div>
+  <div class="bar"><i style="width:${((z.i+(done?1:0))/n)*100}%"></i></div>
+  ${qhtml(tx(it.q))}
+  <div class="opts">${it.opts.map((o,j)=>{let c="";if(done){if(o.ok)c="ok";else if(j===z.picked)c="no";}
+    return `<button type="button" class="opt ${c}" data-o="${j}" ${done?"disabled":""}><span class="k">${"ABCD"[j]}</span><span>${esc(tx(o.o))}</span></button>`}).join("")}</div>
+  <div class="fb ${done?(it.opts[z.picked].ok?"ok":"no"):""}" aria-live="polite">${done?(it.opts[z.picked].ok?t.right:`${t.wrong} ${esc(tx(it.opts.find(o=>o.ok).o))}`):""}</div>
+  <div class="qnav"><span class="label" style="text-transform:none;letter-spacing:0;font-weight:400">${t.keys}</span>
+  <button type="button" class="btn" id="nextq" ${done?"":"disabled"}>${z.i===n-1?t.finish:t.next}</button></div></div>`;
+}
+
+function qhtml(s){const i=s.indexOf("\n");if(i<0)return `<p class="qtext">${esc(s)}</p>`;
+  return `<p class="qtext">${esc(s.slice(0,i))}</p><pre class="code">${esc(s.slice(i+1))}</pre>`;}
+function pick(j){
+  const z=st.quiz;if(z.picked!==null)return;
+  z.picked=j;z.answers[z.i]=j;render();$("#nextq").focus();
+}
+function nextQ(){
+  const z=st.quiz;if(z.picked===null)return;
+  if(z.i<z.items.length-1){z.i++;z.picked=null;render();const b=document.querySelector(".opt");if(b)b.focus();}
+  else{
+    const sc=z.items.filter((it,k)=>it.opts[z.answers[k]].ok).length;
+    z.score=sc;z.pct=Math.round(sc/z.items.length*100);
+    if(z.ti>=0){const k=`${st.sid}|${st.grade}|${z.ti}`;best[k]=Math.max(best[k]??0,z.pct);save();}
+    st.view="result";render();window.scrollTo(0,0);
+  }
+}
+
+function resultView(){
+  const t=T(), z=st.quiz, s=subj(st.sid), tp=s.grades[st.grade];
+  const lvl=z.pct>=90?2:z.pct>=60?1:0;
+  const hasNext=z.ti>=0&&z.ti<tp.length-1;
+  $("#app").innerHTML=`<div class="quiz"><button type="button" class="back" data-go="subject">${t.toTopics}</button>
+  <div class="score"><div class="label">${t.result} · ${esc(z.title?tx(z.title):t.mixed)}</div>
+  <div class="big">${z.score}<small> / ${z.items.length}</small></div>
+  <div style="font-size:19px;font-weight:700;color:${["var(--bad)","var(--gold)","var(--good)"][lvl]}">${z.pct}% · ${t.msg[lvl]}</div></div>
+  <div class="actions"><button type="button" class="btn" data-retry="1">${t.retry}</button>${hasNext?`<button type="button" class="btn ghost" data-t="${z.ti+1}">${t.nextTopic}</button>`:""}<button type="button" class="btn ghost" data-go="subject">${t.toTopics.replace("← ","")}</button></div>
+  <ol class="review">${z.items.map((it,k)=>{const a=it.opts[z.answers[k]],ok=a.ok,r=it.opts.find(o=>o.ok);
+    return `<li class="${ok?"ok":"no"}"><b>${k+1}. ${esc(tx(it.q))}</b>${ok?`<span class="right">✓ ${esc(tx(r.o))}</span>`:`<span class="yours">✗ ${t.yours}: ${esc(tx(a.o))}</span><br><span class="right">✓ ${t.correct}: ${esc(tx(r.o))}</span>`}</li>`}).join("")}</ol></div>`;
+}
+
+document.addEventListener("click",e=>{
+  const b=e.target.closest("button");if(!b)return;
+  if(b.id==="logo"){st.view="home";render();return;}
+  if(b.dataset.l){st.lang=b.dataset.l;save();render();return;}
+  if(b.dataset.g){st.grade=+b.dataset.g;save();render();return;}
+  if(b.dataset.s){st.sid=b.dataset.s;st.view="subject";render();window.scrollTo(0,0);return;}
+  if(b.dataset.go){st.view=b.dataset.go;render();return;}
+  if(b.dataset.mix){startQuiz(-1);return;}
+  if(b.dataset.t!==undefined){startQuiz(+b.dataset.t);return;}
+  if(b.dataset.retry){startQuiz(st.quiz.ti);return;}
+  if(b.dataset.o!==undefined){pick(+b.dataset.o);return;}
+  if(b.id==="nextq"){nextQ();return;}
+});
+document.addEventListener("keydown",e=>{
+  if(st.view!=="quiz"||e.altKey||e.ctrlKey||e.metaKey)return;
+  if(/^[1-4]$/.test(e.key)){const j=+e.key-1;if(j<st.quiz.items[st.quiz.i].opts.length){e.preventDefault();pick(j);}}
+  else if(e.key==="Enter"&&st.quiz.picked!==null&&document.activeElement?.id!=="nextq"){e.preventDefault();nextQ();}
+});
+render();
+</script>

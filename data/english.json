@@ -1,0 +1,161 @@
+{"id":"english","icon":"Aa","lang":"en","name":["Ағылшын тілі","Английский язык","English"],"grades":{
+"4":[
+ [["Present Simple","Present Simple","Present Simple"],[
+  ["She ___ to school every day.","goes","go","going","gone"],
+  ["I ___ like milk.","don't","doesn't","isn't","not"],
+  ["___ he play football?","Does","Do","Is","Are"],
+  ["My cat ___ fish.","eats","eat","eating","is eat"],
+  ["They ___ in Astana.","live","lives","living","is live"]]],
+ [["Отбасы және жануарлар","Семья и животные","Family and animals"],[
+  ["My mother's mother is my ___.","grandmother","aunt","sister","cousin"],
+  ["My father's brother is my ___.","uncle","grandfather","cousin","nephew"],
+  ["Which animal can fly?","an eagle","a horse","a fish","a camel"],
+  ["Which animal lives in the sea?","a dolphin","a wolf","a sheep","a fox"],
+  ["A baby cat is a ___.","kitten","puppy","calf","foal"]]],
+ [["Көпше түр және сөз алды","Множественное число и предлоги","Plurals and prepositions"],[
+  ["one child — two ___","children","childs","childrens","child"],
+  ["one mouse — three ___","mice","mouses","mices","mouse"],
+  ["one box — two ___","boxes","boxs","box","boxies"],
+  ["The ball is ___ the table. (on top)","on","in","at","into"],
+  ["I was born ___ May.","in","on","at","to"]]]
+],
+"5":[
+ [["Present Continuous","Present Continuous","Present Continuous"],[
+  ["Look! The children ___ in the park.","are playing","play","plays","is playing"],
+  ["I ___ my homework now.","am doing","do","does","doing"],
+  ["___ she sleeping?","Is","Are","Does","Do"],
+  ["He ___ TV at the moment.","isn't watching","don't watch","not watching","aren't watching"],
+  ["Which word is a time marker for Present Continuous?","now","every day","yesterday","usually"]]],
+ [["Past Simple","Past Simple","Past Simple"],[
+  ["Yesterday I ___ to the cinema.","went","go","goes","going"],
+  ["She ___ a new dress last week.","bought","buyed","buy","buys"],
+  ["___ you see the film yesterday?","Did","Do","Were","Was"],
+  ["We ___ at home last Sunday.","were","was","are","is"],
+  ["The past form of \"write\" is:","wrote","writed","written","writes"]]],
+ [["Модаль етістіктер: can, must","Модальные глаголы can, must","Modals: can, must"],[
+  ["I ___ swim very well.","can","must to","cans","am can"],
+  ["You ___ wear a seat belt in the car. It's the rule.","must","can","may not","needn't to"],
+  ["___ you speak Kazakh?","Can","Do can","Are","Must you to"],
+  ["Students ___ use phones in exams. It is not allowed.","mustn't","must","can","have"],
+  ["She can ___ the piano.","play","plays","to play","playing"]]]
+],
+"6":[
+ [["Сын есімнің шырайлары","Степени сравнения прилагательных","Comparatives and superlatives"],[
+  ["An elephant is ___ than a horse.","bigger","more big","biggest","the bigger"],
+  ["This is the ___ day of the year.","hottest","hotter","most hot","hotest"],
+  ["My test was ___ than yours.","better","gooder","best","more good"],
+  ["English is ___ than Maths for me.","more interesting","interestinger","most interesting","the more interesting"],
+  ["He is the ___ student in our class.","tallest","taller","most tall","tall"]]],
+ [["Келер шақ: will және going to","Будущее время: will и going to","Future: will and going to"],[
+  ["Look at those clouds! It ___ rain.","is going to","will to","goes","rains"],
+  ["I think she ___ win the competition.","will","is going","goes to","would to"],
+  ["We ___ visit our grandparents next weekend. We bought tickets.","are going to","will to","going","goes to"],
+  ["\"The phone is ringing.\" — \"I ___ answer it.\"","'ll","am going","going to","'m answer"],
+  ["What ___ you do tomorrow?","will","are","do","did"]]],
+ [["Саналатын және саналмайтын зат есімдер","Исчисляемые и неисчисляемые","Countable and uncountable nouns"],[
+  ["How ___ water do you drink?","much","many","a lot","few"],
+  ["How ___ apples are there?","many","much","little","a little"],
+  ["There isn't ___ milk in the fridge.","any","some","many","a"],
+  ["Can I have ___ bread, please?","some","any","many","a"],
+  ["Which noun is uncountable?","information","book","chair","pencil"]]]
+],
+"7":[
+ [["Present Perfect","Present Perfect","Present Perfect"],[
+  ["I have ___ this book already.","read","readed","reading","reads"],
+  ["___ you ever been to London?","Have","Did","Are","Has"],
+  ["She ___ lived here since 2020.","has","have","is","did"],
+  ["We have known each other ___ five years.","for","since","from","during"],
+  ["He hasn't finished his project ___.","yet","already","ever","ago"]]],
+ [["Past Continuous","Past Continuous","Past Continuous"],[
+  ["I ___ dinner when you called.","was having","had","have","am having"],
+  ["They ___ football at 5 pm yesterday.","were playing","was playing","played at","are playing"],
+  ["What ___ you doing at 8 o'clock last night?","were","was","did","are"],
+  ["While she was reading, the lights ___ out.","went","were going","go","was going"],
+  ["It ___ raining when we left.","was","were","is","did"]]],
+ [["Модаль етістіктер","Модальные глаголы","Modal verbs"],[
+  ["You ___ see a doctor. You look ill.","should","shouldn't","can't","mustn't"],
+  ["___ I open the window?","May","Must","Should to","Have"],
+  ["You ___ to wear a uniform at our school. It's compulsory.","have","must","should","can"],
+  ["She ___ be at home — her car is outside.","must","can't","mustn't","needn't"],
+  ["You ___ bring food. We have plenty.","don't have to","mustn't","can't","shouldn't to"]]]
+],
+"8":[
+ [["Ырықсыз етіс","Страдательный залог","Passive voice"],[
+  ["English ___ all over the world.","is spoken","speaks","is speaking","spoken"],
+  ["This bridge ___ in 1990.","was built","built","is building","has build"],
+  ["The letters ___ tomorrow.","will be sent","will send","are sent yesterday","sent"],
+  ["The cake ___ by my mother.","was made","made","was make","is making"],
+  ["A new school ___ in our town now.","is being built","is built","builds","was building"]]],
+ [["Шартты сөйлемдер (0 және 1)","Условные предложения (0 и 1)","Conditionals (zero and first)"],[
+  ["If you heat ice, it ___.","melts","will melted","melted","melting"],
+  ["If it rains tomorrow, we ___ at home.","will stay","stay","stayed","would stay"],
+  ["If you ___ hard, you will pass the exam.","study","will study","studied","studies"],
+  ["Water boils if you ___ it to 100°C.","heat","will heat","heated","heating"],
+  ["She will be late unless she ___ now.","leaves","will leave","left","leave"]]],
+ [["Фразалық етістіктер","Фразовые глаголы","Phrasal verbs"],[
+  ["Please ___ your coat. It's cold.","put on","put off","take off","turn on"],
+  ["Can you ___ the music? It's too loud.","turn down","turn up","turn on","turn into"],
+  ["I ___ my keys everywhere but couldn't find them.","looked for","looked after","looked up","looked like"],
+  ["She ___ her little brother when her parents are out.","looks after","looks for","gives up","finds out"],
+  ["He decided to ___ smoking.","give up","give in","give away","give out"]]]
+],
+"9":[
+ [["Төлеу сөз","Косвенная речь","Reported speech"],[
+  ["He said, \"I am tired.\" → He said that he ___ tired.","was","is","were","has been"],
+  ["She said, \"I will call you.\" → She said she ___ call me.","would","will","shall","can"],
+  ["\"Where do you live?\" → He asked me where I ___.","lived","do live","live","did live"],
+  ["\"Don't touch it!\" → She told me ___ it.","not to touch","don't touch","to not touching","not touch"],
+  ["He said, \"I saw her yesterday.\" → He said he had seen her ___.","the day before","yesterday","tomorrow","today"]]],
+ [["Шартты сөйлемдер (2 және 3)","Условные предложения (2 и 3)","Conditionals (second and third)"],[
+  ["If I ___ rich, I would travel the world.","were","am","will be","have been"],
+  ["If she had studied, she ___ the exam.","would have passed","would pass","will pass","passed"],
+  ["What would you do if you ___ a million dollars?","won","win","will win","had won"],
+  ["If I had known, I ___ you.","would have told","would tell","told","will tell"],
+  ["Which sentence is a second conditional?","If I had time, I would help you.","If I have time, I will help you.","If you heat water, it boils.","If I had had time, I would have helped."]]],
+ [["Анықтауыш бағыныңқы сөйлемдер","Определительные придаточные","Relative clauses"],[
+  ["The man ___ lives next door is a doctor.","who","which","whose","where"],
+  ["This is the book ___ I told you about.","that","who","whose","where"],
+  ["That's the house ___ I was born.","where","which","who","whose"],
+  ["She is the girl ___ father is a pilot.","whose","who","which","whom her"],
+  ["Astana, ___ is the capital of Kazakhstan, is a modern city.","which","that","who","where"]]]
+],
+"10":[
+ [["Perfect Continuous шақтары","Времена Perfect Continuous","Perfect continuous tenses"],[
+  ["I ___ for two hours and I'm still not finished.","have been working","worked","am working","had worked"],
+  ["She was tired because she ___ all day.","had been running","has been running","ran","is running"],
+  ["How long ___ you been learning English?","have","did","are","had been"],
+  ["By next June, I ___ here for ten years.","will have been working","will work","am working","have worked"],
+  ["It ___ raining since morning.","has been","have been","is","was been"]]],
+ [["Герундий және инфинитив","Герундий и инфинитив","Gerunds and infinitives"],[
+  ["I enjoy ___ books.","reading","to read","read","reads"],
+  ["She decided ___ abroad.","to study","studying","study","studied"],
+  ["He is good at ___.","swimming","swim","to swim","swims"],
+  ["I'm looking forward to ___ you.","seeing","see","to see","saw"],
+  ["They want ___ a new car.","to buy","buying","buy","bought"]]],
+ [["Сөзжасам","Словообразование","Word formation"],[
+  ["Choose the noun: She has a lot of ___. (KNOW)","knowledge","knowable","knowing","knowly"],
+  ["Choose the adjective: It was a ___ trip. (WONDER)","wonderful","wonderly","wonderness","wondering"],
+  ["Choose the opposite: possible → ___","impossible","unpossible","dispossible","inpossible"],
+  ["Choose the noun: the ___ of the city (POPULATE)","population","populary","populating","populate"],
+  ["Choose the adverb: He drove ___. (CARE)","carefully","careful","careless","caring"]]]
+],
+"11":[
+ [["Wish және аралас шартты сөйлемдер","Wish и смешанные условные","Wishes and mixed conditionals"],[
+  ["I wish I ___ taller.","were","am","will be","have been"],
+  ["I wish I ___ so much yesterday. I feel sick now.","hadn't eaten","didn't eat","haven't eaten","wouldn't eat"],
+  ["If I had taken the job, I ___ in Paris now.","would be living","would have lived","will live","lived"],
+  ["She wishes she ___ speak French.","could","can","will","is able"],
+  ["If only it ___ raining!","would stop","stops","will stop","has stopped"]]],
+ [["Инверсия","Инверсия","Inversion"],[
+  ["Never ___ such a beautiful place.","have I seen","I have seen","I saw","seen I have"],
+  ["Not only ___ the exam, but she also got the highest score.","did she pass","she passed","she did pass","passed she"],
+  ["Hardly ___ arrived when it started to rain.","had we","we had","we have","did we had"],
+  ["Rarely ___ late for work.","is he","he is","does he is","he was"],
+  ["Only then ___ the truth.","did I realise","I realised","I did realise","realised I"]]],
+ [["Байланыстырғыш сөздер","Слова-связки","Linking words"],[
+  ["It was raining. ___, we went for a walk.","Nevertheless","Because","Therefore","So that"],
+  ["He was ill, ___ he didn't go to school.","so","although","despite","however"],
+  ["___ the bad weather, the match went ahead.","Despite","Although","However","Because"],
+  ["___ she was tired, she finished her essay.","Although","Despite","In spite","Moreover"],
+  ["The project is useful. ___, it is cheap.","Moreover","However","Although","Despite"]]]
+]}}
