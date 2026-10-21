@@ -8,14 +8,20 @@
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "test": "vitest run",
-    "check": "tsc -b"
+    "check": "tsc -b",
+    "test:db": "vitest run --mode cloud",
+    "db:push": "tsx scripts/db-push.ts",
+    "import": "tsx scripts/import-json.ts",
+    "make-admin": "tsx scripts/make-admin.ts"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.118.0",
     "katex": "^0.19.0",
     "react": "^19.3.1",
     "react-dom": "^19.3.1"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.11",
     "@testing-library/react": "^16.3.3",
     "@testing-library/user-event": "^14.6.8",
     "@types/katex": "^0.16.8",
@@ -24,6 +30,9 @@
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.1.2",
     "jsdom": "^30.1.3",
+    "postgres": "^3.4.9",
+    "supabase": "^2.121.0",
+    "tsx": "^4.23.15",
     "typescript": "^7.0.2",
     "vite": "^8.3.5",
     "vitest": "^5.0.5"

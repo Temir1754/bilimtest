@@ -2,11 +2,17 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 
-export default defineConfig({
-  plugins: [react()],
-  build: { target: "es2020" },
-  test: {
-    environment: "jsdom",
-    include: ["tests/**/*.test.{ts,tsx}"],
-  },
+// npm test — быстрые тесты без интернета; npm run test:db (режим cloud) — тесты на тестовом проекте Supabase.
+export default defineConfig(({ mode }) => {
+  const cloud = mode === "cloud";
+  return {
+    plugins: [react()],
+    build: { target: "es2020" },
+    test: {
+      environment: cloud ? "node" : "jsdom",
+      include: cloud ? ["tests/cloud/**/*.test.ts"] : ["tests/**/*.test.{ts,tsx}"],
+      exclude: cloud ? [] : ["tests/cloud/**", "node_modules/**"],
+      fileParallelism: !cloud,
+    },
+  };
 });
