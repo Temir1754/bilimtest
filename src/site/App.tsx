@@ -117,12 +117,22 @@ export function App({ source }: { source: DataSource }) {
           </span>
           Білімтест
         </button>
-        <div className="langs" role="group" aria-label="Language">
-          {LANGS.map((l: Lang) => (
-            <button key={l} type="button" aria-pressed={l === lang} onClick={() => updatePrefs({ lang: l })}>
-              {l.toUpperCase()}
-            </button>
-          ))}
+        <div className="top-right">
+          <div className="langs" role="group" aria-label="Language">
+            {LANGS.map((l: Lang) => (
+              <button key={l} type="button" aria-pressed={l === lang} onClick={() => updatePrefs({ lang: l })}>
+                {l.toUpperCase()}
+              </button>
+            ))}
+          </div>
+          {/* Вход в админку для учителей и админа; та же иконка, что у вкладки админки */}
+          <a className="staff" href="/admin" title={t.staff} aria-label={t.staff}>
+            <svg width="22" height="22" viewBox="0 0 30 30" aria-hidden="true">
+              <path d="M8.5 21.5l1-4.2 9.6-9.6a2.2 2.2 0 0 1 3.1 3.1l-9.6 9.6z" fill="none" stroke="currentColor"
+                strokeWidth="2.6" strokeLinejoin="round" />
+              <path d="M17.2 9.6l3.2 3.2" stroke="currentColor" strokeWidth="2.6" />
+            </svg>
+          </a>
         </div>
       </div></header>
       <main id="main"><div className="wrap">{body}</div></main>

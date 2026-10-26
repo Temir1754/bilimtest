@@ -60,5 +60,6 @@ describe("сайт ученика", () => {
     await user.click(await screen.findByRole("button", { name: "EN" }));
     expect(screen.getByText("Free tests for grades 4–11")).toBeTruthy();
     expect(JSON.parse(localStorage.getItem("bt-prefs")!).lang).toBe("en");
+    expect(screen.getByRole("link", { name: "Teacher login" }).getAttribute("href")).toBe("/admin");
   });
 });

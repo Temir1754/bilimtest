@@ -20,6 +20,7 @@ const kk = {
   gl: (g: number) => g + "-сынып", gs: "сынып",
   loading: "Жүктелуде…", loadError: "Деректерді жүктеу мүмкін болмады. Бетті жаңартып көріңіз.",
   skip: "Мазмұнға өту",
+  staff: "Мұғалімдерге кіру",
 };
 
 export type UiText = typeof kk;
@@ -43,6 +44,7 @@ const ru: UiText = {
   gl: (g) => g + " класс", gs: "класс",
   loading: "Загрузка…", loadError: "Не удалось загрузить данные. Попробуйте обновить страницу.",
   skip: "Перейти к содержимому",
+  staff: "Вход для учителей",
 };
 
 const en: UiText = {
@@ -64,6 +66,7 @@ const en: UiText = {
   gl: (g) => "Grade " + g, gs: "grade",
   loading: "Loading…", loadError: "Could not load data. Try refreshing the page.",
   skip: "Skip to content",
+  staff: "Teacher login",
 };
 
 export const UI: Record<Lang, UiText> = { kk, ru, en };

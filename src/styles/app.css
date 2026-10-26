@@ -113,3 +113,14 @@ footer .wrap{padding-block:18px}
 .qimg{display:block;max-width:100%;height:auto;border-radius:var(--r);border:1px solid var(--line);margin:-6px 0 20px}
 .katex{font-size:1.05em}
 .katex-display{margin:.4em 0;overflow-x:auto;overflow-y:hidden}
+/* Значок входа для учителей рядом с языками; золотой, как метка админки */
+.top-right{display:flex;align-items:center;gap:8px}
+.staff{width:36px;height:36px;border-radius:50%;border:1px solid var(--line);background:var(--bg);color:var(--gold);display:grid;place-items:center;transition:border-color .15s,background .15s}
+.staff:hover{border-color:var(--gold);background:var(--gold-soft)}
+/* Узкий телефон: логотип, языки и значок помещаются в одну строку */
+@media (max-width:400px){
+  .logo{font-size:17px;gap:8px}
+  .langs button{padding:5px 9px}
+  .top-right{gap:6px}
+  .staff{width:32px;height:32px}
+}
