@@ -34,6 +34,8 @@ export function QuizView({ quiz, index, heading, lang, t, onBack, onPick, onNext
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (e.altKey || e.ctrlKey || e.metaKey) return;
+      // Не мешаем печатать: в админке предпросмотр стоит рядом с полями ввода.
+      if (e.target instanceof Element && e.target.closest("input, textarea, select")) return;
       if (/^[1-4]$/.test(e.key)) {
         const j = +e.key - 1;
         if (j < item.options.length) { e.preventDefault(); onPick(j); }

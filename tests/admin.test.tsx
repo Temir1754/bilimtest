@@ -1,0 +1,141 @@
+import { cleanup, render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { AdminApp } from "../src/admin/AdminApp";
+import type { AdminApi, Me, QuestionItem, SubjectRow, TopicRow } from "../src/admin/api";
+import type { QuestionRow, toPayload } from "../src/admin/form";
+
+// Заглушка базы в памяти: проверяем экраны админки без Supabase.
+function fakeApi(me: Me | null) {
+  const subjects: SubjectRow[] = [
+    { id: "s1", slug: "math", icon: "π", name_kk: "Математика", name_ru: "Математика", name_en: "Math", only_lang: null, sort_order: 0 },
+  ];
+  const topics: TopicRow[] = [
+    { id: "t1", subject_id: "s1", grade: 5, title_kk: "Бөлшек", title_ru: "Дроби", title_en: "Fractions", sort_order: 0 },
+  ];
+  const questions: QuestionRow[] = [{
+    id: "q1", topic_id: "t1", text_kk: "2+2?", text_ru: "2+2?", text_en: "2+2?",
+    explanation_kk: null, explanation_ru: null, explanation_en: null, image_url: null, difficulty: 2,
+    status: "review", review_comment: null, author_id: "teacher",
+    options: ["4", "5", "6"].map((s, i) => ({ sort_order: i, is_correct: i === 0, text_kk: s, text_ru: s, text_en: s })),
+  }];
+  let user = me;
+  const saved: ReturnType<typeof toPayload>[] = [];
+  const api: AdminApi = {
+    async me() { return user; },
+    onAuthChange: () => () => {},
+    async signIn(email, password) {
+      if (password !== "secret") throw new Error("Invalid login credentials");
+      user = { id: "admin", email, role: "admin" };
+    },
+    async signOut() { user = null; },
+    async subjects() { return subjects; },
+    async saveSubject() {},
+    async deleteSubject() {},
+    async topics(s, g) { return topics.filter((t) => t.subject_id === s && t.grade === g); },
+    async topic(id) { return topics.find((t) => t.id === id)!; },
+    async counts() { return { t1: { draft: 0, review: 1, published: 0 } }; },
+    async saveTopic() {},
+    async deleteTopic() {},
+    async questions(f) {
+      return questions.filter((q) => (!f.topicId || q.topic_id === f.topicId) && (!f.status || q.status === f.status))
+        .map((q) => ({ ...q, updated_at: "", topics: topics[0] })) as QuestionItem[];
+    },
+    async question(id) { return questions.find((q) => q.id === id)!; },
+    saveQuestion: vi.fn(async (p: ReturnType<typeof toPayload>) => {
+      saved.push(p);
+      const q = questions.find((x) => x.id === p.p_id)!;
+      Object.assign(q, p.p_q, { options: p.p_options.map((o, i) => ({ ...o, sort_order: i })) });
+      return q.id;
+    }),
+    async deleteQuestion() {},
+    async uploadImage() { return "https://img/x.png"; },
+  };
+  return { api, saved };
+}
+
+beforeEach(() => {
+  sessionStorage.clear();
+  sessionStorage.setItem("bt-admin", JSON.stringify({ grade: 5, subjectId: "s1", topicId: "t1" }));
+});
+afterEach(cleanup);
+
+describe("админка", () => {
+  it("вход: неверный пароль — понятная ошибка; верный — открывает список вопросов", async () => {
+    const user = userEvent.setup();
+    render(<AdminApp api={fakeApi(null).api} />);
+    await user.type(await screen.findByLabelText("Email"), "me@school.kz");
+    await user.type(screen.getByLabelText("Пароль"), "wrong");
+    await user.click(screen.getByRole("button", { name: "Войти" }));
+    expect(await screen.findByText("Неверный email или пароль.")).toBeTruthy();
+
+    await user.clear(screen.getByLabelText("Пароль"));
+    await user.type(screen.getByLabelText("Пароль"), "secret");
+    await user.click(screen.getByRole("button", { name: "Войти" }));
+    expect(await screen.findByRole("button", { name: /2\+2\?/ })).toBeTruthy();
+  });
+
+  it("ученику админка недоступна", async () => {
+    render(<AdminApp api={fakeApi({ id: "s", email: "kid@x.kz", role: "student" }).api} />);
+    expect(await screen.findByText(/нет доступа к админке/)).toBeTruthy();
+  });
+
+  it("учитель не видит «Опубликовать» и раздел «На проверке»", async () => {
+    const user = userEvent.setup();
+    render(<AdminApp api={fakeApi({ id: "teacher", email: "t@x.kz", role: "teacher" }).api} />);
+    await user.click(await screen.findByRole("button", { name: /2\+2\?/ }));
+    await screen.findByRole("button", { name: "Сохранить" });
+    expect(screen.queryByRole("button", { name: "Опубликовать" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "На проверке" })).toBeNull();
+  });
+
+  it("админ публикует вопрос из очереди проверки, сменив правильный ответ", async () => {
+    const user = userEvent.setup();
+    const { api, saved } = fakeApi({ id: "admin", email: "a@x.kz", role: "admin" });
+    render(<AdminApp api={api} />);
+    await user.click(await screen.findByRole("button", { name: "На проверке" }));
+    await user.click(await screen.findByRole("button", { name: /2\+2\?/ }));
+    await user.click(await screen.findByLabelText("Вариант B правильный"));
+    await user.click(screen.getByRole("button", { name: "Опубликовать" }));
+    expect(await screen.findByText("Опубликовано.")).toBeTruthy();
+    expect(saved[0].p_q.status).toBe("published");
+    expect(saved[0].p_options.map((o) => o.is_correct)).toEqual([false, true, false]);
+  });
+
+  it("неполный вопрос не отправляется в базу при публикации", async () => {
+    const user = userEvent.setup();
+    const { api } = fakeApi({ id: "admin", email: "a@x.kz", role: "admin" });
+    render(<AdminApp api={api} />);
+    await user.click(await screen.findByRole("button", { name: /2\+2\?/ }));
+    await user.click(await screen.findByRole("tab", { name: /EN/ }));
+    await user.clear(screen.getByLabelText("Вариант C (EN)"));
+    await user.click(screen.getByRole("button", { name: "Опубликовать" }));
+    const alert = await screen.findByRole("alert");
+    expect(within(alert).getByText("Нет текста варианта C на английском языке.")).toBeTruthy();
+    expect(api.saveQuestion).not.toHaveBeenCalled();
+  });
+
+  it("вернуть на доработку можно только с комментарием", async () => {
+    const user = userEvent.setup();
+    const { api, saved } = fakeApi({ id: "admin", email: "a@x.kz", role: "admin" });
+    render(<AdminApp api={api} />);
+    await user.click(await screen.findByRole("button", { name: /2\+2\?/ }));
+    const back = await screen.findByRole("button", { name: "Вернуть на доработку" });
+    expect((back as HTMLButtonElement).disabled).toBe(true);
+    await user.type(screen.getByLabelText(/Комментарий для учителя/), "Добавьте пояснение");
+    await user.click(back);
+    expect(await screen.findByText("Вопрос возвращён учителю на доработку.")).toBeTruthy();
+    expect(saved[0].p_q).toMatchObject({ status: "draft", review_comment: "Добавьте пояснение" });
+  });
+
+  it("предпросмотр показывает вопрос глазами ученика", async () => {
+    const user = userEvent.setup();
+    render(<AdminApp api={fakeApi({ id: "admin", email: "a@x.kz", role: "admin" }).api} />);
+    await user.click(await screen.findByRole("button", { name: /2\+2\?/ }));
+    await user.click(await screen.findByRole("button", { name: /Предпросмотр/ }));
+    const opts = screen.getAllByRole("button").filter((b) => b.classList.contains("opt"));
+    expect(opts.map((b) => b.textContent)).toEqual(["A4", "B5", "C6"]);
+    await user.click(opts[1]);
+    expect(await screen.findByText(/Қате/)).toBeTruthy();
+  });
+});

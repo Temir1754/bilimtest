@@ -198,6 +198,66 @@ describe("правила доступа", () => {
   });
 });
 
+describe("сохранение вопроса из админки (save_question)", () => {
+  const opts = (correct: number, n = 4) => JSON.stringify(Array.from({ length: n }, (_, i) => ({
+    text_kk: `в${i}`, text_ru: `в${i}`, text_en: `o${i}`, is_correct: i === correct })));
+  const full = (status: string, extra = {}) => JSON.stringify({
+    topic_id: topicId, text_kk: "С", text_ru: "В", text_en: "Q", status, ...extra });
+  const save = (who: keyof typeof ids, id: string | null, q: string, o: string) =>
+    as(who, (x) => x<{ id: string }>("select public.save_question($1, $2::jsonb, $3::jsonb) as id", [id, q, o]))
+      .then((r) => r[0].id);
+  const optionsOf = (id: string) => db.query<{ id: string; is_correct: boolean; text_ru: string }>(
+    "select id, is_correct, text_ru from public.options where question_id = $1 order by sort_order", [id])
+    .then((r) => r.rows);
+
+  it("учитель создаёт черновик, даже незаконченный; публиковать не может", async () => {
+    const id = await save("teacherA", null, JSON.stringify({ topic_id: topicId, text_ru: "Только начал" }), "[]");
+    expect((await one<{ status: string }>("select status from public.questions where id = $1", [id]))!.status)
+      .toBe("draft");
+    await expect(save("teacherA", null, full("published"), opts(0))).rejects.toThrow(/row-level security/);
+    await expect(save("teacherA", id, full("published"), opts(0))).rejects.toThrow(/row-level security/);
+  });
+
+  it("учитель не меняет чужие и опубликованные вопросы; ученик не сохраняет ничего", async () => {
+    const id = await save("teacherA", null, full("draft"), opts(0));
+    await expect(save("teacherB", id, full("draft"), opts(1))).rejects.toThrow(/не найден или нет прав/);
+    const pub = (await one<{ id: string }>("select id from public.questions where legacy_key = 'math|5|0|2'"))!.id;
+    await expect(save("teacherA", pub, full("draft"), opts(0))).rejects.toThrow(/не найден или нет прав/);
+    await expect(save("student", null, full("draft"), opts(0))).rejects.toThrow(/row-level security/);
+  });
+
+  it("админ меняет правильный ответ у опубликованного вопроса; id вариантов сохраняются", async () => {
+    const id = await save("admin", null, full("published"), opts(0));
+    const before = await optionsOf(id);
+    await save("admin", id, full("published"), opts(2));
+    const after = await optionsOf(id);
+    expect(after.map((o) => o.is_correct)).toEqual([false, false, true, false]);
+    expect(after.map((o) => o.id)).toEqual(before.map((o) => o.id));
+    const h = await one<{ snapshot: { options: { is_correct: boolean }[] } }>(
+      "select snapshot from public.question_history where question_id = $1 order by created_at desc limit 1", [id]);
+    expect(h!.snapshot.options.map((o) => o.is_correct)).toEqual([true, false, false, false]);
+  });
+
+  it("лишние варианты удаляются; неполный вопрос не публикуется", async () => {
+    const id = await save("admin", null, full("draft"), opts(0));
+    await save("admin", id, full("draft"), opts(0, 3));
+    expect(await optionsOf(id)).toHaveLength(3);
+    await expect(save("admin", id, full("published"), opts(0, 2))).rejects.toThrow(/3–4 варианта/);
+    await expect(save("admin", id, full("published", { text_en: "" }), opts(0))).rejects.toThrow(/на языке en/);
+    await expect(save("admin", id, full("draft"), opts(0, 5))).rejects.toThrow(/не больше 4/);
+  });
+
+  it("комментарий проверки пишет админ, учитель его не стирает; при публикации он очищается", async () => {
+    const id = await save("teacherA", null, full("review"), opts(0));
+    await save("admin", id, full("draft", { review_comment: "Исправьте вариант B" }), opts(0));
+    await save("teacherA", id, full("review", { review_comment: "" }), opts(0));
+    const c = () => one<{ review_comment: string | null }>("select review_comment from public.questions where id = $1", [id]);
+    expect((await c())!.review_comment).toBe("Исправьте вариант B");
+    await save("admin", id, full("published"), opts(0));
+    expect((await c())!.review_comment).toBeNull();
+  });
+});
+
 describe("функции для учеников", () => {
   it("попытка: база сама считает верные ответы и статистику", async () => {
     const qs = (await db.query<{ qid: string; right: string; wrong: string }>(`

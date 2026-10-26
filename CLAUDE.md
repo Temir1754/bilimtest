@@ -11,6 +11,7 @@
 | Путь | Что там |
 |---|---|
 | `src/site/` | Экраны ученика: App, Home, SubjectView, QuizView, ResultView |
+| `src/admin/` | Админка (/admin, отдельный файл сборки): вход, дерево тем, форма вопроса, проверка; свои стили в `admin.css` |
 | `src/lib/` | Модель данных (`types.ts`), логика теста (`quiz.ts`), старый формат JSON (`legacy.ts`), источники данных, localStorage |
 | `src/components/` | Общие компоненты (Rich — текст с формулами) |
 | `src/i18n/ui.ts` | Тексты интерфейса kk/ru/en |
