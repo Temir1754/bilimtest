@@ -2,6 +2,9 @@ import { describe, expect, it } from "vitest";
 import {
   canEdit, copyFromRu, fromRow, newForm, publishProblems, saveProblems, toPayload, toQuestion, type QuestionRow,
 } from "../src/admin/form";
+import { ADMIN } from "../src/i18n/admin";
+
+const T = ADMIN.ru;
 
 const row: QuestionRow = {
   id: "q1", topic_id: "t1", text_kk: "Сұрақ", text_ru: "Вопрос", text_en: null,
@@ -27,20 +30,20 @@ describe("форма вопроса", () => {
 
   it("перед публикацией находит то же, что проверяет база", () => {
     const f = fromRow(row);
-    expect(publishProblems(f, null)).toEqual([
+    expect(publishProblems(f, null, T)).toEqual([
       "Нет текста вопроса на английском языке.",
       "Нет текста варианта A, B, C на английском языке.",
     ]);
     // У языкового предмета (русский язык) нужен только русский.
-    expect(publishProblems(f, "ru")).toEqual([]);
+    expect(publishProblems(f, "ru", T)).toEqual([]);
     const two = { ...f, options: f.options.slice(0, 2).map((o) => ({ ...o, correct: false })) };
-    expect(publishProblems(two, "ru")).toEqual(["Нужно 3 или 4 варианта ответа, сейчас 2.", "Отметьте ровно один правильный ответ."]);
+    expect(publishProblems(two, "ru", T)).toEqual(["Нужно 3 или 4 варианта ответа, сейчас 2.", "Отметьте ровно один правильный ответ."]);
   });
 
   it("черновик можно сохранить незаконченным, но не пустым", () => {
     const f = newForm("t1");
-    expect(saveProblems(f)).toEqual(["Напишите текст вопроса хотя бы на одном языке."]);
-    expect(saveProblems({ ...f, text: { kk: "", ru: "x", en: "" } })).toEqual([]);
+    expect(saveProblems(f, T)).toEqual(["Напишите текст вопроса хотя бы на одном языке."]);
+    expect(saveProblems({ ...f, text: { kk: "", ru: "x", en: "" } }, T)).toEqual([]);
   });
 
   it("«Скопировать из русского» заполняет только пустые поля", () => {

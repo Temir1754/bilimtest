@@ -1,5 +1,6 @@
 // Форма вопроса в админке: перевод строк базы в форму и обратно, проверки перед сохранением.
 // Без React — легко тестировать.
+import type { AdminText } from "../i18n/admin";
 import { LANGS, type Lang, type Question } from "../lib/types";
 
 export type Status = "draft" | "review" | "published";
@@ -98,32 +99,31 @@ export function toPayload(f: QuestionForm, status: Status) {
 /** Языки, на которых вопрос обязан быть: у языкового предмета — один, у остальных — все три. */
 export const requiredLangs = (onlyLang: Lang | null): Lang[] => (onlyLang ? [onlyLang] : [...LANGS]);
 
-const LANG_NAME: L3 = { kk: "казахском", ru: "русском", en: "английском" };
-
 /**
  * Что мешает опубликовать вопрос. Те же правила, что проверяет база (assert_question_publishable),
- * но с понятными сообщениями до отправки.
+ * но с понятными сообщениями до отправки (на языке админки).
  */
-export function publishProblems(f: QuestionForm, onlyLang: Lang | null): string[] {
+export function publishProblems(f: QuestionForm, onlyLang: Lang | null, t: AdminText): string[] {
+  const p = t.problems;
   const out: string[] = [];
   const n = f.options.length;
-  if (n < 3 || n > 4) out.push(`Нужно 3 или 4 варианта ответа, сейчас ${n}.`);
+  if (n < 3 || n > 4) out.push(p.optCount(n));
   const nCorrect = f.options.filter((o) => o.correct).length;
-  if (nCorrect !== 1) out.push("Отметьте ровно один правильный ответ.");
+  if (nCorrect !== 1) out.push(p.oneCorrect);
   for (const l of requiredLangs(onlyLang)) {
-    if (!f.text[l].trim()) out.push(`Нет текста вопроса на ${LANG_NAME[l]} языке.`);
+    if (!f.text[l].trim()) out.push(p.noText(t.langIn[l]));
     const missing = f.options.map((o, i) => (o.text[l].trim() ? null : "ABCD"[i])).filter(Boolean);
-    if (missing.length) out.push(`Нет текста варианта ${missing.join(", ")} на ${LANG_NAME[l]} языке.`);
+    if (missing.length) out.push(p.noOptText(missing.join(", "), t.langIn[l]));
   }
   return out;
 }
 
 /** Что мешает сохранить вообще (даже черновик). */
-export function saveProblems(f: QuestionForm): string[] {
+export function saveProblems(f: QuestionForm, t: AdminText): string[] {
   const out: string[] = [];
-  if (!f.topicId) out.push("Выберите тему.");
-  if (f.options.length > 4) out.push("Не больше 4 вариантов ответа.");
-  if (!LANGS.some((l) => f.text[l].trim())) out.push("Напишите текст вопроса хотя бы на одном языке.");
+  if (!f.topicId) out.push(t.problems.needTopic);
+  if (f.options.length > 4) out.push(t.problems.max4);
+  if (!LANGS.some((l) => f.text[l].trim())) out.push(t.problems.needText);
   return out;
 }
 
@@ -153,7 +153,3 @@ export function canEdit(f: QuestionForm, role: Role, userId: string): boolean {
   if (role !== "teacher") return false;
   return f.id === null || (f.authorId === userId && f.status !== "published");
 }
-
-export const STATUS_LABEL: Record<Status, string> = {
-  draft: "Черновик", review: "На проверке", published: "Опубликован",
-};

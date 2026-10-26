@@ -4,7 +4,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AdminApp } from "../src/admin/AdminApp";
 import type { AdminApi, Me, QuestionItem, SubjectRow, TopicRow } from "../src/admin/api";
 import type { QuestionRow, toPayload } from "../src/admin/form";
-import { HEADERS } from "../src/admin/excel";
+import { headers } from "../src/admin/excel";
+import { ADMIN } from "../src/i18n/admin";
 
 /** Строка шаблона: тема, вопрос, правильный и неверные ответы — одинаково на трёх языках. */
 const row = (topic: string, q: string, ...answers: string[]) =>
@@ -23,6 +24,12 @@ function fakeApi(me: Me | null) {
     explanation_kk: null, explanation_ru: null, explanation_en: null, image_url: null, difficulty: 2,
     status: "review", review_comment: null, author_id: "teacher",
     options: ["4", "5", "6"].map((s, i) => ({ sort_order: i, is_correct: i === 0, text_kk: s, text_ru: s, text_en: s })),
+  }, {
+    // неполный черновик: два варианта — при массовой публикации пропускается
+    id: "q2", topic_id: "t1", text_kk: "Неполный", text_ru: "Неполный", text_en: "Incomplete",
+    explanation_kk: null, explanation_ru: null, explanation_en: null, image_url: null, difficulty: 2,
+    status: "draft", review_comment: null, author_id: "teacher",
+    options: ["1", "2"].map((s, i) => ({ sort_order: i, is_correct: i === 0, text_kk: s, text_ru: s, text_en: s })),
   }];
   let user = me;
   const saved: ReturnType<typeof toPayload>[] = [];
@@ -57,12 +64,15 @@ function fakeApi(me: Me | null) {
     async uploadImage() { return "https://img/x.png"; },
     importQuestions: vi.fn(async (_s: string, _g: number, rows: unknown[]) => ({ questions: rows.length, topics: 1 })),
     async exportQuestions() { return questions.map((q) => ({ topic: "Дроби", q })); },
+    publish: vi.fn(async (ids: string[]) => { for (const q of questions) if (ids.includes(q.id)) q.status = "published"; }),
   };
   return { api, saved };
 }
 
 beforeEach(() => {
   sessionStorage.clear();
+  localStorage.clear();
+  localStorage.setItem("bt-prefs", JSON.stringify({ lang: "ru", grade: 5 }));
   sessionStorage.setItem("bt-admin", JSON.stringify({ grade: 5, subjectId: "s1", topicId: "t1" }));
 });
 afterEach(cleanup);
@@ -141,7 +151,7 @@ describe("админка", () => {
     render(<AdminApp api={api} />);
     await user.click(await screen.findByRole("button", { name: "Загрузить из Excel" }));
 
-    const sheet = [HEADERS,
+    const sheet = [headers(ADMIN.ru),
       row("Дроби", "Сколько будет 1/2 + 1/2?", "1", "2", "1/4"),
       row("Новая тема", "Без неверных ответов", "1", "", ""),
     ];
@@ -157,6 +167,35 @@ describe("админка", () => {
     expect(await screen.findByText(/загружено вопросов — 1/)).toBeTruthy();
     const rows = (api.importQuestions as ReturnType<typeof vi.fn>).mock.calls[0][2] as { topic: string }[];
     expect(rows.map((r) => r.topic)).toEqual(["Дроби"]);
+  });
+
+  it("«Опубликовать готовые черновики»: спрашивает подтверждение и публикует только вопросы без ошибок", async () => {
+    const user = userEvent.setup();
+    const { api } = fakeApi({ id: "admin", email: "a@x.kz", role: "admin" });
+    const ask = vi.spyOn(window, "confirm").mockReturnValue(true);
+    render(<AdminApp api={api} />);
+    await user.click(await screen.findByRole("button", { name: "Опубликовать готовые черновики" }));
+    expect(ask).toHaveBeenCalledWith("Будет опубликовано вопросов: 1, пропущено из-за ошибок: 1. Продолжить?");
+    expect(api.publish).toHaveBeenCalledWith(["q1"]);
+    expect(await screen.findByText(/Опубликовано: 1\. Пропущено: 1/)).toBeTruthy();
+    ask.mockRestore();
+  });
+
+  it("учитель не видит массовую публикацию", async () => {
+    render(<AdminApp api={fakeApi({ id: "teacher", email: "t@x.kz", role: "teacher" }).api} />);
+    await screen.findByRole("button", { name: /2\+2\?/ });
+    expect(screen.queryByRole("button", { name: "Опубликовать готовые черновики" })).toBeNull();
+  });
+
+  it("язык админки переключается и запоминается вместе с языком сайта", async () => {
+    const user = userEvent.setup();
+    render(<AdminApp api={fakeApi({ id: "admin", email: "a@x.kz", role: "admin" }).api} />);
+    await user.click(await screen.findByRole("button", { name: "KK" }));
+    expect(screen.getByRole("button", { name: "Excel-ден жүктеу" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Тексеруде" })).toBeTruthy();
+    expect(JSON.parse(localStorage.getItem("bt-prefs")!).lang).toBe("kk");
+    await user.click(screen.getByRole("button", { name: "EN" }));
+    expect(screen.getByRole("button", { name: "Import from Excel" })).toBeTruthy();
   });
 
   it("предпросмотр показывает вопрос глазами ученика", async () => {

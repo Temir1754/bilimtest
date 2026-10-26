@@ -6,11 +6,11 @@ import { tx } from "../lib/text";
 import { LANGS, type Lang } from "../lib/types";
 import { QuizView } from "../site/QuizView";
 import { humanError, type AdminApi, type Me, type SubjectRow, type TopicRow } from "./api";
-import { ru } from "./Browser";
 import {
-  STATUS_LABEL, canEdit, copyFromRu, empty3, fromRow, newForm, publishProblems, requiredLangs, saveProblems,
+  canEdit, copyFromRu, empty3, fromRow, newForm, publishProblems, requiredLangs, saveProblems,
   toPayload, toQuestion, type L3, type QuestionForm, type Status,
 } from "./form";
+import { nm, useT } from "./lang";
 
 interface Props {
   api: AdminApi;
@@ -20,17 +20,21 @@ interface Props {
   onClose: () => void;
 }
 
-const DIFFICULTY = ["лёгкий", "средний", "сложный"];
+/** Сообщение после сохранения — ключ словаря, чтобы оно переводилось при смене языка. */
+type Done = "saved" | "sentReview" | "publishedMsg" | "returnedMsg" | "unpublishedMsg";
 
 export function QuestionEditor({ api, me, id, topicId, onClose }: Props) {
+  const { lang: uiLang, t } = useT();
+  const e = t.edit;
   const [form, setForm] = useState<QuestionForm | null>(id ? null : newForm(topicId));
   const [saved, setSaved] = useState<string>(id ? "" : JSON.stringify(newForm(topicId)));
   const [subject, setSubject] = useState<SubjectRow | null>(null);
   const [topics, setTopics] = useState<TopicRow[]>([]);
-  const [lang, setLang] = useState<Lang>("kk");
+  const [lang, setLang] = useState<Lang>("kk"); // язык текста вопроса (вкладка), не язык интерфейса
   const [busy, setBusy] = useState(false);
   const [problems, setProblems] = useState<string[]>([]);
-  const [message, setMessage] = useState("");
+  const [failure, setFailure] = useState<unknown>(null);
+  const [done, setDone] = useState<Done | null>(null);
   const [preview, setPreview] = useState(false);
 
   // Загрузка вопроса, его темы и предмета (нужен язык языкового предмета и список тем для переноса).
@@ -39,17 +43,17 @@ export function QuestionEditor({ api, me, id, topicId, onClose }: Props) {
     (async () => {
       try {
         const f = id ? fromRow(await api.question(id)) : newForm(topicId);
-        const t = await api.topic(f.topicId);
-        const [subs, list] = await Promise.all([api.subjects(), api.topics(t.subject_id, t.grade)]);
+        const tp = await api.topic(f.topicId);
+        const [subs, list] = await Promise.all([api.subjects(), api.topics(tp.subject_id, tp.grade)]);
         if (!alive) return;
-        const s = subs.find((x) => x.id === t.subject_id) ?? null;
+        const s = subs.find((x) => x.id === tp.subject_id) ?? null;
         setForm(f);
         setSaved(JSON.stringify(f));
         setSubject(s);
         setTopics(list);
         if (s?.only_lang) setLang(s.only_lang);
-      } catch (e) {
-        if (alive) setProblems([humanError(e)]);
+      } catch (err) {
+        if (alive) setFailure(err);
       }
     })();
     return () => { alive = false; };
@@ -58,36 +62,37 @@ export function QuestionEditor({ api, me, id, topicId, onClose }: Props) {
   const onlyLang = subject?.only_lang ?? null;
   const editable = form ? canEdit(form, me.role, me.id) : false;
   const dirty = form !== null && JSON.stringify(form) !== saved;
-  const ready = useMemo(() => (form ? publishProblems(form, onlyLang) : []), [form, onlyLang]);
+  const ready = useMemo(() => (form ? publishProblems(form, onlyLang, t) : []), [form, onlyLang, t]);
 
   useEffect(() => {
     if (!dirty) return;
-    const warn = (e: BeforeUnloadEvent) => e.preventDefault();
+    const warn = (ev: BeforeUnloadEvent) => ev.preventDefault();
     window.addEventListener("beforeunload", warn);
     return () => window.removeEventListener("beforeunload", warn);
   }, [dirty]);
 
   if (!form) {
-    return problems.length
-      ? <><button type="button" className="back" onClick={onClose}>← К списку</button><p className="error">{problems[0]}</p></>
-      : <p className="loading">Загрузка…</p>;
+    return failure
+      ? <><button type="button" className="back" onClick={onClose}>{e.back}</button><p className="error">{humanError(failure, t)}</p></>
+      : <p className="loading">{t.loading}</p>;
   }
 
-  const set = (p: Partial<QuestionForm>) => { setForm({ ...form, ...p }); setMessage(""); };
+  const set = (p: Partial<QuestionForm>) => { setForm({ ...form, ...p }); setDone(null); };
   const setText = (field: "text" | "explanation", v: string) => set({ [field]: { ...form[field], [lang]: v } });
   const setOption = (i: number, p: Partial<{ text: L3; correct: boolean }>) =>
     set({ options: form.options.map((o, k) => (k === i ? { ...o, ...p } : o)) });
   const setCorrect = (i: number) => set({ options: form.options.map((o, k) => ({ ...o, correct: k === i })) });
 
   function close() {
-    if (dirty && !confirm("Есть несохранённые изменения. Закрыть без сохранения?")) return;
+    if (dirty && !confirm(e.confirmLeave)) return;
     onClose();
   }
 
-  async function save(status: Status, done = "Сохранено.") {
-    const list = saveProblems(form!);
-    if (status === "published") list.push(...publishProblems(form!, onlyLang));
+  async function save(status: Status, message: Done = "saved") {
+    const list = saveProblems(form!, t);
+    if (status === "published") list.push(...publishProblems(form!, onlyLang, t));
     setProblems(list);
+    setFailure(null);
     if (list.length) return;
     setBusy(true);
     try {
@@ -95,22 +100,22 @@ export function QuestionEditor({ api, me, id, topicId, onClose }: Props) {
       const f = fromRow(await api.question(newId));
       setForm(f);
       setSaved(JSON.stringify(f));
-      setMessage(done);
-    } catch (e) {
-      setProblems([humanError(e)]);
+      setDone(message);
+    } catch (err) {
+      setFailure(err);
     } finally {
       setBusy(false);
     }
   }
 
   async function remove() {
-    if (!form!.id || !confirm("Удалить вопрос навсегда? Это нельзя отменить.")) return;
+    if (!form!.id || !confirm(e.confirmDelete)) return;
     setBusy(true);
     try {
       await api.deleteQuestion(form!.id);
       onClose();
-    } catch (e) {
-      setProblems([humanError(e)]);
+    } catch (err) {
+      setFailure(err);
       setBusy(false);
     }
   }
@@ -120,8 +125,8 @@ export function QuestionEditor({ api, me, id, topicId, onClose }: Props) {
     setBusy(true);
     try {
       set({ imageUrl: await api.uploadImage(file) });
-    } catch (e) {
-      setProblems([humanError(e)]);
+    } catch (err) {
+      setFailure(err);
     } finally {
       setBusy(false);
     }
@@ -129,71 +134,67 @@ export function QuestionEditor({ api, me, id, topicId, onClose }: Props) {
 
   const isAdmin = me.role === "admin";
   const st = form.status;
-  const topic = topics.find((t) => t.id === form.topicId);
+  const topic = topics.find((x) => x.id === form.topicId);
   const langs = onlyLang ? [onlyLang] : LANGS;
+  const L = lang.toUpperCase();
   const incomplete = (l: Lang) => requiredLangs(onlyLang).includes(l) &&
     (!form.text[l].trim() || form.options.some((o) => !o.text[l].trim()));
+  const errors = failure ? [...problems, humanError(failure, t)] : problems;
 
   return (
     <div className="adm-editor">
-      <button type="button" className="back" onClick={close}>← К списку</button>
+      <button type="button" className="back" onClick={close}>{e.back}</button>
       <div className="adm-head">
         <div>
-          <div className="kicker">{subject ? `${subject.icon} ${ru(subject, "name")}` : ""}{topic ? ` · ${topic.grade} класс` : ""}</div>
-          <h2>{form.id ? "Вопрос" : "Новый вопрос"} <span className={`st ${st}`}>{STATUS_LABEL[st]}</span></h2>
+          <div className="kicker">{subject ? `${subject.icon} ${nm(subject, "name", uiLang)}` : ""}{topic ? ` · ${e.grade(topic.grade)}` : ""}</div>
+          <h2>{form.id ? e.question : e.newQuestion} <span className={`st ${st}`}>{t.status[st]}</span></h2>
         </div>
       </div>
 
-      {!editable && (
-        <p className="note">
-          {st === "published" ? "Опубликованный вопрос может менять только админ. Если нашли ошибку — напишите админу."
-            : "Это вопрос другого учителя, его нельзя менять."}
-        </p>
-      )}
+      {!editable && <p className="note">{st === "published" ? e.readOnlyPublished : e.readOnlyOther}</p>}
       {form.reviewComment && !isAdmin && (
-        <p className="note"><b>Комментарий проверки:</b> {form.reviewComment}</p>
+        <p className="note"><b>{e.reviewComment}</b> {form.reviewComment}</p>
       )}
 
       <fieldset disabled={!editable || busy} className="adm-form">
-        <label>Тема
-          <select value={form.topicId} onChange={(e) => set({ topicId: e.target.value })}>
-            {topics.map((t) => <option key={t.id} value={t.id}>{ru(t, "title")}</option>)}
+        <label>{e.topic}
+          <select value={form.topicId} onChange={(ev) => set({ topicId: ev.target.value })}>
+            {topics.map((x) => <option key={x.id} value={x.id}>{nm(x, "title", uiLang)}</option>)}
           </select>
         </label>
       </fieldset>
 
       {/* Вкладки языков вне fieldset: смотреть другие языки можно и без права правки */}
-      <div className="adm-tabs" role="tablist" aria-label="Язык текста">
+      <div className="adm-tabs" role="tablist" aria-label={e.tabs}>
         {langs.map((l) => (
           <button key={l} type="button" role="tab" aria-selected={l === lang} onClick={() => setLang(l)}>
-            {l.toUpperCase()}{incomplete(l) && <span className="dot" title="Заполнено не всё" />}
+            {l.toUpperCase()}{incomplete(l) && <span className="dot" title={e.incomplete} />}
           </button>
         ))}
-        {onlyLang && <span className="muted">Языковой предмет: вопросы только на {onlyLang.toUpperCase()}</span>}
+        {onlyLang && <span className="muted">{e.onlyLang(onlyLang.toUpperCase())}</span>}
         {lang !== "ru" && !onlyLang && (
           <button type="button" className="link" disabled={!editable || busy} onClick={() => set(copyFromRu(form, lang))}>
-            Скопировать текст из русского
+            {e.copyRu}
           </button>
         )}
       </div>
 
       <fieldset disabled={!editable || busy} className="adm-form">
-        <label>Текст вопроса ({lang.toUpperCase()})
-          <textarea rows={3} value={form.text[lang]} onChange={(e) => setText("text", e.target.value)} />
+        <label>{e.text(L)}
+          <textarea rows={3} value={form.text[lang]} onChange={(ev) => setText("text", ev.target.value)} />
         </label>
-        <p className="hint">Формулы: <code>{"\\( x^2 \\)"}</code> в строке, <code>{"\\[ \\frac{a}{b} \\]"}</code> отдельно.
-          Всё после переноса строки показывается как блок кода.</p>
+        <p className="hint">{e.hint[0]} <code>{"\\( x^2 \\)"}</code> {e.hint[1]} <code>{"\\[ \\frac{a}{b} \\]"}</code> {e.hint[2]}</p>
 
-        <div className="label">Варианты ответа — отметьте правильный</div>
+        <div className="label">{e.options}</div>
         <ol className="adm-opts">
           {form.options.map((o, i) => (
             <li key={i}>
               <input type="radio" name="correct" checked={o.correct} onChange={() => setCorrect(i)}
-                aria-label={`Вариант ${"ABCD"[i]} правильный`} />
+                aria-label={e.optCorrect("ABCD"[i])} />
               <span className="k">{"ABCD"[i]}</span>
-              <input value={o.text[lang]} aria-label={`Вариант ${"ABCD"[i]} (${lang.toUpperCase()})`}
-                onChange={(e) => setOption(i, { text: { ...o.text, [lang]: e.target.value } })} />
-              <button type="button" className="link danger" aria-label={`Удалить вариант ${"ABCD"[i]}`}
+              <input value={o.text[lang]} aria-label={e.optInput("ABCD"[i], L)}
+                onChange={(ev) => setOption(i, { text: { ...o.text, [lang]: ev.target.value } })} />
+              <button type="button" className="link danger" aria-label={e.optRemove("ABCD"[i])}
                 disabled={form.options.length <= 2} onClick={() => set({ options: form.options.filter((_, k) => k !== i) })}>
                 ×
               </button>
@@ -203,81 +204,80 @@ export function QuestionEditor({ api, me, id, topicId, onClose }: Props) {
         {form.options.length < 4 && (
           <button type="button" className="link"
             onClick={() => set({ options: [...form.options, { text: empty3(), correct: false }] })}>
-            + вариант
+            {e.addOption}
           </button>
         )}
 
-        <label>Пояснение к правильному ответу ({lang.toUpperCase()}, необязательно)
-          <textarea rows={2} value={form.explanation[lang]} onChange={(e) => setText("explanation", e.target.value)} />
+        <label>{e.explanation(L)}
+          <textarea rows={2} value={form.explanation[lang]} onChange={(ev) => setText("explanation", ev.target.value)} />
         </label>
 
         <div className="adm-row grow">
-          <label>Сложность
-            <select value={form.difficulty} onChange={(e) => set({ difficulty: +e.target.value })}>
-              {DIFFICULTY.map((d, i) => <option key={i} value={i + 1}>{d}</option>)}
+          <label>{e.difficulty}
+            <select value={form.difficulty} onChange={(ev) => set({ difficulty: +ev.target.value })}>
+              {e.diffs.map((d, i) => <option key={i} value={i + 1}>{d}</option>)}
             </select>
           </label>
-          <label>Картинка (PNG, JPG, WebP, GIF, до 2 МБ)
+          <label>{e.image}
             <input type="file" accept="image/png,image/jpeg,image/webp,image/gif"
-              onChange={(e) => upload(e.target.files?.[0])} />
+              onChange={(ev) => upload(ev.target.files?.[0])} />
           </label>
         </div>
         {form.imageUrl && (
           <div className="adm-img">
-            <img src={form.imageUrl} alt="Картинка вопроса" />
-            <button type="button" className="link danger" onClick={() => set({ imageUrl: null })}>убрать картинку</button>
+            <img src={form.imageUrl} alt={e.imageAlt} />
+            <button type="button" className="link danger" onClick={() => set({ imageUrl: null })}>{e.removeImage}</button>
           </div>
         )}
 
         {isAdmin && (st === "review" || form.reviewComment) && (
-          <label>Комментарий для учителя (если возвращаете на доработку)
-            <textarea rows={2} value={form.reviewComment} onChange={(e) => set({ reviewComment: e.target.value })} />
+          <label>{e.commentForTeacher}
+            <textarea rows={2} value={form.reviewComment} onChange={(ev) => set({ reviewComment: ev.target.value })} />
           </label>
         )}
       </fieldset>
 
       {ready.length > 0 && (
         <div className="adm-ready">
-          <b>Перед публикацией нужно:</b>
+          <b>{e.beforePublish}</b>
           <ul>{ready.map((p) => <li key={p}>{p}</li>)}</ul>
         </div>
       )}
-      {problems.length > 0 && <div className="error" role="alert"><ul>{problems.map((p) => <li key={p}>{p}</li>)}</ul></div>}
-      {message && <p className="ok-msg" role="status">{message}</p>}
+      {errors.length > 0 && <div className="error" role="alert"><ul>{errors.map((p) => <li key={p}>{p}</li>)}</ul></div>}
+      {done && <p className="ok-msg" role="status">{done === "saved" ? t.saved : e[done]}</p>}
 
       {editable && (
         <div className="actions">
           <button type="button" className="btn" disabled={busy} onClick={() => save(st)}>
-            {busy ? "Сохранение…" : "Сохранить"}
+            {busy ? t.saving : t.save}
           </button>
           {!isAdmin && st === "draft" && (
             <button type="button" className="btn ghost" disabled={busy}
-              onClick={() => save("review", "Отправлено на проверку админу.")}>Отправить на проверку</button>
+              onClick={() => save("review", "sentReview")}>{e.sendReview}</button>
           )}
           {isAdmin && st !== "published" && (
             <button type="button" className="btn ghost" disabled={busy}
-              onClick={() => save("published", "Опубликовано.")}>Опубликовать</button>
+              onClick={() => save("published", "publishedMsg")}>{e.publish}</button>
           )}
           {isAdmin && st === "review" && (
             <button type="button" className="btn ghost" disabled={busy || !form.reviewComment.trim()}
-              title="Сначала напишите комментарий для учителя"
-              onClick={() => save("draft", "Вопрос возвращён учителю на доработку.")}>Вернуть на доработку</button>
+              title={e.returnTitle} onClick={() => save("draft", "returnedMsg")}>{e.returnBtn}</button>
           )}
           {isAdmin && st === "published" && (
             <button type="button" className="btn ghost" disabled={busy}
-              onClick={() => save("draft", "Снято с публикации, теперь это черновик.")}>Снять с публикации</button>
+              onClick={() => save("draft", "unpublishedMsg")}>{e.unpublish}</button>
           )}
           {isAdmin && form.id && (
-            <button type="button" className="btn ghost danger" disabled={busy} onClick={remove}>Удалить</button>
+            <button type="button" className="btn ghost danger" disabled={busy} onClick={remove}>{e.deleteBtn}</button>
           )}
         </div>
       )}
 
       <div className="adm-preview">
         <button type="button" className="link" aria-expanded={preview} onClick={() => setPreview(!preview)}>
-          {preview ? "▾ Скрыть предпросмотр" : "▸ Предпросмотр глазами ученика"}
+          {preview ? e.previewHide : e.previewShow}
         </button>
-        {preview && <Preview form={form} subject={subject} topic={topic} />}
+        {preview && <Preview form={form} subject={subject} topic={topic} label={e.previewLang} />}
       </div>
     </div>
   );
@@ -286,24 +286,27 @@ export function QuestionEditor({ api, me, id, topicId, onClose }: Props) {
 // Варианты в предпросмотре не перемешиваются: так легче сверять с формой.
 const keepOrder = () => 0.9999;
 
-function Preview({ form, subject, topic }: { form: QuestionForm; subject: SubjectRow | null; topic?: TopicRow }) {
+function Preview({ form, subject, topic, label }: {
+  form: QuestionForm;
+  subject: SubjectRow | null;
+  topic?: TopicRow;
+  label: string;
+}) {
   const [lang, setLang] = useState<Lang>(subject?.only_lang ?? "kk");
   const question = useMemo(() => toQuestion(form), [form]);
   const [quiz, setQuiz] = useState<Quiz>(() => topicQuiz(form.topicId, [question], keepOrder));
   useEffect(() => setQuiz(topicQuiz(form.topicId, [question], keepOrder)), [form.topicId, question]);
-  const t = UI[lang];
   const explanation = question.explanation ? tx(question.explanation, lang) : "";
 
   return (
     <div className="adm-preview-box">
-      <div className="langs" role="group" aria-label="Язык предпросмотра">
+      <div className="langs" role="group" aria-label={label}>
         {LANGS.map((l) => (
           <button key={l} type="button" aria-pressed={l === lang} onClick={() => setLang(l)}>{l.toUpperCase()}</button>
         ))}
       </div>
-      <QuizView quiz={quiz} index={0} lang={lang} t={t}
-        heading={`${subject ? tx({ kk: subject.name_kk, ru: subject.name_ru, en: subject.name_en }, lang) : ""} · ${
-          topic ? tx({ kk: topic.title_kk, ru: topic.title_ru, en: topic.title_en }, lang) : ""}`}
+      <QuizView quiz={quiz} index={0} lang={lang} t={UI[lang]}
+        heading={`${subject ? nm(subject, "name", lang) : ""} · ${topic ? nm(topic, "title", lang) : ""}`}
         onBack={() => {}} onPick={(j) => setQuiz((q) => answer(q, 0, j))}
         onNext={() => setQuiz(topicQuiz(form.topicId, [question], keepOrder))} />
       {quiz.answers[0] !== null && explanation && (

@@ -1,6 +1,7 @@
 // Всё, что админка делает с базой. Экраны работают через интерфейс AdminApi,
 // поэтому в тестах вместо Supabase подставляется простая заглушка.
 import type { SupabaseClient } from "@supabase/supabase-js";
+import type { AdminText } from "../i18n/admin";
 import type { Lang } from "../lib/types";
 import type { QuestionRow, Role, Status, toPayload } from "./form";
 
@@ -81,20 +82,30 @@ export interface AdminApi {
 
   /** Загрузка из Excel одной транзакцией; все вопросы — черновики. */
   importQuestions(subjectId: string, grade: number, rows: unknown[]): Promise<{ questions: number; topics: number }>;
+  /** Публикует вопросы (админ). Перед вызовом их проверяет publishProblems; база проверяет ещё раз. */
+  publish(ids: string[]): Promise<void>;
   /** Вопросы с вариантами для выгрузки в Excel, по порядку тем. */
   exportQuestions(subjectId: string, grade: number, topicId?: string): Promise<{ topic: string; q: QuestionRow }[]>;
 }
 
-/** Сообщения базы → понятный текст. */
-export function humanError(e: unknown): string {
+/** Сообщения базы и Supabase → понятный текст на языке админки. */
+export function humanError(e: unknown, t: AdminText): string {
   const m = (e as { message?: string })?.message ?? String(e);
-  if (/Invalid login credentials/i.test(m)) return "Неверный email или пароль.";
-  if (/Email not confirmed/i.test(m)) return "Email не подтверждён. Подтвердите его в Supabase.";
-  if (/row-level security|permission denied|42501/i.test(m)) return "Нет прав на это действие.";
-  if (/violates foreign key constraint/i.test(m)) return "Нельзя удалить: внутри есть темы или вопросы.";
-  if (/duplicate key/i.test(m)) return "Такая запись уже есть.";
-  if (/Failed to fetch|NetworkError/i.test(m)) return "Нет связи с базой. Проверьте интернет и попробуйте ещё раз.";
-  return m.replace(/^Вопрос [0-9a-f-]{36}: /, "");
+  const r = t.err;
+  if (/Invalid login credentials/i.test(m)) return r.invalidLogin;
+  if (/Email not confirmed/i.test(m)) return r.emailNotConfirmed;
+  if (/не найден или нет прав/i.test(m)) return r.notFound;
+  if (/row-level security|permission denied|42501/i.test(m)) return r.noRights;
+  if (/violates foreign key constraint/i.test(m)) return r.fk;
+  if (/duplicate key/i.test(m)) return r.duplicate;
+  if (/Failed to fetch|NetworkError/i.test(m)) return r.network;
+  if (m === "image_too_big") return r.imageTooBig;
+  if (/не больше 4 вариантов/i.test(m)) return t.problems.max4;
+  if (/не указана тема/i.test(m)) return t.xl.rowErr.noTopic;
+  if (/от 1 до 2000/i.test(m)) return r.tooMany;
+  if (/3–4 варианта|ровно один правильный|нет текста на языке|у варианта ответа нет текста/i.test(m)) return r.incomplete;
+  if (/Could not find the function|PGRST202/i.test(m)) return r.noDbFunction;
+  return m;
 }
 
 const QUESTION_COLS = "id, topic_id, text_kk, text_ru, text_en, explanation_kk, explanation_ru, explanation_en, " +
@@ -104,8 +115,9 @@ const QUESTION_COLS = "id, topic_id, text_kk, text_ru, text_en, explanation_kk, 
 const cleanSearch = (s: string) => s.replace(/[%*,()"\\]/g, " ").trim();
 
 export function supabaseApi(sb: SupabaseClient): AdminApi {
+  // Ошибку отдаём экрану как есть: он переводит её через humanError на язык админки.
   const check = <T>({ data, error }: { data: T; error: unknown }) => {
-    if (error) throw new Error(humanError(error));
+    if (error) throw error instanceof Error ? error : new Error((error as { message?: string }).message ?? String(error));
     return data;
   };
 
@@ -125,7 +137,7 @@ export function supabaseApi(sb: SupabaseClient): AdminApi {
     },
     async signIn(email, password) {
       const { error } = await sb.auth.signInWithPassword({ email: email.trim(), password });
-      if (error) throw new Error(humanError(error));
+      if (error) throw error;
     },
     async signOut() {
       await sb.auth.signOut();
@@ -188,7 +200,7 @@ export function supabaseApi(sb: SupabaseClient): AdminApi {
       check(await sb.from("questions").delete().eq("id", id));
     },
     async uploadImage(file) {
-      if (file.size > 2 * 1024 * 1024) throw new Error("Картинка больше 2 МБ. Уменьшите её и попробуйте снова.");
+      if (file.size > 2 * 1024 * 1024) throw new Error("image_too_big");
       const { data } = await sb.auth.getSession();
       const ext = (file.name.split(".").pop() ?? "png").toLowerCase();
       const path = `${data.session?.user.id ?? "anon"}/${crypto.randomUUID()}.${ext}`;
@@ -199,6 +211,13 @@ export function supabaseApi(sb: SupabaseClient): AdminApi {
     async importQuestions(subjectId, grade, rows) {
       return check(await sb.rpc("import_questions", { p_subject_id: subjectId, p_grade: grade, p_rows: rows })) as
         { questions: number; topics: number };
+    },
+    async publish(ids) {
+      // Пачками по 100: список id передаётся в адресе запроса, а у адреса есть предел длины.
+      for (let i = 0; i < ids.length; i += 100) {
+        check(await sb.from("questions").update({ status: "published", review_comment: null })
+          .in("id", ids.slice(i, i + 100)));
+      }
     },
     async exportQuestions(subjectId, grade, topicId) {
       const topics = (await this.topics(subjectId, grade)).filter((t) => !topicId || t.id === topicId);

@@ -1,16 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { tx } from "../lib/text";
-import { GRADES, LANGS, type Lang, type Text } from "../lib/types";
+import { GRADES, LANGS, type Lang } from "../lib/types";
 import { humanError, type AdminApi, type Counts, type Me, type QuestionItem, type SubjectRow, type TopicRow } from "./api";
 import { download, exportSheet } from "./excel";
-import { STATUS_LABEL, type Status } from "./form";
-
-/** Текст из колонок name_kk / name_ru / name_en (и т. п.); в админке главный язык — русский. */
-export const ru = (row: object, prefix: string): string => {
-  const r = row as Record<string, string | null>;
-  const t: Text = { kk: r[`${prefix}_kk`] ?? "", ru: r[`${prefix}_ru`] ?? "", en: r[`${prefix}_en`] ?? "" };
-  return tx(t, "ru");
-};
+import { fromRow, publishProblems, type Status } from "./form";
+import { nm, useT } from "./lang";
 
 // Выбор класса, предмета, темы и фильтров переживает переход в форму вопроса и обратно.
 const KEY = "bt-admin";
@@ -31,6 +24,8 @@ function loadSel(): Sel {
   }
 }
 
+const STATUSES: Status[] = ["draft", "review", "published"];
+
 interface Props {
   api: AdminApi;
   me: Me;
@@ -39,33 +34,37 @@ interface Props {
 }
 
 export function Browser({ api, me, onOpen, onImport }: Props) {
+  const { lang, t } = useT();
+  const b = t.browse;
   const [sel, setSel] = useState<Sel>(loadSel);
   const [subjects, setSubjects] = useState<SubjectRow[]>([]);
   const [topics, setTopics] = useState<TopicRow[]>([]);
   const [counts, setCounts] = useState<Record<string, Counts>>({});
   const [questions, setQuestions] = useState<QuestionItem[] | null>(null);
-  const [error, setError] = useState("");
+  const [error, setError] = useState<unknown>(null);
+  const [notice, setNotice] = useState("");
   const [editing, setEditing] = useState<"subject-new" | "subject" | "topic-new" | "topic" | null>(null);
+  const [busy, setBusy] = useState<"export" | "publish" | null>(null);
+  const [reload, setReload] = useState(0); // меняется — список вопросов загружается заново
   const mainRef = useRef<HTMLElement>(null);
-  const [exporting, setExporting] = useState(false);
   const isAdmin = me.role === "admin";
-
-  // На узком экране список вопросов стоит под темами — после выбора темы прокручиваем к нему.
-  const pickTopic = (topicId: string | null) => {
-    update({ topicId });
-    if (window.matchMedia?.("(max-width: 820px)").matches) {
-      setTimeout(() => mainRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 0);
-    }
-  };
 
   const update = (p: Partial<Sel>) => setSel((s) => {
     const next = { ...s, ...p };
     try { sessionStorage.setItem(KEY, JSON.stringify(next)); } catch { /* приватный режим */ }
     return next;
   });
-  const fail = (e: unknown) => setError(humanError(e));
 
-  const loadSubjects = useCallback(() => api.subjects().then(setSubjects, fail), [api]);
+  // На узком экране список вопросов стоит под темами — после выбора темы прокручиваем к нему.
+  const pickTopic = (topicId: string | null) => {
+    update({ topicId });
+    setNotice("");
+    if (window.matchMedia?.("(max-width: 820px)").matches) {
+      setTimeout(() => mainRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 0);
+    }
+  };
+
+  const loadSubjects = useCallback(() => api.subjects().then(setSubjects, setError), [api]);
   useEffect(() => { loadSubjects(); }, [loadSubjects]);
 
   const loadTopics = useCallback(async () => {
@@ -73,8 +72,8 @@ export function Browser({ api, me, onOpen, onImport }: Props) {
     try {
       const list = await api.topics(sel.subjectId, sel.grade);
       setTopics(list);
-      setCounts(await api.counts(list.map((t) => t.id)));
-    } catch (e) { fail(e); }
+      setCounts(await api.counts(list.map((x) => x.id)));
+    } catch (e) { setError(e); }
   }, [api, sel.subjectId, sel.grade]);
   useEffect(() => { loadTopics(); }, [loadTopics]);
 
@@ -83,62 +82,81 @@ export function Browser({ api, me, onOpen, onImport }: Props) {
   useEffect(() => {
     if (!sel.topicId && !sel.subjectId && !hasFilter) { setQuestions(null); return; }
     let alive = true;
-    const t = setTimeout(() => {
+    const timer = setTimeout(() => {
       api.questions({
         topicId: sel.topicId ?? undefined, subjectId: sel.subjectId ?? undefined, grade: sel.grade,
         status: sel.status || undefined, missingLang: sel.missingLang || undefined, search: sel.search,
-      }).then((q) => alive && setQuestions(q), fail);
+      }).then((q) => alive && setQuestions(q), setError);
     }, sel.search ? 300 : 0);
-    return () => { alive = false; clearTimeout(t); };
-  }, [api, sel, hasFilter]);
+    return () => { alive = false; clearTimeout(timer); };
+  }, [api, sel, hasFilter, reload]);
 
   const subject = subjects.find((s) => s.id === sel.subjectId) ?? null;
-  const topic = topics.find((t) => t.id === sel.topicId) ?? null;
+  const topic = topics.find((x) => x.id === sel.topicId) ?? null;
 
   async function move(i: number, dir: -1 | 1) {
     const list = topics.slice();
     [list[i], list[i + dir]] = [list[i + dir], list[i]];
     try {
       // Номера по порядку; сохраняем только изменившиеся темы.
-      await Promise.all(list.map((t, k) => (t.sort_order === k ? null : api.saveTopic({ ...t, sort_order: k }))));
+      await Promise.all(list.map((x, k) => (x.sort_order === k ? null : api.saveTopic({ ...x, sort_order: k }))));
       await loadTopics();
-    } catch (e) { fail(e); }
+    } catch (e) { setError(e); }
   }
 
   // Выгрузка: выбранная тема или все темы предмета в этом классе.
   async function exportExcel(s: SubjectRow) {
-    setExporting(true);
+    setBusy("export");
     try {
       const items = await api.exportQuestions(s.id, sel.grade, sel.topicId ?? undefined);
-      if (!items.length) { setError("Здесь пока нет вопросов для выгрузки."); return; }
-      await download(`${s.slug}-${sel.grade}-klass${topic ? "-" + (topic.sort_order + 1) : ""}.xlsx`,
-        { "Вопросы": exportSheet(items) });
-    } catch (e) { fail(e); } finally { setExporting(false); }
+      if (!items.length) { setNotice(b.nothingToExport); return; }
+      await download(`${t.xl.file(s.slug, sel.grade)}${topic ? "-" + (topic.sort_order + 1) : ""}.xlsx`,
+        { [t.xl.sheet]: exportSheet(items, t) });
+    } catch (e) { setError(e); } finally { setBusy(null); }
   }
 
-  async function removeTopic(t: TopicRow) {
-    if (!confirm(`Удалить тему «${ru(t, "title")}»? Удалить можно только пустую тему.`)) return;
+  // «Опубликовать готовые черновики»: только вопросы без ошибок (те же проверки, что у кнопки «Опубликовать»).
+  async function publishReady(s: SubjectRow, tp: TopicRow) {
+    setBusy("publish");
+    setNotice("");
     try {
-      await api.deleteTopic(t.id);
+      const pending = (await api.exportQuestions(s.id, sel.grade, tp.id)).map((x) => x.q)
+        .filter((q) => q.status !== "published");
+      if (!pending.length) { setNotice(b.nothingToPublish); return; }
+      const ready = pending.filter((q) => publishProblems(fromRow(q), s.only_lang, t).length === 0);
+      const skipped = pending.length - ready.length;
+      if (!ready.length) { setNotice(b.noneReady); return; }
+      if (!confirm(b.confirmPublish(ready.length, skipped))) return;
+      await api.publish(ready.map((q) => q.id));
+      setNotice(b.publishedN(ready.length, skipped));
+      setReload((n) => n + 1);
+      await loadTopics();
+    } catch (e) { setError(e); } finally { setBusy(null); }
+  }
+
+  async function removeTopic(x: TopicRow) {
+    if (!confirm(b.confirmDelTopic(nm(x, "title", lang)))) return;
+    try {
+      await api.deleteTopic(x.id);
       update({ topicId: null });
       await loadTopics();
-    } catch (e) { fail(e); }
+    } catch (e) { setError(e); }
   }
 
   async function removeSubject(s: SubjectRow) {
-    if (!confirm(`Удалить предмет «${ru(s, "name")}»? Удалить можно только предмет без тем.`)) return;
+    if (!confirm(b.confirmDelSubject(nm(s, "name", lang)))) return;
     try {
       await api.deleteSubject(s.id);
       update({ subjectId: null, topicId: null });
       await loadSubjects();
-    } catch (e) { fail(e); }
+    } catch (e) { setError(e); }
   }
 
   return (
     <div className="adm-cols">
       <aside className="adm-side">
-        <div className="label">Класс</div>
-        <div className="adm-grades" role="group" aria-label="Класс">
+        <div className="label">{b.grade}</div>
+        <div className="adm-grades" role="group" aria-label={b.grade}>
           {GRADES.map((g) => (
             <button key={g} type="button" aria-pressed={g === sel.grade} onClick={() => update({ grade: g, topicId: null })}>
               {g}
@@ -147,18 +165,18 @@ export function Browser({ api, me, onOpen, onImport }: Props) {
         </div>
 
         <div className="adm-head">
-          <span className="label">Предмет</span>
-          {isAdmin && <button type="button" className="link" onClick={() => setEditing("subject-new")}>+ предмет</button>}
+          <span className="label">{b.subject}</span>
+          {isAdmin && <button type="button" className="link" onClick={() => setEditing("subject-new")}>{b.addSubject}</button>}
         </div>
-        <select aria-label="Предмет" value={sel.subjectId ?? ""}
+        <select aria-label={b.subject} value={sel.subjectId ?? ""}
           onChange={(e) => update({ subjectId: e.target.value || null, topicId: null })}>
-          <option value="">— все предметы —</option>
-          {subjects.map((s) => <option key={s.id} value={s.id}>{s.icon} {ru(s, "name")}</option>)}
+          <option value="">{b.allSubjects}</option>
+          {subjects.map((s) => <option key={s.id} value={s.id}>{s.icon} {nm(s, "name", lang)}</option>)}
         </select>
         {isAdmin && subject && (
           <div className="adm-row">
-            <button type="button" className="link" onClick={() => setEditing("subject")}>изменить предмет</button>
-            <button type="button" className="link danger" onClick={() => removeSubject(subject)}>удалить</button>
+            <button type="button" className="link" onClick={() => setEditing("subject")}>{b.editSubject}</button>
+            <button type="button" className="link danger" onClick={() => removeSubject(subject)}>{t.del}</button>
           </div>
         )}
         {(editing === "subject-new" || (editing === "subject" && subject)) && (
@@ -169,44 +187,42 @@ export function Browser({ api, me, onOpen, onImport }: Props) {
         {subject && (
           <>
             <div className="adm-head">
-              <span className="label">Темы · {sel.grade} класс</span>
-              <button type="button" className="link" onClick={() => setEditing("topic-new")}>+ тема</button>
+              <span className="label">{b.topicsOf(sel.grade)}</span>
+              <button type="button" className="link" onClick={() => setEditing("topic-new")}>{b.addTopic}</button>
             </div>
             {editing === "topic-new" && (
               <TopicForm api={api} topic={null} base={{ subject_id: subject.id, grade: sel.grade, sort_order: topics.length }}
                 onDone={(saved) => { setEditing(null); if (saved) loadTopics(); }} />
             )}
-            {topics.length === 0 && <p className="muted">Тем пока нет.</p>}
+            {topics.length === 0 && <p className="muted">{b.noTopics}</p>}
             <ol className="adm-topics">
               <li>
-                <button type="button" aria-pressed={!sel.topicId} onClick={() => pickTopic(null)}>
-                  Все темы
-                </button>
+                <button type="button" aria-pressed={!sel.topicId} onClick={() => pickTopic(null)}>{b.allTopics}</button>
               </li>
-              {topics.map((t, i) => {
-                const c = counts[t.id];
+              {topics.map((x, i) => {
+                const c = counts[x.id];
                 return (
-                  <li key={t.id}>
-                    <button type="button" aria-pressed={t.id === sel.topicId} onClick={() => pickTopic(t.id)}>
-                      <span>{ru(t, "title")}</span>
+                  <li key={x.id}>
+                    <button type="button" aria-pressed={x.id === sel.topicId} onClick={() => pickTopic(x.id)}>
+                      <span>{nm(x, "title", lang)}</span>
                       <small>
                         {c ? c.published : 0}
-                        {c?.review ? <span className="st review" title="На проверке"> +{c.review}</span> : null}
-                        {c?.draft ? <span className="st draft" title="Черновики"> +{c.draft}</span> : null}
+                        {c?.review ? <span className="st review" title={t.status.review}> +{c.review}</span> : null}
+                        {c?.draft ? <span className="st draft" title={b.drafts}> +{c.draft}</span> : null}
                       </small>
                     </button>
-                    {t.id === sel.topicId && (
+                    {x.id === sel.topicId && (
                       <div className="adm-row">
-                        <button type="button" className="link" onClick={() => setEditing("topic")}>переименовать</button>
+                        <button type="button" className="link" onClick={() => setEditing("topic")}>{b.rename}</button>
                         <button type="button" className="link" disabled={i === 0} onClick={() => move(i, -1)}
-                          aria-label="Выше">↑</button>
+                          aria-label={b.up}>↑</button>
                         <button type="button" className="link" disabled={i === topics.length - 1} onClick={() => move(i, 1)}
-                          aria-label="Ниже">↓</button>
-                        {isAdmin && <button type="button" className="link danger" onClick={() => removeTopic(t)}>удалить</button>}
+                          aria-label={b.down}>↓</button>
+                        {isAdmin && <button type="button" className="link danger" onClick={() => removeTopic(x)}>{t.del}</button>}
                       </div>
                     )}
-                    {t.id === sel.topicId && editing === "topic" && (
-                      <TopicForm api={api} topic={t} base={t} onDone={(saved) => { setEditing(null); if (saved) loadTopics(); }} />
+                    {x.id === sel.topicId && editing === "topic" && (
+                      <TopicForm api={api} topic={x} base={x} onDone={(saved) => { setEditing(null); if (saved) loadTopics(); }} />
                     )}
                   </li>
                 );
@@ -218,45 +234,54 @@ export function Browser({ api, me, onOpen, onImport }: Props) {
 
       <section className="adm-main" ref={mainRef}>
         <div className="adm-filters">
-          <input type="search" placeholder="Поиск по тексту вопроса" aria-label="Поиск" value={sel.search}
+          <input type="search" placeholder={b.search} aria-label={b.searchLabel} value={sel.search}
             onChange={(e) => update({ search: e.target.value })} />
-          <select aria-label="Статус" value={sel.status} onChange={(e) => update({ status: e.target.value as Status | "" })}>
-            <option value="">Любой статус</option>
-            {(Object.keys(STATUS_LABEL) as Status[]).map((s) => <option key={s} value={s}>{STATUS_LABEL[s]}</option>)}
+          <select aria-label={b.statusLabel} value={sel.status} onChange={(e) => update({ status: e.target.value as Status | "" })}>
+            <option value="">{b.anyStatus}</option>
+            {STATUSES.map((s) => <option key={s} value={s}>{t.status[s]}</option>)}
           </select>
-          <select aria-label="Язык" value={sel.missingLang}
+          <select aria-label={b.langFilter} value={sel.missingLang}
             onChange={(e) => update({ missingLang: e.target.value as Lang | "" })}>
-            <option value="">Все языки</option>
-            {LANGS.map((l) => <option key={l} value={l}>Нет текста на {l.toUpperCase()}</option>)}
+            <option value="">{b.allLangs}</option>
+            {LANGS.map((l) => <option key={l} value={l}>{b.missing(l.toUpperCase())}</option>)}
           </select>
         </div>
 
         <div className="adm-head">
-          <h2>{topic ? ru(topic, "title") : subject ? `${ru(subject, "name")} · ${sel.grade} класс` : "Вопросы"}</h2>
+          <h2>{topic ? nm(topic, "title", lang) : subject ? b.subjGrade(nm(subject, "name", lang), sel.grade) : b.questions}</h2>
           <div className="adm-row">
             {subject && (
               <>
                 <button type="button" className="btn ghost sm" onClick={() => onImport(subject.id, sel.grade)}>
-                  Загрузить из Excel
+                  {b.importBtn}
                 </button>
-                <button type="button" className="btn ghost sm" disabled={exporting} onClick={() => exportExcel(subject)}>
-                  {exporting ? "Выгрузка…" : "Выгрузить в Excel"}
+                <button type="button" className="btn ghost sm" disabled={busy !== null} onClick={() => exportExcel(subject)}>
+                  {busy === "export" ? b.exporting : b.exportBtn}
                 </button>
               </>
             )}
-            {topic && <button type="button" className="btn" onClick={() => onOpen(null, topic.id)}>+ Новый вопрос</button>}
+            {isAdmin && subject && topic && (
+              <button type="button" className="btn ghost sm" disabled={busy !== null} onClick={() => publishReady(subject, topic)}>
+                {busy === "publish" ? b.publishing : b.publishReady}
+              </button>
+            )}
+            {topic && <button type="button" className="btn sm" onClick={() => onOpen(null, topic.id)}>{b.newQuestion}</button>}
           </div>
         </div>
-        {error && <p className="error" role="alert">{error} <button type="button" className="link" onClick={() => setError("")}>×</button></p>}
+        {error !== null && (
+          <p className="error" role="alert">{humanError(error, t)}{" "}
+            <button type="button" className="link" onClick={() => setError(null)}>×</button></p>
+        )}
+        {notice && <p className="note" role="status">{notice}</p>}
 
         {questions === null ? (
-          <p className="muted">Выберите предмет и тему слева или задайте фильтр.</p>
+          <p className="muted">{b.pickHint}</p>
         ) : questions.length === 0 ? (
-          <p className="muted">Вопросов не найдено.</p>
+          <p className="muted">{b.noneFound}</p>
         ) : (
           <QuestionList items={questions} showTopic={!topic} onOpen={onOpen} />
         )}
-        {questions && questions.length >= 300 && <p className="muted">Показаны первые 300. Уточните фильтр.</p>}
+        {questions && questions.length >= 300 && <p className="muted">{b.first300}</p>}
       </section>
     </div>
   );
@@ -267,17 +292,18 @@ export function QuestionList({ items, showTopic, onOpen }: {
   showTopic: boolean;
   onOpen: (id: string, topicId: string) => void;
 }) {
+  const { lang, t } = useT();
   return (
     <ol className="adm-qs">
       {items.map((q) => (
         <li key={q.id}>
           <button type="button" onClick={() => onOpen(q.id, q.topic_id)}>
-            <span className="qt">{ru(q, "text") || <i>без текста</i>}</span>
+            <span className="qt">{nm(q, "text", lang) || <i>{t.browse.noText}</i>}</span>
             <span className="meta">
-              <span className={`st ${q.status}`}>{STATUS_LABEL[q.status]}</span>
-              {showTopic && <span>{q.topics.grade} кл. · {ru(q.topics, "title")}</span>}
+              <span className={`st ${q.status}`}>{t.status[q.status]}</span>
+              {showTopic && <span>{t.browse.gradeShort(q.topics.grade)} · {nm(q.topics, "title", lang)}</span>}
               {LANGS.filter((l) => !(q as unknown as Record<string, string | null>)[`text_${l}`]?.trim())
-                .map((l) => <span key={l} className="miss">нет {l.toUpperCase()}</span>)}
+                .map((l) => <span key={l} className="miss">{t.browse.missShort(l.toUpperCase())}</span>)}
             </span>
           </button>
         </li>
@@ -292,10 +318,12 @@ function SubjectForm({ api, subject, nextSort, onDone }: {
   nextSort: number;
   onDone: (saved: boolean) => void;
 }) {
+  const { t } = useT();
+  const f = t.subjectForm;
   const [s, setS] = useState<Omit<SubjectRow, "id">>(subject ?? {
     slug: "", icon: "", name_kk: "", name_ru: "", name_en: "", only_lang: null, sort_order: nextSort,
   });
-  const [error, setError] = useState("");
+  const [error, setError] = useState<unknown>(null);
   const set = (p: Partial<typeof s>) => setS({ ...s, ...p });
 
   async function save(e: React.FormEvent) {
@@ -303,28 +331,28 @@ function SubjectForm({ api, subject, nextSort, onDone }: {
     try {
       await api.saveSubject({ ...s, id: subject?.id });
       onDone(true);
-    } catch (err) { setError(humanError(err)); }
+    } catch (err) { setError(err); }
   }
 
   return (
     <form className="adm-mini" onSubmit={save}>
-      <label>Код (латиница, для адресов)<input required pattern="[a-z0-9_-]{1,40}" value={s.slug}
+      <label>{f.slug}<input required pattern="[a-z0-9_-]{1,40}" value={s.slug}
         onChange={(e) => set({ slug: e.target.value })} /></label>
-      <label>Значок (1–2 символа)<input maxLength={8} value={s.icon} onChange={(e) => set({ icon: e.target.value })} /></label>
+      <label>{f.icon}<input maxLength={8} value={s.icon} onChange={(e) => set({ icon: e.target.value })} /></label>
       {LANGS.map((l) => (
-        <label key={l}>Название {l.toUpperCase()}<input required value={s[`name_${l}`]}
+        <label key={l}>{f.name(l.toUpperCase())}<input required value={s[`name_${l}`]}
           onChange={(e) => set({ [`name_${l}`]: e.target.value })} /></label>
       ))}
-      <label>Вопросы только на одном языке
+      <label>{f.onlyLang}
         <select value={s.only_lang ?? ""} onChange={(e) => set({ only_lang: (e.target.value || null) as Lang | null })}>
-          <option value="">нет, на трёх языках</option>
+          <option value="">{f.threeLangs}</option>
           {LANGS.map((l) => <option key={l} value={l}>{l.toUpperCase()}</option>)}
         </select>
       </label>
-      {error && <p className="error">{error}</p>}
+      {error !== null && <p className="error">{humanError(error, t)}</p>}
       <div className="adm-row">
-        <button type="submit" className="btn sm">Сохранить</button>
-        <button type="button" className="btn ghost sm" onClick={() => onDone(false)}>Отмена</button>
+        <button type="submit" className="btn sm">{t.save}</button>
+        <button type="button" className="btn ghost sm" onClick={() => onDone(false)}>{t.cancel}</button>
       </div>
     </form>
   );
@@ -336,6 +364,7 @@ function TopicForm({ api, topic, base, onDone }: {
   base: Pick<TopicRow, "subject_id" | "grade" | "sort_order">;
   onDone: (saved: boolean) => void;
 }) {
+  const { t } = useT();
   const [titles, setTitles] = useState<Record<Lang, string>>({
     kk: topic?.title_kk ?? "", ru: topic?.title_ru ?? "", en: topic?.title_en ?? "",
   });
@@ -343,26 +372,26 @@ function TopicForm({ api, topic, base, onDone }: {
 
   async function save(e: React.FormEvent) {
     e.preventDefault();
-    if (!LANGS.some((l) => titles[l].trim())) { setError("Напишите название хотя бы на одном языке."); return; }
+    if (!LANGS.some((l) => titles[l].trim())) { setError(t.topicForm.needTitle); return; }
     try {
       await api.saveTopic({
         id: topic?.id, subject_id: base.subject_id, grade: base.grade, sort_order: base.sort_order,
         title_kk: titles.kk.trim(), title_ru: titles.ru.trim(), title_en: titles.en.trim(),
       });
       onDone(true);
-    } catch (err) { setError(humanError(err)); }
+    } catch (err) { setError(humanError(err, t)); }
   }
 
   return (
     <form className="adm-mini" onSubmit={save}>
       {LANGS.map((l) => (
-        <label key={l}>Название {l.toUpperCase()}<input value={titles[l]} autoFocus={l === "kk"}
+        <label key={l}>{t.topicForm.title(l.toUpperCase())}<input value={titles[l]} autoFocus={l === "kk"}
           onChange={(e) => setTitles({ ...titles, [l]: e.target.value })} /></label>
       ))}
       {error && <p className="error">{error}</p>}
       <div className="adm-row">
-        <button type="submit" className="btn sm">Сохранить</button>
-        <button type="button" className="btn ghost sm" onClick={() => onDone(false)}>Отмена</button>
+        <button type="submit" className="btn sm">{t.save}</button>
+        <button type="button" className="btn ghost sm" onClick={() => onDone(false)}>{t.cancel}</button>
       </div>
     </form>
   );

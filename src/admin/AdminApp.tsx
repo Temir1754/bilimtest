@@ -1,12 +1,16 @@
 import { useCallback, useEffect, useState } from "react";
+import { ADMIN, type AdminText } from "../i18n/admin";
+import { loadPrefs, savePrefs } from "../lib/storage";
+import { LANGS } from "../lib/types";
 import { humanError, type AdminApi, type Me } from "./api";
 import { Browser } from "./Browser";
 import { ImportView } from "./ImportView";
+import { AdminLang } from "./lang";
 import { ReviewQueue } from "./ReviewQueue";
 import { QuestionEditor } from "./QuestionEditor";
 import "./admin.css";
 
-/** Что открыто: список вопросов, очередь проверки или конкретный вопрос. */
+/** Что открыто: список вопросов, очередь проверки, конкретный вопрос или загрузка из Excel. */
 export type AdminView =
   | { name: "browse" | "review" }
   | { name: "edit"; id: string | null; topicId: string; back: "browse" | "review" }
@@ -14,11 +18,15 @@ export type AdminView =
 
 export function AdminApp({ api }: { api: AdminApi }) {
   const [me, setMe] = useState<Me | null | undefined>(undefined); // undefined — ещё проверяем
-  const [error, setError] = useState("");
+  const [failure, setFailure] = useState<unknown>(null);
   const [view, setView] = useState<AdminView>({ name: "browse" });
+  // Язык общий с сайтом ученика (bt-prefs): выбрал казахский на сайте — админка тоже на казахском.
+  const [prefs, setPrefs] = useState(loadPrefs);
+  const lang = prefs.lang;
+  const t = ADMIN[lang];
 
   const refresh = useCallback(() => {
-    api.me().then(setMe, (e) => { setError(humanError(e)); setMe(null); });
+    api.me().then(setMe, (e) => { setFailure(e); setMe(null); });
   }, [api]);
 
   useEffect(() => {
@@ -27,21 +35,26 @@ export function AdminApp({ api }: { api: AdminApi }) {
   }, [api, refresh]);
 
   useEffect(() => {
-    document.title = "Білімтест · Админка";
-    document.documentElement.lang = "ru";
     document.body.classList.add("adm-body"); // компактные размеры админки (admin.css)
     // Своя иконка вкладки: золотая с карандашом, чтобы не путать с сайтом ученика.
     document.querySelector<HTMLLinkElement>("link[rel=icon]")?.setAttribute("href", "/favicon-admin.svg");
   }, []);
 
+  useEffect(() => {
+    document.title = t.title;
+    document.documentElement.lang = lang;
+  }, [lang, t]);
+
+  const signOut = () => api.signOut().then(refresh);
+
   let body;
-  if (me === undefined) body = <p className="loading">Загрузка…</p>;
-  else if (me === null) body = <Login api={api} onDone={refresh} initialError={error} />;
+  if (me === undefined) body = <p className="loading">{t.loading}</p>;
+  else if (me === null) body = <Login api={api} t={t} onDone={refresh} initialError={failure ? humanError(failure, t) : ""} />;
   else if (me.role === "student") {
     body = (
       <div className="adm-box">
-        <p>У аккаунта <b>{me.email}</b> нет доступа к админке. Попросите админа выдать роль учителя.</p>
-        <button type="button" className="btn ghost" onClick={() => api.signOut().then(refresh)}>Выйти</button>
+        <p>{t.noAccess(me.email)}</p>
+        <button type="button" className="btn ghost" onClick={signOut}>{t.logout}</button>
       </div>
     );
   } else if (view.name === "edit") {
@@ -58,8 +71,8 @@ export function AdminApp({ api }: { api: AdminApi }) {
   }
 
   return (
-    <>
-      <a className="skip" href="#main">Перейти к содержимому</a>
+    <AdminLang.Provider value={{ lang, t }}>
+      <a className="skip" href="#main">{t.skip}</a>
       <header className="top"><div className="wrap">
         <a className="logo" href="/">
           <span className="logo-mark adm-mark">
@@ -69,63 +82,74 @@ export function AdminApp({ api }: { api: AdminApi }) {
               <path d="M17.2 9.6l3.2 3.2" stroke="#fff" strokeWidth="2.6" />
             </svg>
           </span>
-          Білімтест <span className="adm-badge">админка</span>
+          Білімтест <span className="adm-badge">{t.badge}</span>
         </a>
         {me && me.role !== "student" && (
-          <nav className="adm-nav" aria-label="Разделы">
+          <nav className="adm-nav" aria-label={t.nav.label}>
             <button type="button" aria-pressed={view.name !== "review"} onClick={() => setView({ name: "browse" })}>
-              Вопросы
+              {t.nav.questions}
             </button>
             {me.role === "admin" && (
               <button type="button" aria-pressed={view.name === "review"} onClick={() => setView({ name: "review" })}>
-                На проверке
+                {t.nav.review}
               </button>
             )}
           </nav>
         )}
-        {me && (
-          <div className="adm-user">
-            <span><span className="email">{me.email} · </span>
-              {me.role === "admin" ? "админ" : me.role === "teacher" ? "учитель" : "ученик"}</span>
-            <button type="button" className="btn ghost sm" onClick={() => api.signOut().then(refresh)}>Выйти</button>
+        <div className="adm-user">
+          <div className="langs" role="group" aria-label={t.langLabel}>
+            {LANGS.map((l) => (
+              <button key={l} type="button" aria-pressed={l === lang}
+                onClick={() => { const p = { ...prefs, lang: l }; setPrefs(p); savePrefs(p); }}>
+                {l.toUpperCase()}
+              </button>
+            ))}
           </div>
-        )}
+          {me && (
+            <>
+              <span><span className="email">{me.email} · </span>{t.roles[me.role]}</span>
+              <button type="button" className="btn ghost sm" onClick={signOut}>{t.logout}</button>
+            </>
+          )}
+        </div>
       </div></header>
       <main id="main"><div className="wrap">{body}</div></main>
-    </>
+    </AdminLang.Provider>
   );
 }
 
-function Login({ api, onDone, initialError }: { api: AdminApi; onDone: () => void; initialError: string }) {
+function Login({ api, t, onDone, initialError }: { api: AdminApi; t: AdminText; onDone: () => void; initialError: string }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState(initialError);
+  const [error, setError] = useState<unknown>(null);
   const [busy, setBusy] = useState(false);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setBusy(true);
-    setError("");
+    setError(null);
     try {
       await api.signIn(email, password);
       onDone();
     } catch (err) {
-      setError(humanError(err));
+      setError(err);
     } finally {
       setBusy(false);
     }
   }
 
+  // Ошибка хранится как есть и переводится при показе: смена языка переводит и её.
+  const message = error ? humanError(error, t) : initialError;
   return (
     <form className="adm-box adm-login" onSubmit={submit}>
-      <h2>Вход в админку</h2>
-      <p className="lede">Для учителей и админов. Ученикам вход не нужен.</p>
-      <label>Email<input type="email" autoComplete="username" required value={email}
+      <h2>{t.login.title}</h2>
+      <p className="lede">{t.login.lede}</p>
+      <label>{t.login.email}<input type="email" autoComplete="username" required value={email}
         onChange={(e) => setEmail(e.target.value)} /></label>
-      <label>Пароль<input type="password" autoComplete="current-password" required value={password}
+      <label>{t.login.password}<input type="password" autoComplete="current-password" required value={password}
         onChange={(e) => setPassword(e.target.value)} /></label>
-      {error && <p className="error" role="alert">{error}</p>}
-      <button type="submit" className="btn" disabled={busy}>{busy ? "Вход…" : "Войти"}</button>
+      {message && <p className="error" role="alert">{message}</p>}
+      <button type="submit" className="btn" disabled={busy}>{busy ? t.login.busy : t.login.submit}</button>
     </form>
   );
 }
