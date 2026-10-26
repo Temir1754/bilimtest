@@ -33,7 +33,7 @@ fieldset:disabled{opacity:.75}
 .adm-head{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
 .adm-head h2{font-size:22px}
 .adm-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
-.adm-row.wrap > label{flex:1 1 220px}
+.adm-row.grow > label{flex:1 1 220px}
 .adm-grades{display:grid;grid-template-columns:repeat(8,1fr);gap:4px}
 .adm-grades button{border:1px solid var(--line);background:var(--bg);border-radius:6px;padding:6px 0;font-weight:700}
 .adm-grades button[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
@@ -41,7 +41,7 @@ fieldset:disabled{opacity:.75}
 .adm-topics li > button{width:100%;display:flex;justify-content:space-between;gap:8px;text-align:left;border:0;background:none;border-radius:6px;padding:6px 8px;font-size:15px}
 .adm-topics li > button:hover{background:var(--bg)}
 .adm-topics li > button[aria-pressed="true"]{background:var(--accent-soft);color:var(--accent);font-weight:700}
-.adm-topics small{color:var(--muted);white-space:nowrap;font-variant-numeric:tabular-nums}
+.adm-topics small{display:flex;gap:2px;align-items:baseline;flex-shrink:0;color:var(--muted);white-space:nowrap;font-variant-numeric:tabular-nums}
 .adm-topics .adm-row{padding:2px 8px 6px}
 .adm-mini{display:grid;gap:8px;background:var(--bg);border-radius:8px;padding:10px}
 .adm-filters{display:grid;grid-template-columns:1fr auto auto;gap:8px}
@@ -83,3 +83,35 @@ fieldset:disabled{opacity:.75}
 .adm-preview-box{margin-top:12px;border:1px dashed var(--line);border-radius:var(--r);padding:16px;display:grid;gap:12px}
 .adm-preview-box .langs{justify-self:end}
 .adm-preview-box .back{display:none}
+
+/* --- Телефон и планшет --- */
+/* Кнопки сохранения всегда под рукой, даже в длинной форме. */
+.adm-editor .actions{position:sticky;bottom:0;z-index:2;background:var(--bg);padding-block:10px;margin:0;border-top:1px solid var(--line)}
+@media (max-width:820px){
+  .adm-topics{max-height:40vh}
+  .adm-side{padding:12px}
+}
+@media (max-width:640px){
+  header.top .wrap{gap:8px}
+  .adm-nav{order:3;width:100%}
+  .adm-nav button{flex:1;padding:8px 6px;background:var(--bg)}
+  .adm-user .email{display:none}
+  main{padding-block:16px 40px}
+  .adm-head h2{font-size:19px}
+  .adm-editor h2{font-size:20px}
+  .adm-tabs .link{margin-left:0;flex-basis:100%;text-align:left}
+  .adm-opts li{grid-template-columns:auto 26px 1fr auto;gap:6px}
+  .adm-opts .k{width:26px;height:26px}
+  .adm-img{flex-wrap:wrap}
+  .adm-img img{max-width:100%}
+  .adm-preview-box{padding:10px;border-left:0;border-right:0;border-radius:0;margin-inline:-16px}
+  .adm-editor .actions .btn{flex:1 1 auto}
+  .adm-box{padding:16px;margin-top:8px}
+}
+/* Пальцем по мелким ссылкам попадать трудно — увеличиваем область нажатия. */
+@media (pointer:coarse){
+  .link{padding:8px 6px;min-height:36px}
+  .adm-topics li > button{padding:10px 8px}
+  .adm-grades button{padding:10px 0}
+  .adm-opts input[type=radio]{width:24px;height:24px}
+}

@@ -211,7 +211,7 @@ export function QuestionEditor({ api, me, id, topicId, onClose }: Props) {
           <textarea rows={2} value={form.explanation[lang]} onChange={(e) => setText("explanation", e.target.value)} />
         </label>
 
-        <div className="adm-row wrap">
+        <div className="adm-row grow">
           <label>Сложность
             <select value={form.difficulty} onChange={(e) => set({ difficulty: +e.target.value })}>
               {DIFFICULTY.map((d, i) => <option key={i} value={i + 1}>{d}</option>)}

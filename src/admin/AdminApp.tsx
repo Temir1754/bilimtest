@@ -76,7 +76,8 @@ export function AdminApp({ api }: { api: AdminApi }) {
         )}
         {me && (
           <div className="adm-user">
-            <span>{me.email} · {me.role === "admin" ? "админ" : me.role === "teacher" ? "учитель" : "ученик"}</span>
+            <span><span className="email">{me.email} · </span>
+              {me.role === "admin" ? "админ" : me.role === "teacher" ? "учитель" : "ученик"}</span>
             <button type="button" className="btn ghost sm" onClick={() => api.signOut().then(refresh)}>Выйти</button>
           </div>
         )}

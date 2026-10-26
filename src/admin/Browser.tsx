@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { tx } from "../lib/text";
 import { GRADES, LANGS, type Lang, type Text } from "../lib/types";
 import { humanError, type AdminApi, type Counts, type Me, type QuestionItem, type SubjectRow, type TopicRow } from "./api";
@@ -44,7 +44,16 @@ export function Browser({ api, me, onOpen }: Props) {
   const [questions, setQuestions] = useState<QuestionItem[] | null>(null);
   const [error, setError] = useState("");
   const [editing, setEditing] = useState<"subject-new" | "subject" | "topic-new" | "topic" | null>(null);
+  const mainRef = useRef<HTMLElement>(null);
   const isAdmin = me.role === "admin";
+
+  // На узком экране список вопросов стоит под темами — после выбора темы прокручиваем к нему.
+  const pickTopic = (topicId: string | null) => {
+    update({ topicId });
+    if (window.matchMedia?.("(max-width: 820px)").matches) {
+      setTimeout(() => mainRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 0);
+    }
+  };
 
   const update = (p: Partial<Sel>) => setSel((s) => {
     const next = { ...s, ...p };
@@ -156,7 +165,7 @@ export function Browser({ api, me, onOpen }: Props) {
             {topics.length === 0 && <p className="muted">Тем пока нет.</p>}
             <ol className="adm-topics">
               <li>
-                <button type="button" aria-pressed={!sel.topicId} onClick={() => update({ topicId: null })}>
+                <button type="button" aria-pressed={!sel.topicId} onClick={() => pickTopic(null)}>
                   Все темы
                 </button>
               </li>
@@ -164,7 +173,7 @@ export function Browser({ api, me, onOpen }: Props) {
                 const c = counts[t.id];
                 return (
                   <li key={t.id}>
-                    <button type="button" aria-pressed={t.id === sel.topicId} onClick={() => update({ topicId: t.id })}>
+                    <button type="button" aria-pressed={t.id === sel.topicId} onClick={() => pickTopic(t.id)}>
                       <span>{ru(t, "title")}</span>
                       <small>
                         {c ? c.published : 0}
@@ -193,7 +202,7 @@ export function Browser({ api, me, onOpen }: Props) {
         )}
       </aside>
 
-      <section className="adm-main">
+      <section className="adm-main" ref={mainRef}>
         <div className="adm-filters">
           <input type="search" placeholder="Поиск по тексту вопроса" aria-label="Поиск" value={sel.search}
             onChange={(e) => update({ search: e.target.value })} />
