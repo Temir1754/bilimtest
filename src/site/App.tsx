@@ -125,13 +125,15 @@ export function App({ source }: { source: DataSource }) {
               </button>
             ))}
           </div>
-          {/* Вход в админку для учителей и админа; та же иконка, что у вкладки админки */}
+          {/* Вход в админку для учителей и админа */}
           <a className="staff" href="/admin" title={t.staff} aria-label={t.staff}>
-            <svg width="22" height="22" viewBox="0 0 30 30" aria-hidden="true">
-              <path d="M8.5 21.5l1-4.2 9.6-9.6a2.2 2.2 0 0 1 3.1 3.1l-9.6 9.6z" fill="none" stroke="currentColor"
-                strokeWidth="2.6" strokeLinejoin="round" />
-              <path d="M17.2 9.6l3.2 3.2" stroke="currentColor" strokeWidth="2.6" />
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+              strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
+              <path d="M10 17l5-5-5-5" />
+              <path d="M15 12H3" />
             </svg>
+            <span>{t.login}</span>
           </a>
         </div>
       </div></header>
