@@ -6,6 +6,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { beforeAll, describe, expect, it } from "vitest";
 import { importSubjects, type Db } from "../../scripts/importer";
+import { loadCurriculum, validateCurriculum, type Curriculum } from "../../scripts/curriculum";
 import type { RawSubject } from "../../src/lib/legacy";
 
 const root = join(__dirname, "..", "..");
@@ -295,6 +296,79 @@ describe("загрузка из Excel (import_questions)", () => {
   it("ученик и аноним загружать не могут", async () => {
     await expect(run("student", [row("Тема Y", "x")])).rejects.toThrow(/row-level security/);
     await expect(run(null, [row("Тема Y", "x")])).rejects.toThrow(/permission denied/);
+  });
+});
+
+describe("программа класса: разделы и темы (loadCurriculum)", () => {
+  const cur: Curriculum = {
+    grade: 4,
+    subjects: [
+      { id: "math", name: ["Математика", "Математика", "Mathematics"], sections: [
+        { title: ["Көп таңбалы сандар", "Многозначные числа", "Multi-digit numbers"], topics: [
+          ["Сандарды салыстыру", "Сравнение многозначных чисел", "Comparing multi-digit numbers"],
+          ["Сандарды дөңгелектеу", "Округление чисел", "Rounding numbers"]] }] },
+      { id: "digital", name: ["Цифрлық сауаттылық", "Цифровая грамотность", "Digital literacy"], icon: "01", sections: [
+        { title: ["Компьютер", "Компьютер", "The computer"], topics: [
+          ["Компьютер құрылғылары", "Устройства компьютера", "Computer devices"]] },
+        { title: ["Алгоритмдер", "Алгоритмы", "Algorithms"], topics: [["Цикл", "Цикл", "Loops"]] }] },
+    ],
+  };
+  const load = (force = false) => db.transaction((tx) => loadCurriculum(asDb(tx), cur, { force }));
+  const topicsOf = (slug: string) => db.query<{ title_ru: string; sort_order: number; section: string | null }>(`
+    select t.title_ru, t.sort_order, s.title_ru as section from public.topics t
+    join public.subjects su on su.id = t.subject_id left join public.sections s on s.id = t.section_id
+    where su.slug = $1 and t.grade = 4 order by t.sort_order`, [slug]).then((r) => r.rows);
+
+  it("создаёт новый предмет, разделы и темы; старые темы без раздела уходят в конец", async () => {
+    const r = await load();
+    expect(r.subjects).toEqual({ created: ["digital"], existing: ["math"] });
+    expect(r.sections).toEqual({ created: 3, updated: 0 });
+    expect(r.topics).toEqual({ created: 4, updated: 0 });
+    const math = await topicsOf("math");
+    expect(math.slice(0, 2)).toEqual([
+      { title_ru: "Сравнение многозначных чисел", sort_order: 0, section: "Многозначные числа" },
+      { title_ru: "Округление чисел", sort_order: 1, section: "Многозначные числа" }]);
+    expect(math.slice(2).every((x) => x.section === null && x.sort_order >= 2)).toBe(true); // 3 старые темы
+    expect(math).toHaveLength(5);
+    expect(await one("select icon, name_ru from public.subjects where slug = 'digital'"))
+      .toEqual({ icon: "01", name_ru: "Цифровая грамотность" });
+  });
+
+  it("повторная загрузка не создаёт дублей и не трогает названия, исправленные в админке", async () => {
+    await db.query("update public.topics set title_ru = 'Округление' where title_ru = 'Округление чисел'");
+    const r = await load();
+    expect(r.subjects.created).toEqual([]);
+    expect(r.sections).toEqual({ created: 0, updated: 3 });
+    // «Округление» нашлось по казахскому названию и осталось как в админке
+    expect(r.topics).toEqual({ created: 0, updated: 4 });
+    expect((await topicsOf("math")).map((x) => x.title_ru)).toContain("Округление");
+    await load(true); // --force возвращает название из файла
+    expect((await topicsOf("math")).map((x) => x.title_ru)).toContain("Округление чисел");
+  });
+
+  it("ошибки в файле — ничего не загружается", async () => {
+    const bad: Curriculum = { grade: 3, subjects: [{ id: "Bad id", name: ["a", "", "c"] as never, sections: [
+      { title: ["x", "x", "x"], topics: [["Цикл", "Цикл", "Loops"], ["Петля", "Цикл", "Loop"]] }] }] };
+    expect(validateCurriculum(bad)).toEqual([
+      "grade: нужен класс от 4 до 11",
+      "предмет Bad id: id — латиница, цифры, _ или -",
+      "предмет Bad id: name — три непустых названия (kk, ru, en)",
+      "предмет Bad id, раздел 1, тема 2: название «цикл» уже есть в этом предмете",
+    ]);
+    await expect(db.transaction((tx) => loadCurriculum(asDb(tx), bad))).rejects.toThrow(/Ошибки в файле программы/);
+  });
+
+  it("разделы: читают все, создаёт учитель, удаляет только админ", async () => {
+    expect((await as(null, (q) => q("select * from public.sections"))).length).toBe(3);
+    const subj = (await one<{ id: string }>("select id from public.subjects where slug = 'math'"))!.id;
+    const add = (who: keyof typeof ids) => as(who, (q) => q<{ id: string }>(
+      "insert into public.sections (subject_id, grade, title_ru) values ($1, 5, 'Раздел') returning id", [subj]));
+    await expect(add("student")).rejects.toThrow(/row-level security/);
+    const [s] = await add("teacherA");
+    expect(await as("teacherA", (q) => q("delete from public.sections where id = $1 returning id", [s.id]))).toEqual([]);
+    expect(await as("admin", (q) => q("delete from public.sections where id = $1 returning id", [s.id]))).toHaveLength(1);
+    await expect(as(null, (q) => q("insert into public.sections (subject_id, grade, title_ru) values ($1, 5, 'x')", [subj])))
+      .rejects.toThrow(/permission denied/);
   });
 });
 

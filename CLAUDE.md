@@ -17,6 +17,7 @@
 | `src/i18n/ui.ts` | Тексты интерфейса kk/ru/en |
 | `src/styles/app.css` | Стили из старого template.html; новое — в конец файла |
 | `data/*.json` | Исходные вопросы (формат — в README и `src/lib/legacy.ts`) |
+| `data/curriculum/gradeN.json` | Программы классов: предмет → раздел → тема, без вопросов (формат — `scripts/curriculum.ts`) |
 | `supabase/migrations/` | SQL-миграции (с этапа 3) |
 | `scripts/` | Скрипты, например импорт JSON в Supabase |
 | `tests/` | Тесты Vitest |
@@ -29,6 +30,7 @@
 - `npm run test:db` — тесты RLS на тестовом проекте Supabase (TEST_* в .env)
 - `npm run db:push [-- --test]` — применить миграции; `npm run import [-- --test] [-- --force]` — импорт data/*.json
 - `npm run make-admin -- email` — назначить админа
+- `npm run curriculum -- data/curriculum/gradeN.json [--check] [--force] [--test]` — загрузить программу класса (разделы и темы)
 - `npm run build` — сборка в `dist/`; `npm run preview` — посмотреть сборку
 - Деплой: описывается на этапе 7
 

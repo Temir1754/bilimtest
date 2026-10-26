@@ -12,7 +12,8 @@
     "test:db": "vitest run --mode cloud",
     "db:push": "tsx scripts/db-push.ts",
     "import": "tsx scripts/import-json.ts",
-    "make-admin": "tsx scripts/make-admin.ts"
+    "make-admin": "tsx scripts/make-admin.ts",
+    "curriculum": "tsx scripts/load-curriculum.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.118.0",

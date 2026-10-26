@@ -31,6 +31,7 @@ describe.skipIf(!configured)("Supabase: правила доступа", () => {
     sql = postgres(dbUrl, { ssl: "require", prepare: false, onnotice: () => {} });
     // Чистим следы прошлых запусков.
     await sql`delete from public.questions where legacy_key is null`;
+    await sql`delete from public.sections where title_ru = 'Раздел-тест'`;
     await sql`delete from public.topics where legacy_key is null`;
     await sql`truncate public.reports, public.attempts, public.answer_stats, public.rate_limits, public.question_history`;
     await sql`delete from auth.users where email like '%@bilimtest.test'`;
@@ -105,6 +106,26 @@ describe.skipIf(!configured)("Supabase: правила доступа", () => {
     expect(error?.code).toBe("42501");
     const { error: e2 } = await clients.teacherA.rpc("set_user_role", { p_user: draftId, p_role: "admin" });
     expect(e2).not.toBeNull();
+  });
+
+  it("разделы: читают все, создаёт учитель, удаляет только админ", async () => {
+    const subj = (await sql`select id from public.subjects where slug = 'math'`)[0].id;
+    expect((await anon().from("sections").select("id").limit(1)).error).toBeNull();
+    const row = { subject_id: subj, grade: 5, title_ru: "Раздел-тест" };
+    expect((await clients.student.from("sections").insert(row)).error?.code).toBe("42501");
+    const { data, error } = await clients.teacherA.from("sections").insert(row).select("id").single();
+    expect(error).toBeNull();
+    const del = (c: SupabaseClient) => c.from("sections").delete().eq("id", data!.id).select("id");
+    expect((await del(clients.teacherA)).data).toEqual([]);
+    expect((await del(clients.admin)).data).toHaveLength(1);
+  });
+
+  it("save_question: учитель не публикует через функцию", async () => {
+    const { error } = await clients.teacherA.rpc("save_question", {
+      p_id: null, p_q: { topic_id: topicId, text_kk: "a", text_ru: "a", text_en: "a", status: "published" },
+      p_options: [0, 1, 2].map((i) => ({ text_kk: `${i}`, text_ru: `${i}`, text_en: `${i}`, is_correct: i === 0 })),
+    });
+    expect(error?.code).toBe("42501");
   });
 
   it("аноним отправляет попытку и жалобу, но не читает их", async () => {
