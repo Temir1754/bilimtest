@@ -89,6 +89,7 @@ export async function loadCurriculum(db: Db, c: Curriculum, { force = false } = 
     }
 
     let order = 0; // сквозной номер темы внутри предмета и класса
+    const used: string[] = []; // темы базы, уже сопоставленные с темами файла
     for (const [si, sec] of s.sections.entries()) {
       const [found] = await db.query<{ id: string }>(
         `select id from public.sections where subject_id = $1 and grade = $2 and ${anyTitle(3)}
@@ -107,9 +108,12 @@ export async function loadCurriculum(db: Db, c: Curriculum, { force = false } = 
       }
 
       for (const tp of sec.topics) {
+        // Уже занятую тему не берём второй раз: в старых данных бывает неточный перевод, и одна старая тема
+        // совпадает с двумя темами файла (ru «с натуральным показателем», kk «бүтін көрсеткішті» — 7 кл.).
         const [topic] = await db.query<{ id: string }>(
           `select id from public.topics where subject_id = $1 and grade = $2 and ${anyTitle(3)}
-           order by sort_order limit 1`, [subj.id, g, ...tp]);
+             and not (id = any($6::uuid[])) order by sort_order limit 1`, [subj.id, g, ...tp, used]);
+        if (topic) used.push(topic.id);
         if (topic) {
           await db.query(`update public.topics set section_id = $2, sort_order = $3
             ${force ? ", title_kk = $4, title_ru = $5, title_en = $6" : ""} where id = $1`,

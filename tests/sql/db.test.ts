@@ -371,6 +371,22 @@ describe("программа класса: разделы и темы (loadCurri
     await expect(as(null, (q) => q("insert into public.sections (subject_id, grade, title_ru) values ($1, 5, 'x')", [subj])))
       .rejects.toThrow(/permission denied/);
   });
+
+  it("одна старая тема не совпадает с двумя темами файла (неточный перевод в старых данных)", async () => {
+    // Старая тема алгебры 7 кл.: ru «Степень с натуральным показателем», kk «Бүтін көрсеткішті дәреже».
+    const g7: Curriculum = { grade: 7, subjects: [{ id: "algebra", name: ["Алгебра", "Алгебра", "Algebra"], sections: [
+      { title: ["Дәреже", "Степень", "Powers"], topics: [
+        ["Натурал көрсеткішті дәреже", "Степень с натуральным показателем", "Powers with natural exponents"],
+        ["Бүтін көрсеткішті дәреже", "Степень с целым показателем", "Powers with integer exponents"]] }] }] };
+    const r = await db.transaction((tx) => loadCurriculum(asDb(tx), g7));
+    expect(r.topics).toEqual({ created: 1, updated: 1 });
+    const rows = (await db.query<{ title_ru: string; legacy_key: string | null }>(`
+      select t.title_ru, t.legacy_key from public.topics t join public.subjects s on s.id = t.subject_id
+      where s.slug = 'algebra' and t.grade = 7 and t.section_id is not null order by t.sort_order`)).rows;
+    expect(rows).toEqual([
+      { title_ru: "Степень с натуральным показателем", legacy_key: "algebra|7|0" },
+      { title_ru: "Степень с целым показателем", legacy_key: null }]);
+  });
 });
 
 describe("функции для учеников", () => {
