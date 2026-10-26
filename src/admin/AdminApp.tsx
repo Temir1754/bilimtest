@@ -28,6 +28,8 @@ export function AdminApp({ api }: { api: AdminApi }) {
     document.title = "Білімтест · Админка";
     document.documentElement.lang = "ru";
     document.body.classList.add("adm-body"); // компактные размеры админки (admin.css)
+    // Своя иконка вкладки: золотая с карандашом, чтобы не путать с сайтом ученика.
+    document.querySelector<HTMLLinkElement>("link[rel=icon]")?.setAttribute("href", "/favicon-admin.svg");
   }, []);
 
   let body;
@@ -55,10 +57,11 @@ export function AdminApp({ api }: { api: AdminApi }) {
       <a className="skip" href="#main">Перейти к содержимому</a>
       <header className="top"><div className="wrap">
         <a className="logo" href="/">
-          <span className="logo-mark">
-            <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">
-              <path d="M3 9.5l3.6 3.6L15 4.7" fill="none" stroke="var(--accent-ink)" strokeWidth="2.6"
-                strokeLinecap="round" strokeLinejoin="round" />
+          <span className="logo-mark adm-mark">
+            <svg width="18" height="18" viewBox="0 0 30 30" aria-hidden="true">
+              <path d="M8.5 21.5l1-4.2 9.6-9.6a2.2 2.2 0 0 1 3.1 3.1l-9.6 9.6z" fill="none" stroke="#fff"
+                strokeWidth="2.6" strokeLinejoin="round" />
+              <path d="M17.2 9.6l3.2 3.2" stroke="#fff" strokeWidth="2.6" />
             </svg>
           </span>
           Білімтест <span className="adm-badge">админка</span>
