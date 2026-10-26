@@ -258,6 +258,46 @@ describe("сохранение вопроса из админки (save_question
   });
 });
 
+describe("загрузка из Excel (import_questions)", () => {
+  const row = (topic: string, text: string, extra = {}) => ({
+    topic, text_kk: text, text_ru: text, text_en: text, difficulty: 1,
+    options: ["a", "b", "c"].map((s, i) => ({ text_kk: s, text_ru: s, text_en: s, is_correct: i === 0 })), ...extra,
+  });
+  const run = (who: keyof typeof ids | null, rows: unknown[]) => as(who, async (q) => {
+    const subj = (await q<{ id: string }>("select id from public.subjects where slug = 'math'"))[0].id;
+    return (await q<{ r: { questions: number; topics: number } }>(
+      "select public.import_questions($1, 5, $2::jsonb) as r", [subj, JSON.stringify(rows)]))[0].r;
+  });
+
+  it("учитель загружает черновики: тема находится по названию на любом языке или создаётся", async () => {
+    const title = (await one<{ title_kk: string }>("select title_kk from public.topics where legacy_key = 'math|5|0'"))!.title_kk;
+    const r = await run("teacherA", [row(` ${title.toUpperCase()} `, "Импорт 1"), row("Новая тема из Excel", "Импорт 2"),
+      row("новая тема из excel", "Импорт 3")]);
+    expect(r).toEqual({ questions: 3, topics: 1 });
+    const qs = (await db.query<{ status: string; author_id: string; legacy_key: string | null; n: number }>(`
+      select q.status, q.author_id, t.legacy_key, (select count(*)::int from public.options o where o.question_id = q.id) as n
+      from public.questions q join public.topics t on t.id = q.topic_id
+      where q.text_ru like 'Импорт %' order by q.text_ru`)).rows;
+    expect(qs.map((x) => [x.status, x.author_id, x.legacy_key, x.n])).toEqual([
+      ["draft", ids.teacherA, "math|5|0", 3], ["draft", ids.teacherA, null, 3], ["draft", ids.teacherA, null, 3]]);
+  });
+
+  it("ошибка в одной строке — не сохраняется ничего", async () => {
+    const before = (await one<{ n: number }>("select count(*)::int as n from public.questions"))!.n;
+    await expect(run("teacherA", [row("Тема X", "Хорошая"), row("", "Без темы")])).rejects.toThrow(/не указана тема/);
+    const five = row("Тема X", "Пять вариантов");
+    five.options = [...five.options, ...five.options];
+    await expect(run("teacherA", [five])).rejects.toThrow(/не больше 4/);
+    expect((await one<{ n: number }>("select count(*)::int as n from public.questions"))!.n).toBe(before);
+    expect(await one("select 1 from public.topics where title_ru = 'Тема X'")).toBeUndefined();
+  });
+
+  it("ученик и аноним загружать не могут", async () => {
+    await expect(run("student", [row("Тема Y", "x")])).rejects.toThrow(/row-level security/);
+    await expect(run(null, [row("Тема Y", "x")])).rejects.toThrow(/permission denied/);
+  });
+});
+
 describe("функции для учеников", () => {
   it("попытка: база сама считает верные ответы и статистику", async () => {
     const qs = (await db.query<{ qid: string; right: string; wrong: string }>(`

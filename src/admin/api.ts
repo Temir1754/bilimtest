@@ -78,6 +78,11 @@ export interface AdminApi {
   saveQuestion(p: ReturnType<typeof toPayload>): Promise<string>;
   deleteQuestion(id: string): Promise<void>;
   uploadImage(file: File): Promise<string>;
+
+  /** Загрузка из Excel одной транзакцией; все вопросы — черновики. */
+  importQuestions(subjectId: string, grade: number, rows: unknown[]): Promise<{ questions: number; topics: number }>;
+  /** Вопросы с вариантами для выгрузки в Excel, по порядку тем. */
+  exportQuestions(subjectId: string, grade: number, topicId?: string): Promise<{ topic: string; q: QuestionRow }[]>;
 }
 
 /** Сообщения базы → понятный текст. */
@@ -189,6 +194,19 @@ export function supabaseApi(sb: SupabaseClient): AdminApi {
       const path = `${data.session?.user.id ?? "anon"}/${crypto.randomUUID()}.${ext}`;
       check(await sb.storage.from("question-images").upload(path, file, { contentType: file.type }));
       return sb.storage.from("question-images").getPublicUrl(path).data.publicUrl;
+    },
+
+    async importQuestions(subjectId, grade, rows) {
+      return check(await sb.rpc("import_questions", { p_subject_id: subjectId, p_grade: grade, p_rows: rows })) as
+        { questions: number; topics: number };
+    },
+    async exportQuestions(subjectId, grade, topicId) {
+      const topics = (await this.topics(subjectId, grade)).filter((t) => !topicId || t.id === topicId);
+      if (!topics.length) return [];
+      const rows = check(await sb.from("questions").select(QUESTION_COLS).in("topic_id", topics.map((t) => t.id))
+        .order("sort_order").limit(10000)) as unknown as QuestionRow[];
+      return topics.flatMap((t) => rows.filter((q) => q.topic_id === t.id)
+        .map((q) => ({ topic: t.title_ru || t.title_kk || t.title_en, q })));
     },
   };
 }

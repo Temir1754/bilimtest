@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { tx } from "../lib/text";
 import { GRADES, LANGS, type Lang, type Text } from "../lib/types";
 import { humanError, type AdminApi, type Counts, type Me, type QuestionItem, type SubjectRow, type TopicRow } from "./api";
+import { download, exportSheet } from "./excel";
 import { STATUS_LABEL, type Status } from "./form";
 
 /** Текст из колонок name_kk / name_ru / name_en (и т. п.); в админке главный язык — русский. */
@@ -34,9 +35,10 @@ interface Props {
   api: AdminApi;
   me: Me;
   onOpen: (questionId: string | null, topicId: string) => void;
+  onImport: (subjectId: string, grade: number) => void;
 }
 
-export function Browser({ api, me, onOpen }: Props) {
+export function Browser({ api, me, onOpen, onImport }: Props) {
   const [sel, setSel] = useState<Sel>(loadSel);
   const [subjects, setSubjects] = useState<SubjectRow[]>([]);
   const [topics, setTopics] = useState<TopicRow[]>([]);
@@ -45,6 +47,7 @@ export function Browser({ api, me, onOpen }: Props) {
   const [error, setError] = useState("");
   const [editing, setEditing] = useState<"subject-new" | "subject" | "topic-new" | "topic" | null>(null);
   const mainRef = useRef<HTMLElement>(null);
+  const [exporting, setExporting] = useState(false);
   const isAdmin = me.role === "admin";
 
   // На узком экране список вопросов стоит под темами — после выбора темы прокручиваем к нему.
@@ -100,6 +103,17 @@ export function Browser({ api, me, onOpen }: Props) {
       await Promise.all(list.map((t, k) => (t.sort_order === k ? null : api.saveTopic({ ...t, sort_order: k }))));
       await loadTopics();
     } catch (e) { fail(e); }
+  }
+
+  // Выгрузка: выбранная тема или все темы предмета в этом классе.
+  async function exportExcel(s: SubjectRow) {
+    setExporting(true);
+    try {
+      const items = await api.exportQuestions(s.id, sel.grade, sel.topicId ?? undefined);
+      if (!items.length) { setError("Здесь пока нет вопросов для выгрузки."); return; }
+      await download(`${s.slug}-${sel.grade}-klass${topic ? "-" + (topic.sort_order + 1) : ""}.xlsx`,
+        { "Вопросы": exportSheet(items) });
+    } catch (e) { fail(e); } finally { setExporting(false); }
   }
 
   async function removeTopic(t: TopicRow) {
@@ -219,7 +233,19 @@ export function Browser({ api, me, onOpen }: Props) {
 
         <div className="adm-head">
           <h2>{topic ? ru(topic, "title") : subject ? `${ru(subject, "name")} · ${sel.grade} класс` : "Вопросы"}</h2>
-          {topic && <button type="button" className="btn" onClick={() => onOpen(null, topic.id)}>+ Новый вопрос</button>}
+          <div className="adm-row">
+            {subject && (
+              <>
+                <button type="button" className="btn ghost sm" onClick={() => onImport(subject.id, sel.grade)}>
+                  Загрузить из Excel
+                </button>
+                <button type="button" className="btn ghost sm" disabled={exporting} onClick={() => exportExcel(subject)}>
+                  {exporting ? "Выгрузка…" : "Выгрузить в Excel"}
+                </button>
+              </>
+            )}
+            {topic && <button type="button" className="btn" onClick={() => onOpen(null, topic.id)}>+ Новый вопрос</button>}
+          </div>
         </div>
         {error && <p className="error" role="alert">{error} <button type="button" className="link" onClick={() => setError("")}>×</button></p>}
 

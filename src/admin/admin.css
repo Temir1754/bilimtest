@@ -95,6 +95,21 @@ fieldset:disabled{opacity:.75}
 .adm-preview-box .langs{justify-self:end}
 .adm-preview-box .back{display:none}
 
+/* загрузка из Excel */
+.adm-steps{margin:0;padding-left:22px;display:grid;gap:10px}
+.adm-steps label{display:grid;gap:6px;font-weight:700}
+.adm-summary{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.st.bad{background:var(--bad-soft);color:var(--bad)}
+.adm-ready.ok{background:var(--good-soft)}
+.adm-ready.ok p{margin:4px 0 10px}
+.adm-table-wrap{overflow:auto;max-height:60vh;border:1px solid var(--line);border-radius:var(--r);background:var(--surface)}
+.adm-table{border-collapse:collapse;width:100%;font-size:14px}
+.adm-table th,.adm-table td{text-align:left;padding:6px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+.adm-table th{position:sticky;top:0;background:var(--surface);color:var(--muted)}
+.adm-table td:first-child{font-variant-numeric:tabular-nums;color:var(--muted)}
+.adm-table tr.bad td:last-child{color:var(--bad);font-weight:700}
+.adm-table tr.warn td:last-child{color:var(--gold)}
+
 /* --- Телефон и планшет --- */
 /* Кнопки сохранения всегда под рукой, даже в длинной форме. */
 .adm-editor .actions{position:sticky;bottom:0;z-index:2;background:var(--bg);padding-block:10px;margin:0;border-top:1px solid var(--line)}

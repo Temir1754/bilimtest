@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { humanError, type AdminApi, type Me } from "./api";
 import { Browser } from "./Browser";
+import { ImportView } from "./ImportView";
 import { ReviewQueue } from "./ReviewQueue";
 import { QuestionEditor } from "./QuestionEditor";
 import "./admin.css";
@@ -8,7 +9,8 @@ import "./admin.css";
 /** Что открыто: список вопросов, очередь проверки или конкретный вопрос. */
 export type AdminView =
   | { name: "browse" | "review" }
-  | { name: "edit"; id: string | null; topicId: string; back: "browse" | "review" };
+  | { name: "edit"; id: string | null; topicId: string; back: "browse" | "review" }
+  | { name: "import"; subjectId: string; grade: number };
 
 export function AdminApp({ api }: { api: AdminApi }) {
   const [me, setMe] = useState<Me | null | undefined>(undefined); // undefined — ещё проверяем
@@ -45,11 +47,14 @@ export function AdminApp({ api }: { api: AdminApi }) {
   } else if (view.name === "edit") {
     body = <QuestionEditor api={api} me={me} id={view.id} topicId={view.topicId}
       onClose={() => setView({ name: view.back })} />;
+  } else if (view.name === "import") {
+    body = <ImportView api={api} subjectId={view.subjectId} grade={view.grade} onClose={() => setView({ name: "browse" })} />;
   } else if (view.name === "review") {
     body = <ReviewQueue api={api} onOpen={(id, topicId) => setView({ name: "edit", id, topicId, back: "review" })} />;
   } else {
     body = <Browser api={api} me={me}
-      onOpen={(id, topicId) => setView({ name: "edit", id, topicId, back: "browse" })} />;
+      onOpen={(id, topicId) => setView({ name: "edit", id, topicId, back: "browse" })}
+      onImport={(subjectId, grade) => setView({ name: "import", subjectId, grade })} />;
   }
 
   return (

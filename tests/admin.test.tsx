@@ -4,6 +4,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AdminApp } from "../src/admin/AdminApp";
 import type { AdminApi, Me, QuestionItem, SubjectRow, TopicRow } from "../src/admin/api";
 import type { QuestionRow, toPayload } from "../src/admin/form";
+import { HEADERS } from "../src/admin/excel";
+
+/** Строка шаблона: тема, вопрос, правильный и неверные ответы — одинаково на трёх языках. */
+const row = (topic: string, q: string, ...answers: string[]) =>
+  [topic, q, q, q, ...[0, 1, 2, 3].flatMap((i) => [answers[i] ?? "", answers[i] ?? "", answers[i] ?? ""]), "", "", "", "2"];
 
 // Заглушка базы в памяти: проверяем экраны админки без Supabase.
 function fakeApi(me: Me | null) {
@@ -50,6 +55,8 @@ function fakeApi(me: Me | null) {
     }),
     async deleteQuestion() {},
     async uploadImage() { return "https://img/x.png"; },
+    importQuestions: vi.fn(async (_s: string, _g: number, rows: unknown[]) => ({ questions: rows.length, topics: 1 })),
+    async exportQuestions() { return questions.map((q) => ({ topic: "Дроби", q })); },
   };
   return { api, saved };
 }
@@ -126,6 +133,30 @@ describe("админка", () => {
     await user.click(back);
     expect(await screen.findByText("Вопрос возвращён учителю на доработку.")).toBeTruthy();
     expect(saved[0].p_q).toMatchObject({ status: "draft", review_comment: "Добавьте пояснение" });
+  });
+
+  it("загрузка из Excel: показывает ошибки строк и загружает только правильные", async () => {
+    const user = userEvent.setup();
+    const { api } = fakeApi({ id: "teacher", email: "t@x.kz", role: "teacher" });
+    render(<AdminApp api={api} />);
+    await user.click(await screen.findByRole("button", { name: "Загрузить из Excel" }));
+
+    const sheet = [HEADERS,
+      row("Дроби", "Сколько будет 1/2 + 1/2?", "1", "2", "1/4"),
+      row("Новая тема", "Без неверных ответов", "1", "", ""),
+    ];
+    const XLSX = await import("xlsx");
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(sheet), "Вопросы");
+    const file = new File([XLSX.write(wb, { type: "array", bookType: "xlsx" })], "q.xlsx");
+    await user.upload(screen.getByLabelText(/Выберите заполненный файл/), file);
+
+    expect(await screen.findByText(/Ошибка: нужно минимум 2 неверных ответа/)).toBeTruthy();
+    expect(screen.queryByText(/Будут созданы новые темы/)).toBeNull(); // «Новая тема» с ошибкой не создаётся
+    await user.click(screen.getByRole("button", { name: "Загрузить 1 в черновики" }));
+    expect(await screen.findByText(/загружено вопросов — 1/)).toBeTruthy();
+    const rows = (api.importQuestions as ReturnType<typeof vi.fn>).mock.calls[0][2] as { topic: string }[];
+    expect(rows.map((r) => r.topic)).toEqual(["Дроби"]);
   });
 
   it("предпросмотр показывает вопрос глазами ученика", async () => {
