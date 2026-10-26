@@ -41,6 +41,8 @@ function fakeApi(me: Me | null) {
       user = { id: "admin", email, role: "admin" };
     },
     async signOut() { user = null; },
+    resetPassword: vi.fn(async () => {}),
+    setPassword: vi.fn(async (pw: string) => { if (pw.length < 6) throw new Error("Password should be at least 6 characters."); }),
     async subjects() { return subjects; },
     async saveSubject() {},
     async deleteSubject() {},
@@ -90,6 +92,40 @@ describe("админка", () => {
     await user.type(screen.getByLabelText("Пароль"), "secret");
     await user.click(screen.getByRole("button", { name: "Войти" }));
     expect(await screen.findByRole("button", { name: /2\+2\?/ })).toBeTruthy();
+  });
+
+  it("«Забыли пароль?»: отправляет письмо со ссылкой", async () => {
+    const user = userEvent.setup();
+    const { api } = fakeApi(null);
+    render(<AdminApp api={api} />);
+    await user.click(await screen.findByRole("button", { name: "Забыли пароль?" }));
+    expect(screen.queryByLabelText("Пароль")).toBeNull();
+    await user.type(screen.getByLabelText("Email"), "me@school.kz");
+    await user.click(screen.getByRole("button", { name: "Отправить ссылку" }));
+    expect(await screen.findByText(/Письмо отправлено на me@school.kz/)).toBeTruthy();
+    expect(api.resetPassword).toHaveBeenCalledWith("me@school.kz");
+  });
+
+  it("по ссылке из письма: новый пароль, потом админка", async () => {
+    const user = userEvent.setup();
+    history.replaceState(null, "", "/admin?reset");
+    const { api } = fakeApi({ id: "admin", email: "a@x.kz", role: "admin" });
+    render(<AdminApp api={api} />);
+    await user.type(await screen.findByLabelText("Новый пароль"), "123");
+    await user.type(screen.getByLabelText("Повторите пароль"), "124");
+    await user.click(screen.getByRole("button", { name: "Сохранить пароль" }));
+    expect(await screen.findByText("Пароли не совпадают.")).toBeTruthy();
+    expect(api.setPassword).not.toHaveBeenCalled();
+
+    await user.clear(screen.getByLabelText("Новый пароль"));
+    await user.clear(screen.getByLabelText("Повторите пароль"));
+    await user.type(screen.getByLabelText("Новый пароль"), "newsecret");
+    await user.type(screen.getByLabelText("Повторите пароль"), "newsecret");
+    await user.click(screen.getByRole("button", { name: "Сохранить пароль" }));
+    expect(api.setPassword).toHaveBeenCalledWith("newsecret");
+    await user.click(await screen.findByRole("button", { name: "Перейти в админку" }));
+    expect(await screen.findByRole("button", { name: /2+2?/ })).toBeTruthy();
+    expect(location.search).toBe("");
   });
 
   it("ученику админка недоступна", async () => {

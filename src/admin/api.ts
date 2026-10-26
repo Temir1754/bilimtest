@@ -62,6 +62,10 @@ export interface AdminApi {
   onAuthChange(cb: () => void): () => void;
   signIn(email: string, password: string): Promise<void>;
   signOut(): Promise<void>;
+  /** Письмо со ссылкой для нового пароля; ссылка ведёт в /admin?reset. */
+  resetPassword(email: string): Promise<void>;
+  /** Новый пароль для того, кто вошёл по ссылке из письма. */
+  setPassword(password: string): Promise<void>;
 
   subjects(): Promise<SubjectRow[]>;
   saveSubject(s: Omit<SubjectRow, "id"> & { id?: string }): Promise<void>;
@@ -94,6 +98,9 @@ export function humanError(e: unknown, t: AdminText): string {
   const r = t.err;
   if (/Invalid login credentials/i.test(m)) return r.invalidLogin;
   if (/Email not confirmed/i.test(m)) return r.emailNotConfirmed;
+  if (/Password should be|weak.?password/i.test(m)) return r.weakPassword;
+  if (/should be different from the old/i.test(m)) return r.samePassword;
+  if (/rate limit|For security purposes/i.test(m)) return r.rateLimit;
   if (/не найден или нет прав/i.test(m)) return r.notFound;
   if (/row-level security|permission denied|42501/i.test(m)) return r.noRights;
   if (/violates foreign key constraint/i.test(m)) return r.fk;
@@ -141,6 +148,14 @@ export function supabaseApi(sb: SupabaseClient): AdminApi {
     },
     async signOut() {
       await sb.auth.signOut();
+    },
+    async resetPassword(email) {
+      const { error } = await sb.auth.resetPasswordForEmail(email.trim(), { redirectTo: `${location.origin}/admin?reset` });
+      if (error) throw error;
+    },
+    async setPassword(password) {
+      const { error } = await sb.auth.updateUser({ password });
+      if (error) throw error;
     },
 
     async subjects() {

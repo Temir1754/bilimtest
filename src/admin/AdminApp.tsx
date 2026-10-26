@@ -20,6 +20,8 @@ export function AdminApp({ api }: { api: AdminApi }) {
   const [me, setMe] = useState<Me | null | undefined>(undefined); // undefined — ещё проверяем
   const [failure, setFailure] = useState<unknown>(null);
   const [view, setView] = useState<AdminView>({ name: "browse" });
+  // Пришли по ссылке из письма «Забыли пароль?» (/admin?reset): сначала — форма нового пароля.
+  const [reset, setReset] = useState(() => new URLSearchParams(location.search).has("reset"));
   // Язык общий с сайтом ученика (bt-prefs): выбрал казахский на сайте — админка тоже на казахском.
   const [prefs, setPrefs] = useState(loadPrefs);
   const lang = prefs.lang;
@@ -50,7 +52,9 @@ export function AdminApp({ api }: { api: AdminApi }) {
   let body;
   if (me === undefined) body = <p className="loading">{t.loading}</p>;
   else if (me === null) body = <Login api={api} t={t} onDone={refresh} initialError={failure ? humanError(failure, t) : ""} />;
-  else if (me.role === "student") {
+  else if (reset) {
+    body = <NewPassword api={api} t={t} onDone={() => { history.replaceState(null, "", "/admin"); setReset(false); }} />;
+  } else if (me.role === "student") {
     body = (
       <div className="adm-box">
         <p>{t.noAccess(me.email)}</p>
@@ -123,14 +127,21 @@ function Login({ api, t, onDone, initialError }: { api: AdminApi; t: AdminText; 
   const [password, setPassword] = useState("");
   const [error, setError] = useState<unknown>(null);
   const [busy, setBusy] = useState(false);
+  const [forgot, setForgot] = useState(false); // экран «Забыли пароль?»
+  const [sentTo, setSentTo] = useState("");
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setBusy(true);
     setError(null);
     try {
-      await api.signIn(email, password);
-      onDone();
+      if (forgot) {
+        await api.resetPassword(email);
+        setSentTo(email.trim());
+      } else {
+        await api.signIn(email, password);
+        onDone();
+      }
     } catch (err) {
       setError(err);
     } finally {
@@ -139,17 +150,69 @@ function Login({ api, t, onDone, initialError }: { api: AdminApi; t: AdminText; 
   }
 
   // Ошибка хранится как есть и переводится при показе: смена языка переводит и её.
-  const message = error ? humanError(error, t) : initialError;
+  const message = error ? humanError(error, t) : forgot ? "" : initialError;
+  const toggle = () => { setForgot(!forgot); setError(null); setSentTo(""); };
   return (
     <form className="adm-box adm-login" onSubmit={submit}>
-      <h2>{t.login.title}</h2>
-      <p className="lede">{t.login.lede}</p>
+      <h2>{forgot ? t.login.resetTitle : t.login.title}</h2>
+      <p className="lede">{forgot ? t.login.resetLede : t.login.lede}</p>
       <label>{t.login.email}<input type="email" autoComplete="username" required value={email}
         onChange={(e) => setEmail(e.target.value)} /></label>
-      <label>{t.login.password}<input type="password" autoComplete="current-password" required value={password}
-        onChange={(e) => setPassword(e.target.value)} /></label>
+      {!forgot && (
+        <label>{t.login.password}<input type="password" autoComplete="current-password" required value={password}
+          onChange={(e) => setPassword(e.target.value)} /></label>
+      )}
       {message && <p className="error" role="alert">{message}</p>}
-      <button type="submit" className="btn" disabled={busy}>{busy ? t.login.busy : t.login.submit}</button>
+      {sentTo && <p role="status">{t.login.sent(sentTo)}</p>}
+      <button type="submit" className="btn" disabled={busy}>
+        {forgot ? (busy ? t.login.sending : t.login.sendLink) : (busy ? t.login.busy : t.login.submit)}
+      </button>
+      <button type="button" className="btn ghost sm" onClick={toggle}>{forgot ? t.login.back : t.login.forgot}</button>
+    </form>
+  );
+}
+
+/** Новый пароль после входа по ссылке из письма. */
+function NewPassword({ api, t, onDone }: { api: AdminApi; t: AdminText; onDone: () => void }) {
+  const [password, setPassword] = useState("");
+  const [repeat, setRepeat] = useState("");
+  const [error, setError] = useState<unknown>(null);
+  const [busy, setBusy] = useState(false);
+  const [done, setDone] = useState(false);
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    if (password !== repeat) { setError(new Error(t.login.mismatch)); return; }
+    setBusy(true);
+    setError(null);
+    try {
+      await api.setPassword(password);
+      setDone(true);
+    } catch (err) {
+      setError(err);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (done) {
+    return (
+      <div className="adm-box adm-login">
+        <p role="status">{t.login.passwordSaved}</p>
+        <button type="button" className="btn" onClick={onDone}>{t.login.toAdmin}</button>
+      </div>
+    );
+  }
+  return (
+    <form className="adm-box adm-login" onSubmit={submit}>
+      <h2>{t.login.newTitle}</h2>
+      <p className="lede">{t.login.newLede}</p>
+      <label>{t.login.newPassword}<input type="password" autoComplete="new-password" required minLength={6} value={password}
+        onChange={(e) => setPassword(e.target.value)} /></label>
+      <label>{t.login.repeat}<input type="password" autoComplete="new-password" required minLength={6} value={repeat}
+        onChange={(e) => setRepeat(e.target.value)} /></label>
+      {error != null && <p className="error" role="alert">{humanError(error, t)}</p>}
+      <button type="submit" className="btn" disabled={busy}>{busy ? t.saving : t.login.savePassword}</button>
     </form>
   );
 }
