@@ -32,6 +32,7 @@
 - `npm run make-admin -- email` — назначить админа
 - `npm run curriculum -- data/curriculum/gradeN.json [--check] [--force] [--test]` — загрузить программу класса (разделы и темы)
 - `npm run backup [-- --test]` — резервная копия данных базы в `backups/` (не в git); `npm run restore -- backups/папка --yes [--test]` — вернуть базу к копии
+- `npm run move-questions [-- --apply] [--with-none] [--test]` — перенос старых вопросов по таблицам `docs/gradeN-mapping.md` (без --apply — только проверка)
 - `npm run build` — сборка в `dist/`; `npm run preview` — посмотреть сборку
 - Деплой: описывается на этапе 7
 

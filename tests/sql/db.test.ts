@@ -8,6 +8,7 @@ import { beforeAll, describe, expect, it } from "vitest";
 import { importSubjects, type Db } from "../../scripts/importer";
 import { loadCurriculum, validateCurriculum, type Curriculum } from "../../scripts/curriculum";
 import { dumpDb, restoreDb, tablesInOrder } from "../../scripts/backup";
+import { applyMoves, planMoves, readMappings } from "../../scripts/mapping";
 import type { RawSubject } from "../../src/lib/legacy";
 
 const root = join(__dirname, "..", "..");
@@ -479,4 +480,32 @@ describe("резервная копия (npm run backup / restore)", () => {
     const after = await dumpDb(asDb(db));
     for (const t of Object.keys(before)) expect(sorted(after[t]), t).toEqual(sorted(before[t]));
   });
+});
+
+describe("перенос старых вопросов по таблицам docs/gradeN-mapping.md", () => {
+  it("таблицы читаются без ошибок: каждый старый вопрос — не больше одного раза, всего 1336", () => {
+    const r = readMappings(root);
+    expect(r.errors).toEqual([]);
+    expect(new Set(r.moves.map((m) => m.questionKey)).size).toBe(r.moves.length);
+    expect(r.moves.length + r.kept).toBe(1336);
+  });
+
+  it("все новые темы находятся в базе после загрузки программ 4–11; вопросы переезжают в нужный класс", async () => {
+    for (let g = 4; g <= 11; g++) {
+      await db.transaction((tx) => loadCurriculum(asDb(tx), JSON.parse(
+        readFileSync(join(root, "data", "curriculum", `grade${g}.json`), "utf8")) as Curriculum));
+    }
+    const { moves } = readMappings(root);
+    const plan = await planMoves(asDb(db), moves);
+    expect(plan.errors).toEqual([]);
+    const n = await db.transaction((tx) => applyMoves(asDb(tx), plan.rows));
+    expect(n).toBeGreaterThan(1000);
+    // Вопрос 6 класса «Ромб в блок-схеме» уехал в 5 класс (№54)
+    const m = moves.find((x) => x.file === "grade6-mapping.md" && x.row === "64")!;
+    const q = await one<{ grade: number; title_ru: string }>(`select t.grade, t.title_ru from public.questions q
+      join public.topics t on t.id = q.topic_id where q.legacy_key = $1`, [m.questionKey]);
+    expect(q).toEqual({ grade: 5, title_ru: "Блок-схемы" });
+    // повтор ничего не меняет
+    expect(await db.transaction((tx) => applyMoves(asDb(tx), plan.rows))).toBe(0);
+  }, 60_000);
 });
