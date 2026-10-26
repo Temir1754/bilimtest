@@ -7,6 +7,7 @@ import { join } from "node:path";
 import { beforeAll, describe, expect, it } from "vitest";
 import { importSubjects, type Db } from "../../scripts/importer";
 import { loadCurriculum, validateCurriculum, type Curriculum } from "../../scripts/curriculum";
+import { dumpDb, restoreDb, tablesInOrder } from "../../scripts/backup";
 import type { RawSubject } from "../../src/lib/legacy";
 
 const root = join(__dirname, "..", "..");
@@ -435,5 +436,31 @@ describe("картинки", () => {
       .rejects.toThrow(/row-level security/);
     await as("teacherA", (q) => q(
       "insert into storage.objects (bucket_id, name, owner_id) values ('question-images', 'b.png', $1)", [ids.teacherA]));
+  });
+});
+
+describe("резервная копия (npm run backup / restore)", () => {
+  // Строки таблицы в одном порядке — чтобы сравнивать копии.
+  const sorted = (rows: unknown[]) => rows.map((r) => JSON.stringify(r)).sort();
+
+  it("таблицы идут по порядку ссылок: тема после предмета, вариант после вопроса", async () => {
+    const order = await tablesInOrder(asDb(db));
+    expect(order.indexOf("subjects")).toBeLessThan(order.indexOf("topics"));
+    expect(order.indexOf("sections")).toBeLessThan(order.indexOf("topics"));
+    expect(order.indexOf("questions")).toBeLessThan(order.indexOf("options"));
+  });
+
+  it("восстановление возвращает базу ровно к копии и убирает добавленное позже", async () => {
+    const before = await dumpDb(asDb(db));
+    expect(before.questions.length).toBeGreaterThan(1000);
+
+    await db.transaction((tx) => loadCurriculum(asDb(tx), JSON.parse(
+      readFileSync(join(root, "data", "curriculum", "grade11.json"), "utf8")) as Curriculum));
+    await db.query("delete from public.options where question_id in (select id from public.questions where status = 'draft')");
+    expect((await one<{ n: number }>("select count(*)::int as n from public.topics"))!.n).toBeGreaterThan(before.topics.length);
+
+    await db.transaction((tx) => restoreDb(asDb(tx), before));
+    const after = await dumpDb(asDb(db));
+    for (const t of Object.keys(before)) expect(sorted(after[t]), t).toEqual(sorted(before[t]));
   });
 });

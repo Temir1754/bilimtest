@@ -13,7 +13,9 @@
     "db:push": "tsx scripts/db-push.ts",
     "import": "tsx scripts/import-json.ts",
     "make-admin": "tsx scripts/make-admin.ts",
-    "curriculum": "tsx scripts/load-curriculum.ts"
+    "curriculum": "tsx scripts/load-curriculum.ts",
+    "backup": "tsx scripts/backup-db.ts",
+    "restore": "tsx scripts/restore-db.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.118.0",
