@@ -4,6 +4,9 @@
 // Повторный запуск не создаёт дублей: предметы узнаются по slug, темы и вопросы — по legacy_key,
 // варианты — по (вопрос, номер). По умолчанию уже загруженное не трогается, чтобы не затереть
 // правки из админки; с force: true содержимое из JSON перезаписывает базу.
+//
+// Параметры передаются как $1::text::jsonb, а не $1::jsonb: иначе библиотека postgres (облако)
+// сама ещё раз кодирует строку в JSON и база получает строку вместо массива.
 import { convertSubject, sortIndex, type RawSubject } from "../src/lib/legacy";
 import type { Text } from "../src/lib/types";
 
@@ -62,7 +65,7 @@ export async function importSubjects(db: Db, raws: RawSubject[], { force = false
   const s = await count(db, `
     insert into public.subjects (slug, icon, name_kk, name_ru, name_en, only_lang, sort_order)
     select slug, icon, name_kk, name_ru, name_en, only_lang::public.lang_code, sort_order
-    from jsonb_to_recordset($1::jsonb) as x(slug text, icon text, name_kk text, name_ru text, name_en text,
+    from jsonb_to_recordset($1::text::jsonb) as x(slug text, icon text, name_kk text, name_ru text, name_en text,
       only_lang text, sort_order int)
     ${upsert("slug", force, ["icon", "name_kk", "name_ru", "name_en", "only_lang", "sort_order"])}
     returning (xmax = 0) as inserted`, subjects);
@@ -70,7 +73,7 @@ export async function importSubjects(db: Db, raws: RawSubject[], { force = false
   const t = await count(db, `
     insert into public.topics (subject_id, grade, title_kk, title_ru, title_en, sort_order, legacy_key)
     select s.id, x.grade, x.title_kk, x.title_ru, x.title_en, x.sort_order, x.legacy_key
-    from jsonb_to_recordset($1::jsonb) as x(legacy_key text, subject_slug text, grade int,
+    from jsonb_to_recordset($1::text::jsonb) as x(legacy_key text, subject_slug text, grade int,
       title_kk text, title_ru text, title_en text, sort_order int)
     join public.subjects s on s.slug = x.subject_slug
     ${upsert("legacy_key", force, ["subject_id", "grade", "title_kk", "title_ru", "title_en", "sort_order"])}
@@ -79,7 +82,7 @@ export async function importSubjects(db: Db, raws: RawSubject[], { force = false
   const q = await count(db, `
     insert into public.questions (topic_id, text_kk, text_ru, text_en, status, sort_order, legacy_key, author_id)
     select t.id, x.text_kk, x.text_ru, x.text_en, 'published', x.sort_order, x.legacy_key, null
-    from jsonb_to_recordset($1::jsonb) as x(legacy_key text, topic_key text, text_kk text, text_ru text,
+    from jsonb_to_recordset($1::text::jsonb) as x(legacy_key text, topic_key text, text_kk text, text_ru text,
       text_en text, sort_order int)
     join public.topics t on t.legacy_key = x.topic_key
     ${upsert("legacy_key", force, ["topic_id", "text_kk", "text_ru", "text_en", "status", "sort_order"])}
@@ -88,7 +91,7 @@ export async function importSubjects(db: Db, raws: RawSubject[], { force = false
   const o = await count(db, `
     insert into public.options (question_id, sort_order, is_correct, text_kk, text_ru, text_en)
     select q.id, x.sort_order, x.is_correct, x.text_kk, x.text_ru, x.text_en
-    from jsonb_to_recordset($1::jsonb) as x(question_key text, sort_order int, is_correct boolean,
+    from jsonb_to_recordset($1::text::jsonb) as x(question_key text, sort_order int, is_correct boolean,
       text_kk text, text_ru text, text_en text)
     join public.questions q on q.legacy_key = x.question_key
     ${upsert("question_id, sort_order", force, ["is_correct", "text_kk", "text_ru", "text_en"])}
@@ -98,16 +101,16 @@ export async function importSubjects(db: Db, raws: RawSubject[], { force = false
     // Если в JSON вариантов стало меньше — лишние удаляем.
     const counts = [...new Map(options.map((x) => [x.question_key, x.n])).entries()].map(([k, n]) => ({ k, n }));
     await db.query(`
-      delete from public.options o using public.questions q, jsonb_to_recordset($1::jsonb) as x(k text, n int)
+      delete from public.options o using public.questions q, jsonb_to_recordset($1::text::jsonb) as x(k text, n int)
       where o.question_id = q.id and q.legacy_key = x.k and o.sort_order >= x.n`, [JSON.stringify(counts)]);
   }
 
   const [found] = await db.query<{ subjects: number; topics: number; questions: number }>(`
     select
-      (select count(*)::int from public.subjects where slug in (select jsonb_array_elements_text($1::jsonb))) as subjects,
-      (select count(*)::int from public.topics where legacy_key in (select jsonb_array_elements_text($2::jsonb))) as topics,
+      (select count(*)::int from public.subjects where slug in (select jsonb_array_elements_text($1::text::jsonb))) as subjects,
+      (select count(*)::int from public.topics where legacy_key in (select jsonb_array_elements_text($2::text::jsonb))) as topics,
       (select count(*)::int from public.questions
-        where status = 'published' and legacy_key in (select jsonb_array_elements_text($3::jsonb))) as questions`,
+        where status = 'published' and legacy_key in (select jsonb_array_elements_text($3::text::jsonb))) as questions`,
     [JSON.stringify(subjects.map((x) => x.slug)), JSON.stringify(topics.map((x) => x.legacy_key)),
       JSON.stringify(questions.map((x) => x.legacy_key))]);
 
