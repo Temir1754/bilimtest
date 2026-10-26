@@ -27,6 +27,7 @@ export function AdminApp({ api }: { api: AdminApi }) {
   useEffect(() => {
     document.title = "Білімтест · Админка";
     document.documentElement.lang = "ru";
+    document.body.classList.add("adm-body"); // компактные размеры админки (admin.css)
   }, []);
 
   let body;
