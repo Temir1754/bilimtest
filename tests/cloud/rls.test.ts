@@ -218,6 +218,20 @@ describe.skipIf(!configured)("Supabase: аккаунты (DECISIONS.md №70–7
     expect((await anon().auth.signInWithPassword({ email: email("teacherB"), password: PASSWORD })).error).toBeNull();
   });
 
+  it("«Пайдаланушылар» (№90): плитки, список и правка данных — только админ", async () => {
+    const { data: { user } } = await clients.teacherB.auth.getUser();
+    for (const c of [anon(), clients.student, clients.teacherA]) {
+      expect((await c.rpc("admin_user_stats")).error).not.toBeNull();
+      expect((await c.rpc("admin_users", { p_school: null })).error).not.toBeNull();
+      expect((await c.rpc("admin_update_user", { p_user: user!.id, p_data: { first_name: "Х" } })).error).not.toBeNull();
+    }
+    const { data: stats, error } = await clients.admin.rpc("admin_user_stats");
+    expect(error).toBeNull();
+    expect(stats.teachers).toBeGreaterThanOrEqual(2);
+    const { data: rows } = await clients.admin.rpc("admin_users", { p_role: "teacher", p_school: null });
+    expect(rows.find((r: { id: string }) => r.id === user!.id)).toMatchObject({ q_total: expect.any(Number) });
+  });
+
   it("пользователь удаляет свой аккаунт", async () => {
     const em = "delete-me@bilimtest.test";
     expect((await admin().auth.admin.createUser({ email: em, password: PASSWORD, email_confirm: true })).error).toBeNull();

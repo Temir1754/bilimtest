@@ -106,8 +106,10 @@ export function AdminApp({ api, go = (p) => location.replace(p) }: {
     body = <TranslateList api={api} me={me} nav={nav} />;
   } else if (view.name === "schools" && me.role === "admin") {
     body = <SchoolsView api={api} />;
+  } else if (view.name === "author" && me.role === "admin") {
+    body = <MyQuestions key={view.id} api={api} me={me} nav={nav} authorId={view.id} />;
   } else if (view.name === "users" && me.role === "admin") {
-    body = <UsersView api={api} me={me} />;
+    body = <UsersView api={api} me={me} nav={nav} />;
   } else if (view.name === "review" && me.role === "admin") {
     body = <ReviewQueue api={api} me={me} nav={nav} />;
   } else if (view.name === "search") {

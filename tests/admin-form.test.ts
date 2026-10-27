@@ -122,6 +122,7 @@ describe("адреса экранов админки (№87)", () => {
       { name: "grade" }, { name: "topics", slug: "math", grade: 5 }, { name: "excel", slug: "math", grade: 5 },
       { name: "topic", topicId: "t1" }, { name: "new", topicId: "t1" }, { name: "edit", id: "q1" },
       { name: "search" }, { name: "translate" }, { name: "my" }, { name: "review" }, { name: "schools" }, { name: "users" },
+      { name: "author", id: "u1" },
     ] as const;
     for (const v of views) expect(parsePath(toPath(v))).toEqual(v);
     expect(toPath({ name: "new", topicId: "t1" })).toBe("/admin/questions/topic/t1/new");

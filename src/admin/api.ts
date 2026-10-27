@@ -41,14 +41,43 @@ export interface UserRow {
   nickname: string | null;
   first_name: string;
   last_name: string;
+  school_id: string | null;
+  school_region: string | null; // регион школы — чтобы форма «Деректерін өзгерту» открылась на нём
   school_kk: string | null;
   school_ru: string | null;
   school_other: string | null;
-  grade: number | null;
+  grade: number | null; // класс ученика
+  subjects: string[] | null; // предметы и классы учителя
+  grades: number[] | null;
+  q_total: number; // вопросы учителя: всего, на проверке, опубликовано
+  q_review: number;
+  q_published: number;
   blocked_at: string | null;
   must_change_password: boolean;
   created_at: string;
   last_sign_in_at: string | null;
+}
+
+/** Числа для плиток «Пайдаланушылар» и школы для фильтра (функция базы admin_user_stats). */
+export interface UserStats {
+  teachers: number;
+  teachers_week: number;
+  students: number;
+  students_week: number;
+  review: number;
+  blocked: number;
+  schools: { id: string; name_kk: string; name_ru: string }[];
+}
+
+/** Что админ меняет в «Деректерін өзгерту» (функция базы admin_update_user). */
+export interface UserEdit {
+  first_name: string;
+  last_name: string;
+  school_id: string | null;
+  school_other: string;
+  subjects?: string[]; // учителю
+  grades?: number[];
+  grade?: number; // ученику
 }
 
 /** Анкета учителя, которого создаёт админ (функция базы setup_teacher). */
@@ -69,6 +98,7 @@ export interface SignupSettings {
   teacher_drafts_per_day: number;
   student_signups_per_hour: number;
   topic_min_questions: number; // сколько опубликованных вопросов нужно теме (№87)
+  mail: boolean; // почта для писем подключена — без неё учителям, которые регистрируются сами, письма не дойдут (№90)
 }
 
 /** Раздел — группа тем внутри предмета и класса (DECISIONS.md №48). */
@@ -196,7 +226,9 @@ export interface AdminApi {
   deleteSchool(id: string): Promise<void>;
 
   /** «Пользователи» (админ, №80–81): список с email, роль, блокировка. */
-  users(f: { search?: string; role?: Role; blocked?: boolean }): Promise<UserRow[]>;
+  users(f: { search?: string; role?: Role; blocked?: boolean; schoolId?: string }): Promise<UserRow[]>;
+  userStats(): Promise<UserStats>;
+  updateUser(id: string, data: UserEdit): Promise<void>;
   setRole(id: string, role: Role): Promise<void>;
   setBlocked(id: string, blocked: boolean): Promise<void>;
   /** Учитель создаётся функцией на сервере; ответ — временный пароль (показать один раз). */
@@ -431,8 +463,15 @@ export function supabaseApi(sb: SupabaseClient): AdminApi {
 
     async users(f) {
       return check(await sb.rpc("admin_users", {
-        p_search: f.search?.trim() || null, p_role: f.role ?? null, p_blocked: f.blocked ?? null, p_limit: 500,
+        p_search: f.search?.trim() || null, p_role: f.role ?? null, p_blocked: f.blocked ?? null, p_school: f.schoolId ?? null,
+        p_limit: 500,
       })) as UserRow[];
+    },
+    async userStats() {
+      return check(await sb.rpc("admin_user_stats")) as UserStats;
+    },
+    async updateUser(id, data) {
+      check(await sb.rpc("admin_update_user", { p_user: id, p_data: data }));
     },
     async setRole(id, role) {
       check(await sb.rpc("set_user_role", { p_user: id, p_role: role }));
@@ -455,6 +494,7 @@ export function supabaseApi(sb: SupabaseClient): AdminApi {
         teacher_drafts_per_day: Number(v("limits").teacher_drafts_per_day ?? 50),
         student_signups_per_hour: Number(v("limits").student_signups_per_hour ?? 60),
         topic_min_questions: Number(v("limits").topic_min_questions ?? 5),
+        mail: v("signup").mail === true,
       };
     },
     async saveSettings(s) {
@@ -463,7 +503,7 @@ export function supabaseApi(sb: SupabaseClient): AdminApi {
       const limits = { ...(rows[0]?.value ?? {}), teacher_drafts_per_day: s.teacher_drafts_per_day,
         student_signups_per_hour: s.student_signups_per_hour, topic_min_questions: s.topic_min_questions };
       check(await sb.from("app_settings").upsert([
-        { key: "signup", value: { teacher: s.teacher, student: s.student } },
+        { key: "signup", value: { teacher: s.teacher, student: s.student, mail: s.mail } },
         { key: "limits", value: limits },
       ]));
     },

@@ -413,20 +413,23 @@ export function TopicQuestions({ api, me, topicId, nav }: { api: AdminApi; me: M
 // Сначала то, что ждёт автора: возвращённые, затем черновики, на проверке, опубликованные.
 const order = (q: QuestionItem) => (q.status === "draft" && q.review_comment ? 0 : q.status === "draft" ? 1 : q.status === "review" ? 2 : 3);
 
-/** «Менің сұрақтарым»: все вопросы автора со статусами, сначала «Қайтарылды». */
-export function MyQuestions({ api, me, nav }: { api: AdminApi; me: Me; nav: Nav }) {
+/** «Менің сұрақтарым»: все вопросы автора со статусами, сначала «Қайтарылды».
+ *  С authorId — вопросы другого учителя, для админа («Сұрақтарын көру» в «Пайдаланушылар»). */
+export function MyQuestions({ api, me, nav, authorId }: { api: AdminApi; me: Me; nav: Nav; authorId?: string }) {
   const { t } = useT();
+  const author = authorId ?? me.id;
   const [items, setItems] = useState<QuestionItem[] | null>(null);
   const [error, setError] = useState<unknown>(null);
   useEffect(() => {
-    api.questions({ authorId: me.id }).then((qs) => setItems(qs.slice().sort((a, b) => order(a) - order(b))), setError);
-  }, [api, me.id]);
+    api.questions({ authorId: author }).then((qs) => setItems(qs.slice().sort((a, b) => order(a) - order(b))), setError);
+  }, [api, author]);
   return (
     <div className="st-page">
-      <h1>{t.steps.myTitle}</h1>
+      {authorId && <Go to={{ name: "users" }} nav={nav} className="st-back">← {t.nav.users}</Go>}
+      <h1>{authorId ? t.steps.authorTitle : t.steps.myTitle}</h1>
       <Failure error={error} />
       {items === null ? error === null && <p className="loading">{t.loading}</p>
-        : items.length === 0 ? <p className="muted">{t.steps.myEmpty}</p>
+        : items.length === 0 ? <p className="muted">{authorId ? t.steps.authorEmpty : t.steps.myEmpty}</p>
         : <QuestionCards items={items} me={me} nav={nav} showTopic />}
     </div>
   );

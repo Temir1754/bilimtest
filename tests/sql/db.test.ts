@@ -813,6 +813,46 @@ describe("«Пользователи» и пилот (№79–83)", () => {
     expect(teachers.every((r) => r.role === "teacher")).toBe(true);
   });
 
+  it("«Пайдаланушылар» (№90): классы, предметы и вопросы учителя; поиск и фильтр по школе; плитки; правка данных", async () => {
+    const math = (await one<{ id: string }>("select id from public.subjects where slug = 'math'"))!.id;
+    const [bolat] = await as("admin", (q) => q<{ id: string; grades: number[]; subjects: string[]; q_total: number }>(
+      "select id, grades, subjects, q_total from public.admin_users('семей')")); // поиск по названию школы
+    expect(bolat).toMatchObject({ grades: [7, 8], subjects: [math], q_total: 0 });
+    const n = (await one<{ n: number; r: number }>(`select count(*)::int as n, (count(*) filter (where status = 'review'))::int as r
+      from public.questions where author_id = $1`, [ids.teacherA]))!;
+    expect(await as("admin", (q) => q("select q_total, q_review from public.admin_users() where id = $1", [ids.teacherA])))
+      .toEqual([{ q_total: n.n, q_review: n.r }]);
+
+    const astana = (await one<{ id: string }>("select id from public.regions where name_ru = 'Астана'"))!.id;
+    const school = (await one<{ id: string }>(`insert into public.schools (region_id, name_kk, name_ru, approved)
+      values ($1, '№1', 'Гимназия №1', true) returning id`, [astana]))!.id;
+    await db.query("update public.profiles set school_id = $1 where id = $2", [school, ids.teacherB]);
+    expect(await as("admin", (q) => q("select id from public.admin_users(null, null, null, $1)", [school])))
+      .toEqual([{ id: ids.teacherB }]);
+
+    await expect(as("teacherA", (q) => q("select public.admin_user_stats()"))).rejects.toThrow(/Только для админа/);
+    const { s: stats } = (await as("admin", (q) => q<{ s: Record<string, unknown> }>("select public.admin_user_stats() as s")))[0];
+    const count = async (where: string) => (await one<{ n: number }>(`select count(*)::int as n from ${where}`))!.n;
+    expect(stats).toMatchObject({
+      teachers: await count("public.profiles where role = 'teacher'"),
+      students: await count("public.profiles where role = 'student'"),
+      review: await count("public.questions where status = 'review'"),
+      blocked: await count("public.profiles where blocked_at is not null"),
+    });
+    expect(stats.schools).toContainEqual({ id: school, name_kk: "№1", name_ru: "Гимназия №1" }); // школы, где есть люди
+
+    const edit = { first_name: "Болат", last_name: "Ахметов", school_id: school, subjects: [math], grades: [9, 5] };
+    const update = (who: "admin" | "teacherA", d: object) =>
+      as(who, (q) => q("select public.admin_update_user($1, $2::jsonb)", [bolat.id, JSON.stringify(d)]));
+    await expect(update("teacherA", edit)).rejects.toThrow(/Только админ/);
+    await expect(update("admin", { ...edit, subjects: [] })).rejects.toThrow(/предметы/);
+    await expect(update("admin", { ...edit, school_id: null })).rejects.toThrow(/школа/);
+    await update("admin", edit);
+    expect(await one(`select p.school_id, p.school_other, t.grades from public.profiles p
+      join public.teacher_info t on t.user_id = p.id where p.id = $1`, [bolat.id]))
+      .toEqual({ school_id: school, school_other: null, grades: [5, 9] });
+  });
+
   it("упрощённая регистрация ученика: ник, класс, согласие — без имени; лимит частоты по IP", async () => {
     await db.query(`update public.app_settings set value = '{"teacher": false, "student": true}' where key = 'signup'`);
     await db.query(`update public.app_settings set value = value || '{"student_signups_per_hour": 2}' where key = 'limits'`);

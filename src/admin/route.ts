@@ -10,6 +10,7 @@ export type AdminView =
   | { name: "edit"; id: string } //                         /admin/questions/q/id — вопрос
   | { name: "search" } //                                   /admin/questions/search — все вопросы с фильтрами
   | { name: "translate" } //                                /admin/questions/translate — «Аударма керек»
+  | { name: "author"; id: string } //                       /admin/users/id/questions — вопросы учителя (№90)
   | { name: "my" | "review" | "schools" | "users" }; //     /admin/my, /admin/review, …
 
 const Q = "/admin/questions";
@@ -24,6 +25,7 @@ export function toPath(v: AdminView): string {
     case "edit": return `${Q}/q/${v.id}`;
     case "search": return `${Q}/search`;
     case "translate": return `${Q}/translate`;
+    case "author": return `/admin/users/${v.id}/questions`;
     default: return `/admin/${v.name}`;
   }
 }
@@ -31,6 +33,7 @@ export function toPath(v: AdminView): string {
 /** Адрес → экран. Неизвестный адрес — шаг 1. */
 export function parsePath(path: string): AdminView {
   const p = path.replace(/\/+$/, "").split("/").slice(2).map(decodeURIComponent); // без "" и "admin"
+  if (p[0] === "users" && p[1] && p[2] === "questions") return { name: "author", id: p[1] };
   if (p[0] === "my" || p[0] === "review" || p[0] === "schools" || p[0] === "users") return { name: p[0] };
   if (p[0] !== "questions" || p.length === 1) return { name: "grade" };
   if (p[1] === "search" && p.length === 2) return { name: "search" };
@@ -46,4 +49,5 @@ export function parsePath(path: string): AdminView {
 
 /** К какой вкладке шапки относится экран. */
 export const navTab = (v: AdminView): "questions" | "my" | "review" | "schools" | "users" =>
-  v.name === "my" || v.name === "review" || v.name === "schools" || v.name === "users" ? v.name : "questions";
+  v.name === "author" ? "users"
+    : v.name === "my" || v.name === "review" || v.name === "schools" || v.name === "users" ? v.name : "questions";
