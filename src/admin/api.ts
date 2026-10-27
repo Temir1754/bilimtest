@@ -2,7 +2,6 @@
 // поэтому в тестах вместо Supabase подставляется простая заглушка.
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { AdminText } from "../i18n/admin";
-import { setRemember } from "../lib/account";
 import type { Lang } from "../lib/types";
 import type { QuestionRow, Role, Status, toPayload } from "./form";
 
@@ -141,11 +140,8 @@ export interface AdminApi {
   /** Текущий пользователь с ролью; null — не вошёл. */
   me(): Promise<Me | null>;
   onAuthChange(cb: () => void): () => void;
-  signIn(email: string, password: string): Promise<void>;
   signOut(): Promise<void>;
-  /** Письмо со ссылкой для нового пароля; ссылка ведёт в /admin?reset. */
-  resetPassword(email: string): Promise<void>;
-  /** Новый пароль для того, кто вошёл по ссылке из письма. */
+  /** Новый пароль вместо временного (вход — на /login). */
   setPassword(password: string): Promise<void>;
 
   subjects(): Promise<SubjectRow[]>;
@@ -282,17 +278,8 @@ export function supabaseApi(sb: SupabaseClient): AdminApi {
       });
       return () => data.subscription.unsubscribe();
     },
-    async signIn(email, password) {
-      setRemember(true); // вход в админку помнится, как раньше (галочка «Мені есте сақта» — только на /login)
-      const { error } = await sb.auth.signInWithPassword({ email: email.trim(), password });
-      if (error) throw error;
-    },
     async signOut() {
       await sb.auth.signOut();
-    },
-    async resetPassword(email) {
-      const { error } = await sb.auth.resetPasswordForEmail(email.trim(), { redirectTo: `${location.origin}/admin?reset` });
-      if (error) throw error;
     },
     async setPassword(password) {
       const { error } = await sb.auth.updateUser({ password });

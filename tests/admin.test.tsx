@@ -1,4 +1,4 @@
-import { cleanup, render, screen, within } from "@testing-library/react";
+import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AdminApp } from "../src/admin/AdminApp";
@@ -59,13 +59,11 @@ function fakeApi(me: Me | null) {
   const api: AdminApi = {
     async me() { return user; },
     onAuthChange: () => () => {},
-    async signIn(email, password) {
-      if (password !== "secret") throw new Error("Invalid login credentials");
-      user = { id: "admin", email, role: "admin" };
-    },
     async signOut() { user = null; },
-    resetPassword: vi.fn(async () => {}),
-    setPassword: vi.fn(async (pw: string) => { if (pw.length < 6) throw new Error("Password should be at least 6 characters."); }),
+    setPassword: vi.fn(async (pw: string) => {
+      if (pw.length < 6) throw new Error("Password should be at least 6 characters.");
+      if (user) user = { ...user, mustChangePassword: false };
+    }),
     async subjects() { return subjects; },
     async gradeSubjects(g) { return [...new Set([...sections, ...topics].filter((x) => x.grade === g).map((x) => x.subject_id))]; },
     async saveSubject() {},
@@ -150,36 +148,15 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe("админка", () => {
-  it("вход: неверный пароль — понятная ошибка; верный — открывает список вопросов", async () => {
-    const user = userEvent.setup();
-    render(<AdminApp api={fakeApi(null).api} />);
-    await user.type(await screen.findByLabelText("Email"), "me@school.kz");
-    await user.type(screen.getByLabelText("Пароль"), "wrong");
-    await user.click(screen.getByRole("button", { name: "Войти" }));
-    expect(await screen.findByText("Неверный email или пароль.")).toBeTruthy();
-
-    await user.clear(screen.getByLabelText("Пароль"));
-    await user.type(screen.getByLabelText("Пароль"), "secret");
-    await user.click(screen.getByRole("button", { name: "Войти" }));
-    expect(await screen.findByRole("button", { name: /2\+2\?/ })).toBeTruthy();
+  it("не вошёл — переход на общую страницу входа /login", async () => {
+    const go = vi.fn();
+    render(<AdminApp api={fakeApi(null).api} go={go} />);
+    await waitFor(() => expect(go).toHaveBeenCalledWith("/login"));
   });
 
-  it("«Забыли пароль?»: отправляет письмо со ссылкой", async () => {
+  it("временный пароль: новый пароль, потом админка", async () => {
     const user = userEvent.setup();
-    const { api } = fakeApi(null);
-    render(<AdminApp api={api} />);
-    await user.click(await screen.findByRole("button", { name: "Забыли пароль?" }));
-    expect(screen.queryByLabelText("Пароль")).toBeNull();
-    await user.type(screen.getByLabelText("Email"), "me@school.kz");
-    await user.click(screen.getByRole("button", { name: "Отправить ссылку" }));
-    expect(await screen.findByText(/Письмо отправлено на me@school.kz/)).toBeTruthy();
-    expect(api.resetPassword).toHaveBeenCalledWith("me@school.kz");
-  });
-
-  it("по ссылке из письма: новый пароль, потом админка", async () => {
-    const user = userEvent.setup();
-    history.replaceState(null, "", "/admin?reset");
-    const { api } = fakeApi({ id: "admin", email: "a@x.kz", role: "admin" });
+    const { api } = fakeApi({ id: "admin", email: "a@x.kz", role: "admin", mustChangePassword: true });
     render(<AdminApp api={api} />);
     await user.type(await screen.findByLabelText("Новый пароль"), "123");
     await user.type(screen.getByLabelText("Повторите пароль"), "124");
@@ -194,8 +171,7 @@ describe("админка", () => {
     await user.click(screen.getByRole("button", { name: "Сохранить пароль" }));
     expect(api.setPassword).toHaveBeenCalledWith("newsecret");
     await user.click(await screen.findByRole("button", { name: "Перейти в админку" }));
-    expect(await screen.findByRole("button", { name: /2+2?/ })).toBeTruthy();
-    expect(location.search).toBe("");
+    expect(await screen.findByRole("button", { name: /2\+2\?/ })).toBeTruthy();
   });
 
   it("ученику админка недоступна", async () => {

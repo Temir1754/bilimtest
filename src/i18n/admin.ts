@@ -15,13 +15,6 @@ const kk = {
   nav: { label: "Бөлімдер", questions: "Сұрақтар", review: "Тексеруде", schools: "Мектептер", users: "Пайдаланушылар" },
 
   login: {
-    title: "Әкімші панеліне кіру",
-    lede: "Мұғалімдер мен әкімшілерге арналған. Оқушыларға кіру қажет емес.",
-    email: "Email", password: "Құпиясөз", submit: "Кіру", busy: "Кіруде…",
-    forgot: "Құпиясөзді ұмыттыңыз ба?", back: "← Кіруге оралу",
-    resetTitle: "Құпиясөзді қалпына келтіру", resetLede: "Email жазыңыз — жаңа құпиясөз орнатуға арналған сілтеме жібереміз.",
-    sendLink: "Сілтеме жіберу", sending: "Жіберілуде…",
-    sent: (email: string) => `Хат ${email} адресіне жіберілді. Поштаны ашып, сілтемені басыңыз (хат «Спам» бумасында болуы мүмкін).`,
     newTitle: "Жаңа құпиясөз", newLede: "Кемінде 6 таңба. Оны есте сақтаңыз немесе жазып қойыңыз.",
     newPassword: "Жаңа құпиясөз", repeat: "Құпиясөзді қайталаңыз", mismatch: "Құпиясөздер сәйкес емес.",
     savePassword: "Құпиясөзді сақтау", passwordSaved: "Жаңа құпиясөз сақталды.", toAdmin: "Әкімші панеліне өту",
@@ -221,13 +214,6 @@ const ru: AdminText = {
   nav: { label: "Разделы", questions: "Вопросы", review: "На проверке", schools: "Школы", users: "Пользователи" },
 
   login: {
-    title: "Вход в админку",
-    lede: "Для учителей и админов. Ученикам вход не нужен.",
-    email: "Email", password: "Пароль", submit: "Войти", busy: "Вход…",
-    forgot: "Забыли пароль?", back: "← Вернуться ко входу",
-    resetTitle: "Восстановление пароля", resetLede: "Укажите email — пришлём ссылку, чтобы задать новый пароль.",
-    sendLink: "Отправить ссылку", sending: "Отправка…",
-    sent: (email) => `Письмо отправлено на ${email}. Откройте почту и нажмите на ссылку (письмо может попасть в «Спам»).`,
     newTitle: "Новый пароль", newLede: "Не меньше 6 символов. Запомните его или запишите.",
     newPassword: "Новый пароль", repeat: "Повторите пароль", mismatch: "Пароли не совпадают.",
     savePassword: "Сохранить пароль", passwordSaved: "Новый пароль сохранён.", toAdmin: "Перейти в админку",
@@ -425,13 +411,6 @@ const en: AdminText = {
   nav: { label: "Sections", questions: "Questions", review: "In review", schools: "Schools", users: "Users" },
 
   login: {
-    title: "Admin sign-in",
-    lede: "For teachers and admins. Students don't need to sign in.",
-    email: "Email", password: "Password", submit: "Sign in", busy: "Signing in…",
-    forgot: "Forgot your password?", back: "← Back to sign-in",
-    resetTitle: "Reset password", resetLede: "Enter your email and we'll send a link to set a new password.",
-    sendLink: "Send link", sending: "Sending…",
-    sent: (email) => `Email sent to ${email}. Open it and click the link (check the Spam folder too).`,
     newTitle: "New password", newLede: "At least 6 characters. Remember it or write it down.",
     newPassword: "New password", repeat: "Repeat password", mismatch: "The passwords don't match.",
     savePassword: "Save password", passwordSaved: "Your new password is saved.", toAdmin: "Go to the admin panel",

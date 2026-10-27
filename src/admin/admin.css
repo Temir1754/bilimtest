@@ -9,7 +9,6 @@ body.adm-body{font-size:15px}
 .adm-body h2{font-size:20px}
 .adm-body .btn{padding:7px 16px;font-size:15px}
 .adm-body .note,.adm-body .error{font-size:14px}
-header.top a.logo{color:inherit;text-decoration:none}
 .logo-mark.adm-mark{background:#B8871E} /* как иконка вкладки favicon-admin.svg */
 .adm-badge{font-family:var(--body);font-size:13px;font-weight:700;color:var(--gold);background:var(--gold-soft);border-radius:5px;padding:1px 7px;letter-spacing:.03em}
 .adm-nav{display:flex;gap:4px}

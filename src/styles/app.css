@@ -144,3 +144,5 @@ footer .wrap{padding-block:18px}
 .privacy h2{font-size:19px;margin:26px 0 8px}
 .privacy p{margin:0 0 10px;line-height:1.55}
 footer .wrap a{color:inherit}
+/* Логотип-ссылка (/login, /privacy, /admin) выглядит как кнопка-логотип на главной, а не как синяя ссылка */
+a.logo{color:inherit;text-decoration:none}
