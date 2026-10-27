@@ -17,9 +17,11 @@ export const loginEmail = (id: string) => {
   return v.includes("@") ? v : `${v}@students.bilimtest.local`;
 };
 
-/** Куда ведёт «Кабинет». Кабинеты учителя (/teacher) и ученика (/me) — шаги 5 и 7 плана «Кіру»;
- *  пока учитель работает в админке, ученик — на главной. */
-export const cabinetPath = (role: Role) => (role === "student" ? "/" : "/admin");
+/** Куда ведёт «Кабинет»: ученик — /me; кабинет учителя (/teacher) — шаг 5 плана «Кіру», пока учитель работает в админке. */
+export const cabinetPath = (role: Role) => (role === "student" ? "/me" : "/admin");
+
+/** Куда попадает вошедший: ученик — сразу к тестам, учитель и админ — в админку. */
+export const afterLoginPath = (role: Role) => (role === "student" ? "/" : "/admin");
 
 const stores = () => [sessionStorage, localStorage];
 

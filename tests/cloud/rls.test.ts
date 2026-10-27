@@ -284,6 +284,36 @@ describe.skipIf(!configured)("Supabase: функции на сервере admin
       await setSignup(false);
     }
   }, 60_000);
+
+  it("кабинет /me: ученик меняет класс и ник — вход по новому нику; занятый ник и учитель — отказ", async () => {
+    await setSignup(true);
+    try {
+      const kid = { password: "Kid-pass-123", grade: 6, consent: true, website: "" };
+      expect((await call(anon(), "student-signup", { ...kid, nickname: "fn_me" })).data).toEqual({ ok: true });
+      expect((await call(anon(), "student-signup", { ...kid, nickname: "fn_me_other" })).data).toEqual({ ok: true });
+    } finally {
+      await setSignup(false);
+    }
+    const c = anon();
+    expect((await c.auth.signInWithPassword({ email: "fn_me@students.bilimtest.local", password: "Kid-pass-123" })).error).toBeNull();
+    expect((await c.rpc("set_my_grade", { p_grade: 9 })).error).toBeNull();
+    expect((await c.rpc("my_grade")).data).toBe(9);
+    expect((await clients.teacherA.rpc("set_my_grade", { p_grade: 9 })).error).not.toBeNull();
+
+    expect((await call(c, "account", { action: "change_nickname", nickname: "fn_me_other" })).code).toBe("nick_taken");
+    expect((await call(c, "account", { action: "change_nickname", nickname: "Иван" })).code).toBe("bad_nickname");
+    expect((await call(clients.teacherA, "account", { action: "change_nickname", nickname: "fn_t" })).code).toBe("forbidden");
+    expect((await call(anon(), "account", { action: "change_nickname", nickname: "fn_x" })).code).toBe("forbidden");
+    expect((await call(c, "account", { action: "change_nickname", nickname: "fn_me_new" })).data).toEqual({ ok: true });
+
+    expect((await anon().auth.signInWithPassword({ email: "fn_me@students.bilimtest.local", password: "Kid-pass-123" })).error)
+      .not.toBeNull();
+    const c2 = anon();
+    expect((await c2.auth.signInWithPassword({ email: "fn_me_new@students.bilimtest.local", password: "Kid-pass-123" })).error)
+      .toBeNull();
+    expect((await c2.from("profiles").select("nickname").single()).data).toEqual({ nickname: "fn_me_new" });
+    expect((await c2.rpc("my_grade")).data).toBe(9);
+  }, 60_000);
 });
 
 afterAll(async () => {

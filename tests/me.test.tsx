@@ -1,0 +1,136 @@
+// Кабинет ученика /me: переходы по роли, класс, ник, пароль, удаление (база — заглушка).
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { MeApi, Profile } from "../src/me/api";
+import { MeApp } from "../src/me/MeApp";
+
+const PASSWORD = "kid-pass-123";
+
+function fakeApi(profile: Profile | null) {
+  let me = profile;
+  const api = {
+    load: vi.fn(async () => me),
+    setGrade: vi.fn(async (grade: number) => { me = { ...me!, grade }; }),
+    changeNickname: vi.fn(async (nickname: string) => {
+      if (nickname === "taken") throw new Error("nick_taken");
+      me = { ...me!, nickname };
+    }),
+    checkPassword: vi.fn(async (_nick: string, password: string) => {
+      if (password !== PASSWORD) throw new Error("wrong_password");
+    }),
+    changePassword: vi.fn(async () => {}),
+    deleteAccount: vi.fn(async () => { me = null; }),
+    signOut: vi.fn(async () => { me = null; }),
+  } satisfies MeApi;
+  return api;
+}
+const kid = (): Profile => ({ nickname: "aidos07", role: "student", grade: 7 });
+
+beforeEach(() => {
+  localStorage.clear();
+  localStorage.setItem("bt-prefs", JSON.stringify({ lang: "ru", grade: 5 }));
+});
+afterEach(cleanup);
+
+describe("кабинет ученика /me", () => {
+  it("не вошёл — на /login; учитель и админ — в /admin", async () => {
+    const go = vi.fn();
+    render(<MeApp api={fakeApi(null)} go={go} />);
+    await waitFor(() => expect(go).toHaveBeenCalledWith("/login"));
+    cleanup();
+    const go2 = vi.fn();
+    render(<MeApp api={fakeApi({ nickname: "t", role: "teacher", grade: null })} go={go2} />);
+    await waitFor(() => expect(go2).toHaveBeenCalledWith("/admin"));
+  });
+
+  it("класс: нажал — сохранено, и на главной откроется этот класс", async () => {
+    const user = userEvent.setup();
+    const api = fakeApi(kid());
+    render(<MeApp api={api} go={vi.fn()} />);
+    expect(await screen.findByText("Привет, aidos07!")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "7" }).getAttribute("aria-pressed")).toBe("true");
+    await user.click(screen.getByRole("button", { name: "9" }));
+    expect(api.setGrade).toHaveBeenCalledWith(9);
+    expect(await screen.findByRole("status")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "9" }).getAttribute("aria-pressed")).toBe("true");
+    expect(JSON.parse(localStorage.getItem("bt-prefs")!).grade).toBe(9);
+  });
+
+  it("ник: проверка формата, занятый ник, успешная смена", async () => {
+    const user = userEvent.setup();
+    const api = fakeApi(kid());
+    render(<MeApp api={api} go={vi.fn()} />);
+    const input = await screen.findByLabelText("Новый ник");
+    await user.clear(input);
+    await user.type(input, "Иван");
+    await user.click(screen.getByRole("button", { name: "Изменить" }));
+    expect(screen.getByRole("alert").textContent).toMatch(/3–20 знаков/);
+    expect(api.changeNickname).not.toHaveBeenCalled();
+
+    await user.clear(input);
+    await user.type(input, "taken");
+    await user.click(screen.getByRole("button", { name: "Изменить" }));
+    expect((await screen.findByRole("alert")).textContent).toMatch(/уже занят/);
+
+    await user.clear(input);
+    await user.type(input, "Barys_07");
+    await user.click(screen.getByRole("button", { name: "Изменить" }));
+    expect(api.changeNickname).toHaveBeenLastCalledWith("barys_07");
+    expect(await screen.findByText("Привет, barys_07!")).toBeTruthy();
+  });
+
+  it("пароль: без верного текущего пароля не меняется", async () => {
+    const user = userEvent.setup();
+    const api = fakeApi(kid());
+    render(<MeApp api={api} go={vi.fn()} />);
+    await user.type(await screen.findByLabelText("Текущий пароль"), "wrong-pass");
+    await user.type(screen.getByLabelText("Новый пароль (не меньше 8 знаков)"), "new-pass-456");
+    await user.type(screen.getByLabelText("Повтори новый пароль"), "new-pass-45");
+    await user.click(screen.getByRole("button", { name: "Сменить пароль" }));
+    expect(screen.getByRole("alert").textContent).toBe("Пароли не совпадают.");
+
+    await user.type(screen.getByLabelText("Повтори новый пароль"), "6");
+    await user.click(screen.getByRole("button", { name: "Сменить пароль" }));
+    expect((await screen.findByRole("alert")).textContent).toBe("Текущий пароль неверный.");
+    expect(api.changePassword).not.toHaveBeenCalled();
+
+    const current = screen.getByLabelText("Текущий пароль");
+    await user.clear(current);
+    await user.type(current, PASSWORD);
+    await user.click(screen.getByRole("button", { name: "Сменить пароль" }));
+    await waitFor(() => expect(api.changePassword).toHaveBeenCalledWith("new-pass-456"));
+    expect(api.checkPassword).toHaveBeenLastCalledWith("aidos07", PASSWORD);
+  });
+
+  it("удаление: только с паролем; после — на главную", async () => {
+    const user = userEvent.setup();
+    const api = fakeApi(kid());
+    const go = vi.fn();
+    render(<MeApp api={api} go={go} />);
+    await user.click(await screen.findByRole("button", { name: "Удалить аккаунт…" }));
+    await user.type(screen.getByLabelText("Пароль для подтверждения"), "wrong-pass");
+    await user.click(screen.getByRole("button", { name: "Удалить навсегда" }));
+    expect((await screen.findByRole("alert")).textContent).toBe("Текущий пароль неверный.");
+    expect(api.deleteAccount).not.toHaveBeenCalled();
+
+    const pw = screen.getByLabelText("Пароль для подтверждения");
+    await user.clear(pw);
+    await user.type(pw, PASSWORD);
+    await user.click(screen.getByRole("button", { name: "Удалить навсегда" }));
+    await waitFor(() => expect(go).toHaveBeenCalledWith("/"));
+    expect(api.deleteAccount).toHaveBeenCalled();
+  });
+
+  it("в шапке — ник с меню «На сайт / Выйти»", async () => {
+    const user = userEvent.setup();
+    const api = fakeApi(kid());
+    const go = vi.fn();
+    render(<MeApp api={api} go={go} />);
+    await user.click(await screen.findByRole("button", { name: "Меню аккаунта" }));
+    expect(screen.getByRole("menuitem", { name: "На сайт" }).getAttribute("href")).toBe("/");
+    await user.click(screen.getByRole("menuitem", { name: "Выйти" }));
+    await waitFor(() => expect(go).toHaveBeenCalledWith("/"));
+    expect(api.signOut).toHaveBeenCalled();
+  });
+});

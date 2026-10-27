@@ -692,6 +692,22 @@ describe("аккаунты: регистрация, роли, блокировк
     expect(await one("select banned_until from auth.users where id = $1", [ids.teacherB])).toEqual({ banned_until: null });
   });
 
+  it("кабинет /me: ученик читает и меняет свой класс; у учителя класса нет; аноним не вызывает", async () => {
+    const sid = (await one<{ id: string }>("select id from public.profiles where nickname = 'aidos07'"))!.id;
+    const tid = (await one<{ id: string }>("select id from public.profiles where role = 'teacher' limit 1"))!.id;
+    const as = (id: string | null, sql: string) => db.transaction(async (tx) => {
+      if (id) await tx.query("select set_config('request.jwt.claim.sub', $1, true)", [id]);
+      await tx.exec(`set local role ${id ? "authenticated" : "anon"}`);
+      return (await tx.query<Record<string, unknown>>(sql)).rows[0];
+    });
+    await as(sid, "select public.set_my_grade(9::smallint)");
+    expect(await as(sid, "select public.my_grade() as g")).toEqual({ g: 9 });
+    await expect(as(sid, "select public.set_my_grade(12::smallint)")).rejects.toThrow(/check/);
+    await expect(as(tid, "select public.set_my_grade(5::smallint)")).rejects.toThrow(/только у ученика/);
+    expect(await as(tid, "select public.my_grade() as g")).toEqual({ g: null });
+    await expect(as(null, "select public.my_grade()")).rejects.toThrow(/permission denied/);
+  });
+
   it("ученик удаляет свой аккаунт вместе с данными", async () => {
     const sid = (await one<{ id: string }>("select id from public.profiles where nickname = 'aidos07'"))!.id;
     await db.transaction(async (tx) => {

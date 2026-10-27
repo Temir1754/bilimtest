@@ -5,7 +5,7 @@
 import { useEffect, useState } from "react";
 import { LogoMark } from "../components/NickMenu";
 import { AUTH, type AuthText } from "../i18n/auth";
-import { cabinetPath, type Account } from "../lib/account";
+import { afterLoginPath, type Account } from "../lib/account";
 import { loadPrefs, savePrefs } from "../lib/storage";
 import { GRADES, LANGS } from "../lib/types";
 import { authError, type AuthApi } from "./api";
@@ -65,9 +65,9 @@ export function LoginApp({ api, go = (p) => location.assign(p) }: Props) {
       </div>
     );
   } else if (mode.name === "student") {
-    card = <StudentSignupForm api={api} t={t} onBack={() => setMode({ name: "roles" })} onDone={() => go(cabinetPath("student"))} />;
+    card = <StudentSignupForm api={api} t={t} onBack={() => setMode({ name: "roles" })} onDone={() => go(afterLoginPath("student"))} />;
   } else if (mode.name === "change") {
-    card = <ChangePassword api={api} t={t} onDone={() => go(cabinetPath(mode.account.role))} />;
+    card = <ChangePassword api={api} t={t} onDone={() => go(afterLoginPath(mode.account.role))} />;
   } else if (mode.name === "forgot") {
     card = (
       <div>
@@ -79,7 +79,7 @@ export function LoginApp({ api, go = (p) => location.assign(p) }: Props) {
     );
   } else {
     card = <LoginForm api={api} t={t} onForgot={() => setMode({ name: "forgot" })}
-      onDone={(account, mustChange) => (mustChange ? setMode({ name: "change", account }) : go(cabinetPath(account.role)))} />;
+      onDone={(account, mustChange) => (mustChange ? setMode({ name: "change", account }) : go(afterLoginPath(account.role)))} />;
   }
 
   return (

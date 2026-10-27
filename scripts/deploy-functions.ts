@@ -11,6 +11,6 @@ const url = need(test ? "TEST_SUPABASE_URL" : "VITE_SUPABASE_URL");
 const ref = new URL(url).hostname.split(".")[0];
 need("SUPABASE_ACCESS_TOKEN");
 
-const r = spawnSync("npx", ["supabase", "functions", "deploy", "admin-users", "student-signup",
+const r = spawnSync("npx", ["supabase", "functions", "deploy", "admin-users", "student-signup", "account",
   "--project-ref", ref, "--no-verify-jwt", "--use-api"], { cwd: ROOT, stdio: "inherit", shell: process.platform === "win32" });
 process.exit(r.status ?? 1);

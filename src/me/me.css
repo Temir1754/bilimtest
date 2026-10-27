@@ -1,0 +1,28 @@
+/* Кабинет ученика /me. Цвета и шрифты — переменные из app.css, поэтому работает и тёмная тема. */
+.me{max-width:640px;padding-block:28px 48px;display:grid;gap:16px}
+.me h1{margin:0;font-size:30px}
+.me .lede{margin:-8px 0 0;color:var(--muted)}
+.me-card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:20px;display:grid;gap:12px}
+.me-card h2{margin:0;font-size:19px}
+.me-card .muted{margin:0;color:var(--muted);font-size:15px}
+.me-card .small{font-size:13px;margin-top:-6px}
+.me-card label{display:grid;gap:5px;font-weight:700;font-size:15px}
+.me-card input{font:inherit;font-weight:400;font-size:16px;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px 12px;width:100%;min-width:0}
+.me-card input:focus-visible{outline:3px solid var(--gold);outline-offset:0}
+.me-card .btn{justify-self:start}
+.me-grades{display:grid;grid-template-columns:repeat(8,1fr);gap:6px}
+.me-grades button{height:44px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink);font-family:var(--display);font-weight:700;font-size:17px}
+.me-grades button:hover{border-color:var(--accent)}
+.me-grades button[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.me-ok{margin:0;color:var(--good);font-weight:700}
+.me .error{margin:0}
+.me-row{display:flex;flex-wrap:wrap;gap:8px}
+.me-danger{border-color:var(--bad-soft)}
+.me .btn.danger{background:var(--bad);border-color:var(--bad);color:#fff}
+.me .btn.ghost.danger{background:transparent;color:var(--bad)}
+@media (max-width:560px){
+  .me{padding-block:18px 40px}
+  .me h1{font-size:24px}
+  .me-card{padding:16px}
+  .me-grades{grid-template-columns:repeat(4,1fr)}
+}
