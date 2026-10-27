@@ -47,7 +47,7 @@ beforeAll(async () => {
     await db.exec(readFileSync(join(root, "supabase", "migrations", f), "utf8"));
   }
   for (const [name, id] of Object.entries(ids)) {
-    await db.query("insert into auth.users (id, email) values ($1, $2)", [id, `${name}@test.local`]);
+    await db.query("insert into auth.users (id, email, email_confirmed_at) values ($1, $2, now())", [id, `${name}@test.local`]);
   }
   await db.exec(`
     update public.profiles set role = 'admin' where id = '${ids.admin}';
@@ -554,5 +554,153 @@ describe("перенос старых вопросов по таблицам doc
         topic: hidden.title_ru, text_ru: "Вопрос", options: [{ text_ru: "а", is_correct: true }, { text_ru: "б" }, { text_ru: "в" }],
       }])]));
     expect(res[0].r.topics).toBe(1); // создана новая видимая тема, а не вопрос в скрытой
+  });
+});
+
+describe("аккаунты: регистрация, роли, блокировка (DECISIONS.md №70–75)", () => {
+  let mathId: string;
+  let schoolId: string;
+  let topicId: string;
+
+  // Создание аккаунта так, как это делает Supabase Auth: строка в auth.users, профиль создаёт триггер.
+  async function signUp(email: string, meta: object) {
+    const r = await db.query<{ id: string }>(`insert into auth.users (id, email, raw_user_meta_data)
+      values (gen_random_uuid(), $1, $2) returning id`, [email, JSON.stringify(meta)]);
+    return r.rows[0].id;
+  }
+  // Регистрация ученика функцией на сервере: простой аккаунт + register_student (ключ service_role).
+  async function studentSignUp(nick: string, data: object, email = `${nick}@students.bilimtest.local`) {
+    const id = await signUp(email, {});
+    try {
+      await db.transaction(async (tx) => {
+        await tx.exec("set local role service_role");
+        await tx.query("select public.register_student($1, $2::jsonb)", [id, JSON.stringify(data)]);
+      });
+    } catch (e) {
+      await db.query("delete from auth.users where id = $1", [id]); // функция на сервере удаляет аккаунт при ошибке
+      throw e;
+    }
+    return id;
+  }
+  const teacher = (nick: string, extra: object = {}) => ({
+    role: "teacher", nickname: nick, first_name: "Айгерим", last_name: "Сейтова", school_id: schoolId,
+    subjects: [mathId], grades: [5, 6], consent: true, ...extra,
+  });
+  const student = (nick: string, extra: object = {}) => ({
+    nickname: nick, first_name: "Айдос", grade: 7, consent: true, parent_consent: true, ...extra,
+  });
+  const setSignup = (v: object) => db.query("update public.app_settings set value = $1 where key = 'signup'", [JSON.stringify(v)]);
+
+  beforeAll(async () => {
+    mathId = (await one<{ id: string }>("select id from public.subjects where slug = 'math'"))!.id;
+    topicId = (await one<{ id: string }>("select id from public.topics where section_id is not null limit 1"))!.id;
+    const region = (await one<{ id: string }>(
+      "insert into public.regions (name_kk, name_ru) values ('Алматы облысы', 'Алматинская область') returning id"))!.id;
+    schoolId = (await one<{ id: string }>(
+      "insert into public.schools (region_id, name_ru, approved) values ($1, 'Школа №5', true) returning id", [region]))!.id;
+  });
+
+  it("учитель регистрируется с анкетой: роль teacher, предметы и классы сохранены", async () => {
+    const id = await signUp("aigerim@mail.kz", teacher("aigerim_t"));
+    expect(await one(`select role, nickname, full_name, school_id from public.profiles where id = $1`, [id]))
+      .toEqual({ role: "teacher", nickname: "aigerim_t", full_name: "Айгерим Сейтова", school_id: schoolId });
+    expect(await one(`select grades from public.teacher_info where user_id = $1`, [id])).toEqual({ grades: [5, 6] });
+  });
+
+  it("роль admin выдать себе нельзя; без анкеты и с ловушкой — отказ", async () => {
+    await expect(signUp("x1@mail.kz", { ...teacher("nx1"), role: "admin" })).rejects.toThrow(/недопустимая роль/);
+    await expect(signUp("x2@mail.kz", { role: "student", ...student("nx2") })).rejects.toThrow(/недопустимая роль/);
+    await expect(signUp("x4@mail.kz", teacher("nx4", { website: "http://spam" }))).rejects.toThrow(/отклонена/);
+    await expect(signUp("x5@mail.kz", teacher("nx5", { consent: false }))).rejects.toThrow(/согласие/);
+    await expect(signUp("x6@mail.kz", teacher("nx6", { subjects: [] }))).rejects.toThrow(/предметы/);
+    await expect(signUp("x7@students.bilimtest.local", teacher("nx7"))).rejects.toThrow(/Адрес входа/);
+    await expect(signUp("x8@mail.kz", teacher("aigerim_t"))).rejects.toThrow(/duplicate|unique/i); // ник занят
+    expect(await one("select count(*)::int as n from auth.users where email like 'x_@%'")).toEqual({ n: 0 });
+  });
+
+  it("аккаунт без роли (создал админ) — простой профиль без анкеты; анкету ученика из браузера не заполнить", async () => {
+    const id = await signUp("staff@mail.kz", {});
+    expect(await one("select role, nickname from public.profiles where id = $1", [id])).toEqual({ role: "student", nickname: null });
+    await expect(as("student", (q) => q("select public.register_student($1, $2::jsonb)", [ids.student, "{}"])))
+      .rejects.toThrow(/permission denied/);
+  });
+
+  it("ученик — только через функцию на сервере и только при открытой регистрации (№70)", async () => {
+    await expect(studentSignUp("aidos07", student("aidos07"))).rejects.toThrow(/закрыта/);
+    await setSignup({ teacher: true, student: true });
+    try {
+      await expect(studentSignUp("aidos07", student("aidos07"), "other@students.bilimtest.local")).rejects.toThrow(/Адрес входа/);
+      await expect(studentSignUp("aidos08", student("aidos08", { parent_consent: false }))).rejects.toThrow(/16 лет/);
+      await expect(studentSignUp("aidos09", student("aidos09", { website: "x" }))).rejects.toThrow(/отклонена/);
+      const id = await studentSignUp("aidos07", student("aidos07", { recovery_email: "Mama@Mail.kz" }));
+      expect(await one("select role from public.profiles where id = $1", [id])).toEqual({ role: "student" });
+      expect(await one("select grade, recovery_email from school.students where user_id = $1", [id]))
+        .toEqual({ grade: 7, recovery_email: "mama@mail.kz" });
+    } finally {
+      await setSignup({ teacher: true, student: false });
+    }
+    expect(await as(null, (q) => q<{ r: unknown }>("select public.signup_open() as r")))
+      .toEqual([{ r: { teacher: true, student: false } }]);
+  });
+
+  it("ученик видит только себя; роль и ник сам не меняет; учитель данных учеников не видит", async () => {
+    const sid = (await one<{ id: string }>("select id from public.profiles where nickname = 'aidos07'"))!.id;
+    const tid = (await one<{ id: string }>("select id from public.profiles where nickname = 'aigerim_t'"))!.id;
+    const asUser = async <T>(uid: string, fn: (q: Db["query"]) => Promise<T>) => db.transaction(async (tx) => {
+      await tx.query("select set_config('request.jwt.claim.sub', $1, true)", [uid]);
+      await tx.exec("set local role authenticated");
+      return fn(asDb(tx).query);
+    });
+    expect(await asUser(sid, (q) => q("select id from public.profiles"))).toEqual([{ id: sid }]);
+    expect(await asUser(sid, (q) => q("select user_id from public.teacher_info"))).toEqual([]);
+    expect(await asUser(sid, (q) => q("select grade from school.students"))).toEqual([{ grade: 7 }]);
+    await expect(asUser(sid, (q) => q("update public.profiles set role = 'admin' where id = $1", [sid])))
+      .rejects.toThrow(/permission denied/);
+    await expect(asUser(sid, (q) => q("update public.profiles set nickname = 'boss' where id = $1", [sid])))
+      .rejects.toThrow(/permission denied/);
+    await expect(asUser(sid, (q) => q("select public.set_user_role($1, 'admin')", [sid]))).rejects.toThrow(/только админ/);
+    await asUser(sid, (q) => q("update school.students set grade = 8 where user_id = $1", [sid]));
+    expect(await one("select grade from school.students where user_id = $1", [sid])).toEqual({ grade: 8 });
+
+    expect(await asUser(tid, (q) => q("select user_id from school.students"))).toEqual([]);
+    expect(await asUser(tid, (q) => q("select id from public.profiles"))).toEqual([{ id: tid }]);
+    expect(await as("admin", (q) => q("select user_id from school.students"))).toEqual([{ user_id: sid }]);
+  });
+
+  it("лимит черновиков учителя в сутки (с Excel), админ без лимита; блокировка снимает права", async () => {
+    await db.query("update public.app_settings set value = value || '{\"teacher_drafts_per_day\": 2}' where key = 'limits'");
+    const draft = (q: Db["query"], author: string) => q(
+      "insert into public.questions (topic_id, text_ru, author_id) values ($1, 'Черновик', $2)", [topicId, author]);
+    try {
+      await as("teacherB", (q) => draft(q, ids.teacherB));
+      await as("teacherB", (q) => draft(q, ids.teacherB));
+      await expect(as("teacherB", (q) => draft(q, ids.teacherB))).rejects.toThrow(/лимит черновиков: 2/);
+      await expect(as("teacherB", (q) => q("select public.import_questions($1, 5, $2::jsonb)", [mathId, JSON.stringify([{
+        topic: "Тема", text_ru: "В", options: [{ text_ru: "а", is_correct: true }, { text_ru: "б" }, { text_ru: "в" }] }])])))
+        .rejects.toThrow(/лимит/);
+      for (let i = 0; i < 3; i++) await as("admin", (q) => draft(q, ids.admin));
+    } finally {
+      await db.query("update public.app_settings set value = value || '{\"teacher_drafts_per_day\": 50}' where key = 'limits'");
+    }
+
+    await expect(as("teacherA", (q) => q("select public.set_user_blocked($1, true)", [ids.teacherB]))).rejects.toThrow(/только админ/);
+    await expect(as("admin", (q) => q("select public.set_user_blocked($1, true)", [ids.admin]))).rejects.toThrow(/себя/);
+    await as("admin", (q) => q("select public.set_user_blocked($1, true)", [ids.teacherB]));
+    expect(await one("select banned_until > now() as banned from auth.users where id = $1", [ids.teacherB])).toEqual({ banned: true });
+    await expect(as("teacherB", (q) => draft(q, ids.teacherB))).rejects.toThrow(/row-level security/);
+    await as("admin", (q) => q("select public.set_user_blocked($1, false)", [ids.teacherB]));
+    expect(await one("select banned_until from auth.users where id = $1", [ids.teacherB])).toEqual({ banned_until: null });
+  });
+
+  it("ученик удаляет свой аккаунт вместе с данными", async () => {
+    const sid = (await one<{ id: string }>("select id from public.profiles where nickname = 'aidos07'"))!.id;
+    await db.transaction(async (tx) => {
+      await tx.query("select set_config('request.jwt.claim.sub', $1, true)", [sid]);
+      await tx.exec("set local role authenticated");
+      await tx.query("select public.delete_my_account()");
+    });
+    expect(await one("select count(*)::int as n from auth.users where id = $1", [sid])).toEqual({ n: 0 });
+    expect(await one("select count(*)::int as n from public.profiles where id = $1", [sid])).toEqual({ n: 0 });
+    expect(await one("select count(*)::int as n from school.students where user_id = $1", [sid])).toEqual({ n: 0 });
   });
 });

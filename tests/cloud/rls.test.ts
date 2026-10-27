@@ -34,7 +34,7 @@ describe.skipIf(!configured)("Supabase: правила доступа", () => {
     await sql`delete from public.sections where title_ru = 'Раздел-тест'`;
     await sql`delete from public.topics where legacy_key is null`;
     await sql`truncate public.reports, public.attempts, public.answer_stats, public.rate_limits, public.question_history`;
-    await sql`delete from auth.users where email like '%@bilimtest.test'`;
+    await sql`delete from auth.users where email like '%@bilimtest.test' or email like '%@students.bilimtest.local'`;
 
     const admin = createClient(url, secret, { auth: { persistSession: false } });
     for (const w of Object.keys(people) as Who[]) {
@@ -49,9 +49,6 @@ describe.skipIf(!configured)("Supabase: правила доступа", () => {
     }
   }, 120_000);
 
-  afterAll(async () => {
-    await sql?.end();
-  });
 
   it("импорт: 16 / 267 / 1336, повторный запуск без дублей", async () => {
     const raws = readData().map((f) => f.raw);
@@ -151,4 +148,70 @@ describe.skipIf(!configured)("Supabase: правила доступа", () => {
     const { error } = await c.rpc("hit_rate_limit", { p_bucket: "x", p_max: 1, p_window: "1 hour" });
     expect(error).not.toBeNull();
   });
+});
+
+describe.skipIf(!configured)("Supabase: аккаунты (DECISIONS.md №70–75)", () => {
+  const admin = () => createClient(url, secret, { auth: { persistSession: false } });
+
+  beforeAll(() => {
+    sql ??= postgres(dbUrl, { ssl: "require", prepare: false, onnotice: () => {} });
+  });
+
+  it("регистрация с ролью admin или student через обычную форму отклоняется базой", async () => {
+    for (const role of ["admin", "student"]) {
+      const em = `signup-${role}@bilimtest.test`;
+      const { error } = await anon().auth.signUp({ email: em, password: PASSWORD, options: { data: {
+        role, nickname: `hack_${role}`, first_name: "X", last_name: "Y", consent: true, grade: 7, parent_consent: true,
+      } } });
+      expect(error).not.toBeNull();
+      expect((await sql`select count(*)::int as n from auth.users where email = ${em}`)[0].n).toBe(0);
+    }
+  });
+
+  it("ученик, созданный функцией на сервере: видит только свой профиль; анкеты учителей не видит", async () => {
+    await sql`update public.app_settings set value = '{"teacher": true, "student": true}' where key = 'signup'`;
+    try {
+      // как функция на сервере student-signup: простой аккаунт, затем анкета через register_student
+      const srv = admin();
+      const { data, error } = await srv.auth.admin.createUser({
+        email: "cloud_kid@students.bilimtest.local", password: PASSWORD, email_confirm: true });
+      expect(error).toBeNull();
+      const { error: e2 } = await srv.rpc("register_student", { p_user: data.user!.id, p_data: {
+        nickname: "cloud_kid", first_name: "Айдос", grade: 7, consent: true, parent_consent: true } });
+      expect(e2).toBeNull();
+      // из браузера анкету не заполнить
+      expect((await anon().rpc("register_student", { p_user: data.user!.id, p_data: {} })).error).not.toBeNull();
+    } finally {
+      await sql`update public.app_settings set value = '{"teacher": true, "student": false}' where key = 'signup'`;
+    }
+    const kid = anon();
+    expect((await kid.auth.signInWithPassword({ email: "cloud_kid@students.bilimtest.local", password: PASSWORD })).error).toBeNull();
+    const { data } = await kid.from("profiles").select("nickname, role");
+    expect(data).toEqual([{ nickname: "cloud_kid", role: "student" }]);
+    expect((await kid.from("teacher_info").select("user_id")).data).toEqual([]);
+    expect((await kid.from("profiles").update({ nickname: "boss" }).eq("nickname", "cloud_kid")).error?.code).toBe("42501");
+  });
+
+  it("блокировка запрещает вход; разблокировка возвращает", async () => {
+    const { data: { user } } = await clients.teacherB.auth.getUser();
+    expect((await clients.teacherA.rpc("set_user_blocked", { p_user: user!.id, p_blocked: true })).error).not.toBeNull();
+    expect((await clients.admin.rpc("set_user_blocked", { p_user: user!.id, p_blocked: true })).error).toBeNull();
+    const { error } = await anon().auth.signInWithPassword({ email: email("teacherB"), password: PASSWORD });
+    expect(error?.message).toMatch(/banned/i);
+    expect((await clients.admin.rpc("set_user_blocked", { p_user: user!.id, p_blocked: false })).error).toBeNull();
+    expect((await anon().auth.signInWithPassword({ email: email("teacherB"), password: PASSWORD })).error).toBeNull();
+  });
+
+  it("пользователь удаляет свой аккаунт", async () => {
+    const em = "delete-me@bilimtest.test";
+    expect((await admin().auth.admin.createUser({ email: em, password: PASSWORD, email_confirm: true })).error).toBeNull();
+    const c = anon();
+    expect((await c.auth.signInWithPassword({ email: em, password: PASSWORD })).error).toBeNull();
+    expect((await c.rpc("delete_my_account")).error).toBeNull();
+    expect((await sql`select count(*)::int as n from auth.users where email = ${em}`)[0].n).toBe(0);
+  });
+});
+
+afterAll(async () => {
+  await sql?.end();
 });
