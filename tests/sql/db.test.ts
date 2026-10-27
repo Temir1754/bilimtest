@@ -719,3 +719,70 @@ describe("справочник: области и школы (№77)", () => {
     expect(await as(null, (q) => q("select name_ru from public.schools where region_id = $1", [astana]))).toEqual([]);
   });
 });
+
+describe("«Пользователи» и пилот (№79–83)", () => {
+  const asService = <T>(fn: (q: Db["query"]) => Promise<T>) => db.transaction(async (tx) => {
+    await tx.exec("set local role service_role");
+    return fn(asDb(tx).query);
+  });
+  const asUser = <T>(uid: string, fn: (q: Db["query"]) => Promise<T>) => db.transaction(async (tx) => {
+    await tx.query("select set_config('request.jwt.claim.sub', $1, true)", [uid]);
+    await tx.exec("set local role authenticated");
+    return fn(asDb(tx).query);
+  });
+  const newUser = async (email: string) => (await one<{ id: string }>(
+    "insert into auth.users (id, email) values (gen_random_uuid(), $1) returning id", [email]))!.id;
+
+  it("setup_teacher (только сервер): анкета, роль teacher, временный пароль нужно сменить", async () => {
+    const math = (await one<{ id: string }>("select id from public.subjects where slug = 'math'"))!.id;
+    const id = await newUser("bolat@mail.kz");
+    const data = { nickname: "Bolat_T", first_name: "Болат", last_name: "Ахметов", school_other: "Школа №7, Семей",
+      subjects: [math], grades: [7, 8] };
+    await expect(as("admin", (q) => q("select public.setup_teacher($1, $2::jsonb)", [id, JSON.stringify(data)])))
+      .rejects.toThrow(/permission denied/); // из браузера даже админ не может — только сервер
+    await expect(asService((q) => q("select public.setup_teacher($1, $2::jsonb)", [id, JSON.stringify({ ...data, subjects: [] })])))
+      .rejects.toThrow(/предметы/);
+    await asService((q) => q("select public.setup_teacher($1, $2::jsonb)", [id, JSON.stringify(data)]));
+    expect(await one(`select role, nickname, full_name, school_other, must_change_password from public.profiles
+      where id = $1`, [id])).toEqual({ role: "teacher", nickname: "bolat_t", full_name: "Болат Ахметов",
+      school_other: "Школа №7, Семей", must_change_password: true });
+    await expect(asService((q) => q("select public.setup_teacher($1, $2::jsonb)", [id, JSON.stringify(data)])))
+      .rejects.toThrow(/уже настроен/);
+
+    await asUser(id, (q) => q("select public.password_changed()"));
+    expect(await one("select must_change_password from public.profiles where id = $1", [id])).toEqual({ must_change_password: false });
+  });
+
+  it("список пользователей с email видит только админ; поиск и фильтр по роли", async () => {
+    await expect(as("teacherA", (q) => q("select * from public.admin_users()"))).rejects.toThrow(/Только для админа/);
+    const all = await as("admin", (q) => q<{ email: string }>("select email from public.admin_users()"));
+    expect(all.length).toBeGreaterThan(3);
+    expect(await as("admin", (q) => q("select nickname, email from public.admin_users('болат')")))
+      .toEqual([{ nickname: "bolat_t", email: "bolat@mail.kz" }]);
+    const teachers = await as("admin", (q) => q<{ role: string }>("select role from public.admin_users(null, 'teacher')"));
+    expect(teachers.length).toBeGreaterThan(0);
+    expect(teachers.every((r) => r.role === "teacher")).toBe(true);
+  });
+
+  it("упрощённая регистрация ученика: ник, класс, согласие — без имени; лимит частоты по IP", async () => {
+    await db.query(`update public.app_settings set value = '{"teacher": false, "student": true}' where key = 'signup'`);
+    await db.query(`update public.app_settings set value = value || '{"student_signups_per_hour": 2}' where key = 'limits'`);
+    try {
+      const id = await newUser("pilot_kid@students.bilimtest.local");
+      await asService((q) => q("select public.register_student($1, $2::jsonb)", [id, JSON.stringify({
+        nickname: "pilot_kid", grade: 6, consent: true, parent_consent: true })]));
+      expect(await one("select role, nickname, first_name from public.profiles where id = $1", [id]))
+        .toEqual({ role: "student", nickname: "pilot_kid", first_name: "" });
+
+      const ok = (ip: string) => asService((q) => q<{ ok: boolean }>("select public.signup_rate_ok($1) as ok", [ip]));
+      expect(await ok("1.2.3.4")).toEqual([{ ok: true }]);
+      expect(await ok("1.2.3.4")).toEqual([{ ok: true }]);
+      expect(await ok("1.2.3.4")).toEqual([{ ok: false }]); // третья за час с одного адреса
+      expect(await ok("5.6.7.8")).toEqual([{ ok: true }]);
+      await expect(as(null, (q) => q("select public.signup_rate_ok('x')"))).rejects.toThrow(/permission denied/);
+    } finally {
+      await db.query(`update public.app_settings set value = '{"teacher": true, "student": false}' where key = 'signup'`);
+      await db.query(`update public.app_settings set value = value || '{"student_signups_per_hour": 60}' where key = 'limits'`);
+    }
+  });
+});

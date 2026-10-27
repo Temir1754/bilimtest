@@ -4,7 +4,8 @@ create role authenticated nologin;
 create role service_role nologin;
 create schema auth;
 create table auth.users (id uuid primary key, email text, raw_user_meta_data jsonb not null default '{}',
-  raw_app_meta_data jsonb not null default '{}', email_confirmed_at timestamptz, banned_until timestamptz);
+  raw_app_meta_data jsonb not null default '{}', email_confirmed_at timestamptz, banned_until timestamptz,
+  last_sign_in_at timestamptz);
 create function auth.uid() returns uuid language sql stable as $$
   select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid
 $$;
