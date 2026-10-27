@@ -212,6 +212,80 @@ describe.skipIf(!configured)("Supabase: аккаунты (DECISIONS.md №70–7
   });
 });
 
+describe.skipIf(!configured)("Supabase: функции на сервере admin-users и student-signup (№80–83)", () => {
+  // Ответ функции: данные или код ошибки из { error: "..." }.
+  async function call(c: SupabaseClient, name: string, body: object): Promise<{ data?: Record<string, string>; code?: string }> {
+    const { data, error } = await c.functions.invoke(name, { body });
+    if (!error) return { data };
+    const j = await (error as { context?: Response }).context?.json().catch(() => null);
+    return { code: j?.error ?? error.message };
+  }
+  const setSignup = (student: boolean) =>
+    sql`update public.app_settings set value = ${sql.json({ teacher: false, student })} where key = 'signup'`;
+
+  beforeAll(async () => {
+    sql ??= postgres(dbUrl, { ssl: "require", prepare: false, onnotice: () => {} });
+    await sql`delete from auth.users where email in ('fn-teacher@bilimtest.test')`;
+  });
+
+  it("создать учителя может только админ; учитель входит с временным паролем и меняет его; сброс пароля", async () => {
+    const math = (await sql`select id from public.subjects where slug = 'math'`)[0].id;
+    const data = { nickname: "fn_teacher", first_name: "Болат", last_name: "Ахметов", school_id: null,
+      school_other: "Школа №7", subjects: [math], grades: [5, 6] };
+    expect((await call(clients.teacherA, "admin-users", { action: "create_teacher", email: "fn-teacher@bilimtest.test", data })).code)
+      .toBe("forbidden");
+    expect((await call(anon(), "admin-users", { action: "create_teacher", email: "fn-teacher@bilimtest.test", data })).code)
+      .toBe("forbidden");
+
+    const r = await call(clients.admin, "admin-users", { action: "create_teacher", email: "fn-teacher@bilimtest.test", data });
+    expect(r.code).toBeUndefined();
+    const temp = r.data!.password;
+    expect(temp).toMatch(/^[a-z2-9]{10}$/);
+    expect((await call(clients.admin, "admin-users", { action: "create_teacher", email: "fn-teacher@bilimtest.test", data })).code)
+      .toBe("email_taken");
+
+    const t = anon();
+    expect((await t.auth.signInWithPassword({ email: "fn-teacher@bilimtest.test", password: temp })).error).toBeNull();
+    expect((await t.from("profiles").select("role, nickname, must_change_password").single()).data)
+      .toEqual({ role: "teacher", nickname: "fn_teacher", must_change_password: true });
+    expect((await t.auth.updateUser({ password: "Teacher-own-pass-1" })).error).toBeNull();
+    expect((await t.rpc("password_changed")).error).toBeNull();
+    expect((await t.from("profiles").select("must_change_password").single()).data).toEqual({ must_change_password: false });
+
+    const reset = await call(clients.admin, "admin-users", { action: "reset_password", user_id: r.data!.id });
+    expect(reset.code).toBeUndefined();
+    expect((await anon().auth.signInWithPassword({ email: "fn-teacher@bilimtest.test", password: "Teacher-own-pass-1" })).error)
+      .not.toBeNull();
+    expect((await anon().auth.signInWithPassword({ email: "fn-teacher@bilimtest.test", password: reset.data!.password })).error)
+      .toBeNull();
+  }, 60_000);
+
+  it("регистрация ученика: закрыта / открыта; ник занят; ловушка; лимит частоты; затем вход по нику", async () => {
+    const kid = { nickname: "fn_kid", password: "Kid-pass-123", grade: 7, consent: true, website: "" };
+    await setSignup(false);
+    expect((await call(anon(), "student-signup", kid)).code).toBe("closed");
+    await setSignup(true);
+    try {
+      expect((await call(anon(), "student-signup", { ...kid, nickname: "Иван" })).code).toBe("bad_nickname");
+      expect((await call(anon(), "student-signup", kid)).data).toEqual({ ok: true });
+      expect((await call(anon(), "student-signup", kid)).code).toBe("nick_taken");
+      expect((await call(anon(), "student-signup", { ...kid, nickname: "fn_bot", website: "http://spam" })).data).toEqual({ ok: true });
+      expect((await sql`select count(*)::int as n from auth.users where email = 'fn_bot@students.bilimtest.local'`)[0].n).toBe(0);
+
+      const c = anon();
+      expect((await c.auth.signInWithPassword({ email: "fn_kid@students.bilimtest.local", password: kid.password })).error).toBeNull();
+      expect((await c.from("profiles").select("role, nickname, first_name").single()).data)
+        .toEqual({ role: "student", nickname: "fn_kid", first_name: "" });
+
+      await sql`update public.app_settings set value = value || '{"student_signups_per_hour": 0}' where key = 'limits'`;
+      expect((await call(anon(), "student-signup", { ...kid, nickname: "fn_kid2" })).code).toBe("rate_limited");
+    } finally {
+      await sql`update public.app_settings set value = value || '{"student_signups_per_hour": 60}' where key = 'limits'`;
+      await setSignup(false);
+    }
+  }, 60_000);
+});
+
 afterAll(async () => {
   await sql?.end();
 });
