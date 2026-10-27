@@ -228,7 +228,7 @@ function StudentSignupForm({ api, t, onBack, onDone }: { api: AuthApi; t: AuthTe
       </label>
       <label className="auth-check">
         <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} />
-        <span>{s.consent}</span>
+        <span>{s.consent} <a href="/privacy" target="_blank" rel="noopener">{s.policyLink}</a></span>
       </label>
       {error !== null && <p className="error" role="alert">{authError(error, t)}</p>}
       <button type="submit" className="btn auth-submit" disabled={busy}>{busy ? s.busy : s.submit}</button>

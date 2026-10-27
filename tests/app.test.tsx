@@ -77,6 +77,7 @@ describe("сайт ученика", () => {
     expect(screen.getByText("Free tests for grades 4–11")).toBeTruthy();
     expect(JSON.parse(localStorage.getItem("bt-prefs")!).lang).toBe("en");
     expect(screen.getByRole("link", { name: "Log in" }).getAttribute("href")).toBe("/login");
+    expect(screen.getByRole("link", { name: "Privacy policy" }).getAttribute("href")).toBe("/privacy");
   });
 
   it("после входа в шапке — ник с меню «Кабинет / Выйти»; без входа — «Войти»", async () => {

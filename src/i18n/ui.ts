@@ -20,7 +20,7 @@ const kk = {
   gl: (g: number) => g + "-сынып", gs: "сынып",
   loading: "Жүктелуде…", loadError: "Деректерді жүктеу мүмкін болмады. Бетті жаңартып көріңіз.",
   skip: "Мазмұнға өту",
-  login: "Кіру",
+  login: "Кіру", privacy: "Құпиялылық саясаты",
   menu: { label: "Аккаунт мәзірі", cabinet: "Кабинет", logout: "Шығу" },
 };
 
@@ -45,7 +45,7 @@ const ru: UiText = {
   gl: (g) => g + " класс", gs: "класс",
   loading: "Загрузка…", loadError: "Не удалось загрузить данные. Попробуйте обновить страницу.",
   skip: "Перейти к содержимому",
-  login: "Войти",
+  login: "Войти", privacy: "Политика конфиденциальности",
   menu: { label: "Меню аккаунта", cabinet: "Кабинет", logout: "Выйти" },
 };
 
@@ -68,7 +68,7 @@ const en: UiText = {
   gl: (g) => "Grade " + g, gs: "grade",
   loading: "Loading…", loadError: "Could not load data. Try refreshing the page.",
   skip: "Skip to content",
-  login: "Log in",
+  login: "Log in", privacy: "Privacy policy",
   menu: { label: "Account menu", cabinet: "Dashboard", logout: "Log out" },
 };
 

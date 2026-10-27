@@ -137,3 +137,10 @@ footer .wrap{padding-block:18px}
 .acct-menu a,.acct-menu button{display:block;text-align:left;padding:10px 12px;border-radius:8px;border:0;background:none;
   color:var(--ink);font:inherit;font-size:15px;text-decoration:none}
 .acct-menu a:hover,.acct-menu button:hover{background:var(--accent-soft);color:var(--accent)}
+
+/* Политика конфиденциальности (/privacy) */
+.privacy{max-width:760px;padding-block:24px 40px}
+.privacy h1{font-family:var(--display);font-size:30px;margin:14px 0 10px}
+.privacy h2{font-size:19px;margin:26px 0 8px}
+.privacy p{margin:0 0 10px;line-height:1.55}
+footer .wrap a{color:inherit}

@@ -15,7 +15,7 @@ const kk = {
     nick: "Лақап ат", nickHint: "Нағыз атыңды жазба. Латын әріптері, сандар, _ және нүкте, 3–20 таңба.",
     password: "Құпиясөз (кемінде 8 таңба)", repeat: "Құпиясөзді қайталаңыз",
     passwordHint: "Құпиясөзді жазып қой: email жоқ, ұмытсаң — мұғалімге немесе әкімшіге айт.",
-    grade: "Сыныбың", consent: "Құпиялылық саясатымен келісемін. Маған 16 жас толды немесе ата-анам тіркелуге келісті.",
+    grade: "Сыныбың", policyLink: "Саясатты оқу", consent: "Құпиялылық саясатымен келісемін. Маған 16 жас толды немесе ата-анам тіркелуге келісті.",
     submit: "Тіркелу", busy: "Тіркелуде…",
     err: {
       nickTaken: "Бұл лақап ат бос емес — басқасын ойлап тап.", badNick: "Лақап ат: 3–20 таңба, латын әріптері, сандар, _ және нүкте.",
@@ -79,7 +79,7 @@ const ru: AuthText = {
     nick: "Ник", nickHint: "Не пиши настоящее имя. Латинские буквы, цифры, _ и точка, 3–20 знаков.",
     password: "Пароль (не короче 8 знаков)", repeat: "Повтори пароль",
     passwordHint: "Запиши пароль: email нет, если забудешь — скажи учителю или администратору.",
-    grade: "Твой класс", consent: "Я согласен с политикой конфиденциальности. Мне есть 16 лет, или родитель согласен на регистрацию.",
+    grade: "Твой класс", policyLink: "Читать политику", consent: "Я согласен с политикой конфиденциальности. Мне есть 16 лет, или родитель согласен на регистрацию.",
     submit: "Зарегистрироваться", busy: "Регистрируем…",
     err: {
       nickTaken: "Этот ник уже занят — придумай другой.", badNick: "Ник: 3–20 знаков, латинские буквы, цифры, _ и точка.",
@@ -141,7 +141,7 @@ const en: AuthText = {
     nick: "Nickname", nickHint: "Don't use your real name. Latin letters, digits, _ and dot, 3–20 characters.",
     password: "Password (at least 8 characters)", repeat: "Repeat the password",
     passwordHint: "Write your password down: there's no email, if you forget it — ask your teacher or the administrator.",
-    grade: "Your grade", consent: "I agree to the privacy policy. I'm 16 or older, or my parent agrees to the sign-up.",
+    grade: "Your grade", policyLink: "Read the policy", consent: "I agree to the privacy policy. I'm 16 or older, or my parent agrees to the sign-up.",
     submit: "Sign up", busy: "Signing up…",
     err: {
       nickTaken: "This nickname is taken — think of another one.", badNick: "Nickname: 3–20 characters, Latin letters, digits, _ and dot.",

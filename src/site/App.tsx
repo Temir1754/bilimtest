@@ -131,7 +131,7 @@ export function App({ source }: { source: DataSource }) {
         </div>
       </div></header>
       <main id="main"><div className="wrap">{body}</div></main>
-      <footer><div className="wrap">{t.free}</div></footer>
+      <footer><div className="wrap">{t.free} · <a href="/privacy">{t.privacy}</a></div></footer>
     </>
   );
 }
