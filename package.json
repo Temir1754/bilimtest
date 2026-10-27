@@ -17,7 +17,8 @@
     "backup": "tsx scripts/backup-db.ts",
     "move-questions": "tsx scripts/move-questions.ts",
     "old-topics": "tsx scripts/old-topics.ts",
-    "restore": "tsx scripts/restore-db.ts"
+    "restore": "tsx scripts/restore-db.ts",
+    "functions": "tsx scripts/deploy-functions.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.118.0",
