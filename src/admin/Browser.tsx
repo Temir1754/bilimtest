@@ -43,6 +43,8 @@ export function Browser({ api, me, onOpen, onImport }: Props) {
   const b = t.browse;
   const [sel, setSel] = useState<Sel>(loadSel);
   const [subjects, setSubjects] = useState<SubjectRow[]>([]);
+  const [inGrade, setInGrade] = useState<string[] | null>(null); // предметы класса; null — ещё не загружены
+  const [allSubjects, setAllSubjects] = useState(false);
   const [sections, setSections] = useState<SectionRow[]>([]);
   const [topics, setTopics] = useState<TopicRow[]>([]);
   const [counts, setCounts] = useState<Record<string, Counts>>({});
@@ -73,6 +75,11 @@ export function Browser({ api, me, onOpen, onImport }: Props) {
 
   const loadSubjects = useCallback(() => api.subjects().then(setSubjects, setError), [api]);
   useEffect(() => { loadSubjects(); }, [loadSubjects]);
+  useEffect(() => {
+    let alive = true;
+    api.gradeSubjects(sel.grade).then((ids) => alive && setInGrade(ids), setError);
+    return () => { alive = false; };
+  }, [api, sel.grade, topics]);
 
   const loadTopics = useCallback(async () => {
     if (!sel.subjectId) { setSections([]); setTopics([]); setCounts({}); return; }
@@ -103,6 +110,8 @@ export function Browser({ api, me, onOpen, onImport }: Props) {
   }, [api, sel, hasFilter, reload]);
 
   const subject = subjects.find((s) => s.id === sel.subjectId) ?? null;
+  // В списке — только предметы класса (и выбранный, даже если в классе его нет); «Показать все» — чтобы добавить предмет в класс.
+  const shown = allSubjects || !inGrade ? subjects : subjects.filter((s) => inGrade.includes(s.id) || s.id === sel.subjectId);
   const topic = topics.find((x) => x.id === sel.topicId) ?? null;
   const section = topic ? null : sections.find((x) => x.id === sel.sectionId) ?? null;
   const groups = groupTopics(sections, topics);
@@ -222,8 +231,11 @@ export function Browser({ api, me, onOpen, onImport }: Props) {
         <select aria-label={b.subject} value={sel.subjectId ?? ""}
           onChange={(e) => update({ subjectId: e.target.value || null, sectionId: null, topicId: null })}>
           <option value="">{b.allSubjects}</option>
-          {subjects.map((s) => <option key={s.id} value={s.id}>{s.icon} {nm(s, "name", lang)}</option>)}
+          {shown.map((s) => <option key={s.id} value={s.id}>{s.icon} {nm(s, "name", lang)}</option>)}
         </select>
+        <button type="button" className="link small" onClick={() => setAllSubjects(!allSubjects)}>
+          {allSubjects ? b.gradeSubjectsOnly(sel.grade) : b.showAllSubjects}
+        </button>
         {isAdmin && subject && (
           <div className="adm-row">
             <button type="button" className="link" onClick={() => setEditing("subject")}>{b.editSubject}</button>

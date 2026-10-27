@@ -13,8 +13,17 @@ const questions: Question[] = Array.from({ length: 5 }, (_, i) => ({
 const source: DataSource = {
   async catalog() {
     return {
-      subjects: [{ id: "math", icon: "π", name: { kk: "Математика", ru: "Математика", en: "Mathematics" }, onlyLang: null, sort: 0 }],
-      topics: [{ id: "t1", subjectId: "math", grade: 5, title: { kk: "Т", ru: "Дроби", en: "Fractions" }, sort: 0, questionCount: 5 }],
+      subjects: [
+        { id: "math", icon: "π", name: { kk: "Математика", ru: "Математика", en: "Mathematics" }, onlyLang: null, sort: 0 },
+        { id: "physics", icon: "⚛", name: { kk: "Физика", ru: "Физика", en: "Physics" }, onlyLang: null, sort: 1 },
+        { id: "chemistry", icon: "⚗", name: { kk: "Химия", ru: "Химия", en: "Chemistry" }, onlyLang: null, sort: 2 },
+      ],
+      topics: [
+        { id: "t1", subjectId: "math", grade: 5, title: { kk: "Т", ru: "Дроби", en: "Fractions" }, sort: 0, questionCount: 5 },
+        { id: "t2", subjectId: "physics", grade: 7, title: { kk: "Т", ru: "Сила", en: "Force" }, sort: 0, questionCount: 5 },
+        // тема без опубликованных вопросов: предмет в 5 классе не показывается
+        { id: "t3", subjectId: "chemistry", grade: 5, title: { kk: "Т", ru: "Атом", en: "Atom" }, sort: 0, questionCount: 0 },
+      ],
     };
   },
   async questions() {
@@ -30,6 +39,13 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe("сайт ученика", () => {
+  it("в классе — только предметы, у которых есть вопросы в этом классе", async () => {
+    render(<App source={source} />);
+    expect(await screen.findByRole("button", { name: /Математика/ })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /Физика/ })).toBeNull(); // только в 7 классе
+    expect(screen.queryByRole("button", { name: /Химия/ })).toBeNull(); // в 5 классе нет вопросов
+  });
+
   it("проходит тест с клавиатуры и сохраняет лучший результат", async () => {
     const user = userEvent.setup();
     render(<App source={source} />);

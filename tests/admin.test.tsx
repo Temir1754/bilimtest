@@ -15,6 +15,7 @@ const row = (topic: string, q: string, ...answers: string[]) =>
 function fakeApi(me: Me | null) {
   const subjects: SubjectRow[] = [
     { id: "s1", slug: "math", icon: "π", name_kk: "Математика", name_ru: "Математика", name_en: "Math", only_lang: null, sort_order: 0 },
+    { id: "s2", slug: "physics", icon: "⚛", name_kk: "Физика", name_ru: "Физика", name_en: "Physics", only_lang: null, sort_order: 1 },
   ];
   const sections: SectionRow[] = [
     { id: "sec1", subject_id: "s1", grade: 5, title_kk: "Сандар", title_ru: "Натуральные числа", title_en: "Numbers", sort_order: 0 },
@@ -50,6 +51,7 @@ function fakeApi(me: Me | null) {
     resetPassword: vi.fn(async () => {}),
     setPassword: vi.fn(async (pw: string) => { if (pw.length < 6) throw new Error("Password should be at least 6 characters."); }),
     async subjects() { return subjects; },
+    async gradeSubjects(g) { return [...new Set([...sections, ...topics].filter((x) => x.grade === g).map((x) => x.subject_id))]; },
     async saveSubject() {},
     async deleteSubject() {},
     async sections(s, g) { return sections.filter((x) => x.subject_id === s && x.grade === g); },
@@ -334,5 +336,17 @@ describe("админка", () => {
     await vi.waitFor(() => expect(screen.queryByRole("button", { name: /Натуральные числа/ })).toBeNull());
     expect(topics.find((x) => x.id === "t2")!.section_id).toBeNull();
     expect(screen.getByText("Сложение")).toBeTruthy();
+  });
+
+  it("в списке предметов — только предметы класса; «Показать все предметы» открывает остальные", async () => {
+    const user = userEvent.setup();
+    render(<AdminApp api={fakeApi({ id: "admin", email: "a@x.kz", role: "admin" }).api} />);
+    const list = await screen.findByLabelText("Предмет");
+    await vi.waitFor(() => expect(within(list).queryByRole("option", { name: /Физика/ })).toBeNull());
+    expect(within(list).getByRole("option", { name: /Математика/ })).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: "Показать все предметы" }));
+    expect(within(list).getByRole("option", { name: /Физика/ })).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: "Только предметы 5 класса" }));
+    expect(within(list).queryByRole("option", { name: /Физика/ })).toBeNull();
   });
 });

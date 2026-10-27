@@ -91,6 +91,8 @@ export interface AdminApi {
   setPassword(password: string): Promise<void>;
 
   subjects(): Promise<SubjectRow[]>;
+  /** id предметов, у которых в классе есть разделы или темы (кроме скрытых). */
+  gradeSubjects(grade: number): Promise<string[]>;
   saveSubject(s: Omit<SubjectRow, "id"> & { id?: string }): Promise<void>;
   deleteSubject(id: string): Promise<void>;
 
@@ -194,6 +196,13 @@ export function supabaseApi(sb: SupabaseClient): AdminApi {
 
     async subjects() {
       return check(await sb.from("subjects").select("*").order("sort_order")) as SubjectRow[];
+    },
+    async gradeSubjects(grade) {
+      const [secs, tps] = await Promise.all([
+        sb.from("sections").select("subject_id").eq("grade", grade).limit(5000).then(check),
+        sb.from("topics").select("subject_id").eq("grade", grade).eq("archived", false).limit(5000).then(check),
+      ]);
+      return [...new Set([...(secs as { subject_id: string }[]), ...(tps as { subject_id: string }[])].map((r) => r.subject_id))];
     },
     async saveSubject({ id, ...s }) {
       check(id ? await sb.from("subjects").update(s).eq("id", id) : await sb.from("subjects").insert(s));

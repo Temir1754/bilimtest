@@ -14,7 +14,7 @@ interface Props {
 export function Home({ catalog, lang, t, grade, onGrade, onSubject }: Props) {
   const totalQ = catalog.topics.reduce((n, tp) => n + tp.questionCount, 0);
   const cards = catalog.subjects
-    .map((s) => ({ s, tps: catalog.topics.filter((tp) => tp.subjectId === s.id && tp.grade === grade) }))
+    .map((s) => ({ s, tps: catalog.topics.filter((tp) => tp.subjectId === s.id && tp.grade === grade && tp.questionCount > 0) }))
     .filter((c) => c.tps.length > 0);
 
   return (

@@ -20,6 +20,7 @@ header.top a.logo{color:inherit;text-decoration:none}
 .btn.danger,.link.danger{color:var(--bad);border-color:var(--bad)}
 .link{border:0;background:none;padding:0;color:var(--accent);font-weight:700;font-size:14px}
 .link:disabled{opacity:.4;cursor:default}
+.link.small{font-size:13px;font-weight:600;justify-self:start}
 .muted{color:var(--muted);font-size:14px}
 .hint{color:var(--muted);font-size:13px;margin:-6px 0 0}
 .hint code{font-size:12px}
