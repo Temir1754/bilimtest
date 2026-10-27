@@ -521,21 +521,34 @@ describe("перенос старых вопросов по таблицам doc
     expect(await db.transaction((tx) => markForTeacher(asDb(tx), none))).toBe(0); // повтор ничего не меняет
   });
 
-  it("пустые старые темы: без ссылок удаляются, с историей правок — скрываются и не находятся при загрузке из Excel", async () => {
+  it("пустые старые темы: без ссылок удаляются, с правками людей — скрываются и не находятся при загрузке из Excel", async () => {
     const subj = (await one<{ id: string }>("select id from public.subjects where slug = 'math'"))!.id;
     const lonely = (await one<{ id: string }>(`insert into public.topics (subject_id, grade, title_ru)
       values ($1, 4, 'Пустая тема без ссылок') returning id`, [subj]))!.id;
+    // Тема, вопрос из которой учитель перенёс в админке: в истории — правка человека.
+    const edited = (await one<{ id: string }>(`insert into public.topics (subject_id, grade, title_ru)
+      values ($1, 4, 'Тема с правкой учителя') returning id`, [subj]))!.id;
+    const target = (await one<{ id: string }>(
+      "select id from public.topics where subject_id = $1 and section_id is not null limit 1", [subj]))!.id;
+    await as("teacherA", async (q) => {
+      const [r] = await q<{ id: string }>("insert into public.questions (topic_id, text_ru) values ($1, 'Черновик') returning id", [edited]);
+      await q("update public.questions set topic_id = $1 where id = $2", [target, r.id]);
+    });
+
     const list = await emptyOldTopics(asDb(db));
+    expect(list.length).toBeGreaterThan(100); // темы, из которых вопросы уехали при переносе
     expect(list.find((t) => t.id === lonely)).toMatchObject({ attempts: 0, reports: 0, stats: 0, history: 0 });
+    // Перенос скриптом (история без автора) ссылкой не считается (№68); правка учителя — считается.
+    // Остальные скрываемые темы — со статистикой ответов из тестов выше.
     const moved = list.filter(isReferenced);
-    expect(moved.length).toBeGreaterThan(100); // темы, из которых вопросы уехали: в истории правок их прежняя тема
+    expect(moved.map((t) => t.id)).toContain(edited);
+    expect(moved.filter((t) => t.id !== edited).every((t) => t.history === 0 && t.stats > 0)).toBe(true);
     const r = await db.transaction((tx) => cleanupOldTopics(asDb(tx), list));
     expect(r).toEqual({ deleted: list.length - moved.length, archived: moved.length });
-    expect(await one("select id from public.topics where id = $1", [lonely])).toBeUndefined();
     expect(await emptyOldTopics(asDb(db))).toEqual([]);
 
     const hidden = (await one<{ subject_id: string; grade: number; title_ru: string }>(
-      "select subject_id, grade, title_ru from public.topics where id = $1 and archived", [moved[0].id]))!;
+      "select subject_id, grade, title_ru from public.topics where id = $1 and archived", [edited]))!;
     const res = await as("teacherA", (q) => q<{ r: { topics: number } }>(
       "select public.import_questions($1, $2, $3::jsonb) as r", [hidden.subject_id, hidden.grade, JSON.stringify([{
         topic: hidden.title_ru, text_ru: "Вопрос", options: [{ text_ru: "а", is_correct: true }, { text_ru: "б" }, { text_ru: "в" }],

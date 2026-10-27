@@ -197,7 +197,8 @@ export interface OldTopic {
   subject: string;
   grade: number;
   title: string;
-  /** Что ссылается на тему: попытки; жалобы, статистика и история правок вопросов, которые в ней были. */
+  /** Что ссылается на тему: попытки; жалобы и статистика вопросов, которые в ней были; правки людей в админке,
+   *  сохранившие эту тему в истории. Записи скриптов (перенос, импорт — без автора) не считаются (DECISIONS.md №68). */
   attempts: number;
   reports: number;
   stats: number;
@@ -217,7 +218,8 @@ export async function emptyOldTopics(db: Db): Promise<OldTopic[]> {
              where w.topic_id = t.id::text) as reports,
            (select count(*)::int from public.answer_stats x join was w on w.question_id = x.question_id
              where w.topic_id = t.id::text) as stats,
-           (select count(*)::int from public.question_history h where h.snapshot ->> 'topic_id' = t.id::text) as history
+           (select count(*)::int from public.question_history h
+             where h.snapshot ->> 'topic_id' = t.id::text and h.editor_id is not null) as history
       from public.topics t join public.subjects s on s.id = t.subject_id
      where t.section_id is null and not t.archived
        and not exists (select 1 from public.questions q where q.topic_id = t.id)
