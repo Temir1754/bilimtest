@@ -1,9 +1,9 @@
-// Экран /login: вход для всех по email или нику (DECISIONS.md №71), «Забыли пароль?».
-// Макет — docs/design/mascot/login.png. Вкладка «Тіркелу» появится в шаге 5 плана «Кіру»,
-// когда откроется регистрация (№76).
+// Экран /login: вход для всех по email или нику (DECISIONS.md №71); вошёл с временным паролем — сначала новый
+// пароль (№80–81); «Забыли пароль?» — подсказка обратиться к администратору (писем без своего домена нет, №79).
+// Макет — docs/design/mascot/login.png. Вкладка «Тіркелу» появится вместе с регистрацией учеников (шаг 7).
 import { useEffect, useState } from "react";
-import { AUTH } from "../i18n/auth";
-import { cabinetPath } from "../lib/account";
+import { AUTH, type AuthText } from "../i18n/auth";
+import { cabinetPath, type Account } from "../lib/account";
 import { loadPrefs, savePrefs } from "../lib/storage";
 import { LANGS } from "../lib/types";
 import { authError, type AuthApi } from "./api";
@@ -15,15 +15,34 @@ interface Props {
   go?: (path: string) => void;
 }
 
+type Mode = { name: "login" } | { name: "forgot" } | { name: "change"; account: Account };
+
 export function LoginApp({ api, go = (p) => location.assign(p) }: Props) {
   const [prefs, setPrefs] = useState(loadPrefs);
   const t = AUTH[prefs.lang];
-  const [mode, setMode] = useState<"login" | "reset">("login");
+  const [mode, setMode] = useState<Mode>({ name: "login" });
 
   useEffect(() => {
     document.title = t.title;
     document.documentElement.lang = prefs.lang;
   }, [t, prefs.lang]);
+
+  let card;
+  if (mode.name === "change") {
+    card = <ChangePassword api={api} t={t} onDone={() => go(cabinetPath(mode.account.role))} />;
+  } else if (mode.name === "forgot") {
+    card = (
+      <div>
+        <h1>{t.forgot.title}</h1>
+        <p className="lede">{t.forgot.teacher}</p>
+        <p className="lede">{t.forgot.student}</p>
+        <button type="button" className="link auth-link" onClick={() => setMode({ name: "login" })}>{t.forgot.back}</button>
+      </div>
+    );
+  } else {
+    card = <LoginForm api={api} t={t} onForgot={() => setMode({ name: "forgot" })}
+      onDone={(account, mustChange) => (mustChange ? setMode({ name: "change", account }) : go(cabinetPath(account.role)))} />;
+  }
 
   return (
     <>
@@ -52,21 +71,15 @@ export function LoginApp({ api, go = (p) => location.assign(p) }: Props) {
           <img src="/mascot/barys-wave.webp" alt="" width="530" height="500" />
           <p className="auth-slogan">{t.slogan}</p>
         </div>
-        <section className="auth-card">
-          {mode === "login"
-            ? <LoginForm api={api} t={t} onForgot={() => setMode("reset")} onDone={(role) => go(cabinetPath(role))} />
-            : <ResetForm api={api} t={t} onBack={() => setMode("login")} />}
-        </section>
+        <section className="auth-card">{card}</section>
         <a className="auth-back" href="/">{t.back}</a>
       </main>
     </>
   );
 }
 
-type T = (typeof AUTH)["kk"];
-
 function LoginForm({ api, t, onForgot, onDone }: {
-  api: AuthApi; t: T; onForgot: () => void; onDone: (role: Parameters<typeof cabinetPath>[0]) => void;
+  api: AuthApi; t: AuthText; onForgot: () => void; onDone: (account: Account, mustChange: boolean) => void;
 }) {
   const [id, setId] = useState("");
   const [password, setPassword] = useState("");
@@ -80,8 +93,8 @@ function LoginForm({ api, t, onForgot, onDone }: {
     setBusy(true);
     setError(null);
     try {
-      const me = await api.signIn(id, password, remember);
-      onDone(me.role);
+      const r = await api.signIn(id, password, remember);
+      onDone(r.account, r.mustChange);
     } catch (err) {
       setError(err);
       setBusy(false);
@@ -115,40 +128,44 @@ function LoginForm({ api, t, onForgot, onDone }: {
   );
 }
 
-function ResetForm({ api, t, onBack }: { api: AuthApi; t: T; onBack: () => void }) {
-  const [email, setEmail] = useState("");
-  const [sentTo, setSentTo] = useState("");
+/** Новый пароль вместо временного — без этого дальше не пускаем. */
+function ChangePassword({ api, t, onDone }: { api: AuthApi; t: AuthText; onDone: () => void }) {
+  const [password, setPassword] = useState("");
+  const [repeat, setRepeat] = useState("");
   const [error, setError] = useState<unknown>(null);
   const [busy, setBusy] = useState(false);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
+    if (password.length < 8) { setError(new Error(t.change.short)); return; }
+    if (password !== repeat) { setError(new Error(t.change.mismatch)); return; }
     setBusy(true);
     setError(null);
     try {
-      await api.resetPassword(email);
-      setSentTo(email.trim());
+      await api.changePassword(password);
+      onDone();
     } catch (err) {
       setError(err);
-    } finally {
       setBusy(false);
     }
   }
 
   return (
     <form onSubmit={submit}>
-      <h1>{t.reset.title}</h1>
-      <p className="lede">{t.reset.lede}</p>
+      <h1>{t.change.title}</h1>
+      <p className="lede">{t.change.lede}</p>
       <label className="auth-field">
-        <MailIcon />
-        <input type="email" autoComplete="email" required placeholder={t.reset.email} aria-label={t.reset.email}
-          value={email} onChange={(e) => setEmail(e.target.value)} />
+        <LockIcon />
+        <input type="password" autoComplete="new-password" required placeholder={t.change.password}
+          aria-label={t.change.password} value={password} onChange={(e) => setPassword(e.target.value)} />
       </label>
-      <p className="muted small">{t.reset.student}</p>
+      <label className="auth-field">
+        <LockIcon />
+        <input type="password" autoComplete="new-password" required placeholder={t.change.repeat}
+          aria-label={t.change.repeat} value={repeat} onChange={(e) => setRepeat(e.target.value)} />
+      </label>
       {error !== null && <p className="error" role="alert">{authError(error, t)}</p>}
-      {sentTo && <p className="note" role="status">{t.reset.sent(sentTo)}</p>}
-      <button type="submit" className="btn auth-submit" disabled={busy}>{busy ? t.reset.sending : t.reset.send}</button>
-      <button type="button" className="link auth-link" onClick={onBack}>{t.reset.back}</button>
+      <button type="submit" className="btn auth-submit" disabled={busy}>{busy ? t.change.busy : t.change.submit}</button>
     </form>
   );
 }

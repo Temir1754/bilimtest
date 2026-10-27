@@ -34,6 +34,43 @@ export interface SchoolRow {
   approved: boolean;
 }
 
+/** Строка экрана «Пользователи» (функция базы admin_users). */
+export interface UserRow {
+  id: string;
+  email: string;
+  role: Role;
+  nickname: string | null;
+  first_name: string;
+  last_name: string;
+  school_kk: string | null;
+  school_ru: string | null;
+  school_other: string | null;
+  grade: number | null;
+  blocked_at: string | null;
+  must_change_password: boolean;
+  created_at: string;
+  last_sign_in_at: string | null;
+}
+
+/** Анкета учителя, которого создаёт админ (функция базы setup_teacher). */
+export interface TeacherData {
+  nickname: string;
+  first_name: string;
+  last_name: string;
+  school_id: string | null;
+  school_other: string;
+  subjects: string[];
+  grades: number[];
+}
+
+/** Переключатели регистрации и лимиты (app_settings: signup, limits). */
+export interface SignupSettings {
+  teacher: boolean;
+  student: boolean;
+  teacher_drafts_per_day: number;
+  student_signups_per_hour: number;
+}
+
 /** Раздел — группа тем внутри предмета и класса (DECISIONS.md №48). */
 export interface SectionRow {
   id: string;
@@ -75,6 +112,8 @@ export interface Me {
   email: string;
   role: Role;
   nickname?: string | null;
+  /** Вошёл с временным паролем — сначала сменить (№80–81). */
+  mustChangePassword?: boolean;
 }
 
 export interface QuestionFilter {
@@ -143,6 +182,17 @@ export interface AdminApi {
   saveSchool(s: Omit<SchoolRow, "id"> & { id?: string }): Promise<void>;
   deleteSchool(id: string): Promise<void>;
 
+  /** «Пользователи» (админ, №80–81): список с email, роль, блокировка. */
+  users(f: { search?: string; role?: Role; blocked?: boolean }): Promise<UserRow[]>;
+  setRole(id: string, role: Role): Promise<void>;
+  setBlocked(id: string, blocked: boolean): Promise<void>;
+  /** Учитель создаётся функцией на сервере; ответ — временный пароль (показать один раз). */
+  createTeacher(email: string, data: TeacherData): Promise<{ id: string; password: string }>;
+  /** Новый временный пароль; при входе его нужно сменить. */
+  resetUserPassword(id: string): Promise<{ password: string }>;
+  settings(): Promise<SignupSettings>;
+  saveSettings(s: SignupSettings): Promise<void>;
+
   /** Загрузка из Excel одной транзакцией; все вопросы — черновики. */
   importQuestions(subjectId: string, grade: number, rows: unknown[]): Promise<{ questions: number; topics: number }>;
   /** Публикует вопросы (админ). Перед вызовом их проверяет publishProblems; база проверяет ещё раз. */
@@ -173,6 +223,18 @@ export function humanError(e: unknown, t: AdminText): string {
   if (/от 1 до 2000/i.test(m)) return r.tooMany;
   if (/3–4 варианта|ровно один правильный|нет текста на языке|у варианта ответа нет текста/i.test(m)) return r.incomplete;
   if (/Could not find the function|PGRST202/i.test(m)) return r.noDbFunction;
+  const u = t.users.err;
+  if (m === "email_taken") return u.emailTaken;
+  if (m === "nick_taken" || /profiles_nickname/i.test(m)) return u.nickTaken;
+  if (m === "bad_email") return u.badEmail;
+  if (/Неверный никнейм/i.test(m)) return u.badNick;
+  if (/Не указана школа|Школа не найдена/i.test(m)) return u.noSchool;
+  if (/Не указаны предметы или классы/i.test(m)) return u.noSubjects;
+  if (/Не указано имя/i.test(m)) return u.noName;
+  if (/последнего админа/i.test(m)) return u.lastAdmin;
+  if (/заблокировать себя/i.test(m)) return u.self;
+  if (/Дневной лимит черновиков/i.test(m)) return u.draftLimit;
+  if (/Edge Function|FunctionsFetchError|FunctionsRelayError|function not found/i.test(m)) return u.noFunction;
   return m;
 }
 
@@ -180,6 +242,20 @@ const QUESTION_COLS = "id, topic_id, text_kk, text_ru, text_en, explanation_kk, 
   "image_url, difficulty, status, review_comment, teacher_check, author_id, options(id, sort_order, is_correct, text_kk, text_ru, text_en)";
 
 const TOPIC_COLS = "id, subject_id, grade, section_id, title_kk, title_ru, title_en, sort_order";
+
+/** Вызов функции на сервере; её ответ { error: "код" } становится текстом ошибки (его переводит humanError). */
+async function invoke<T>(sb: SupabaseClient, name: string, body: object): Promise<T> {
+  const { data, error } = await sb.functions.invoke(name, { body });
+  if (error) {
+    let code = error.message;
+    try {
+      const j = await (error as { context?: Response }).context?.json();
+      if (j?.error) code = String(j.error);
+    } catch { /* ответ не JSON — оставляем сообщение библиотеки */ }
+    throw new Error(code);
+  }
+  return data as T;
+}
 
 /** Убирает из строки поиска символы, которые ломают фильтр PostgREST. */
 const cleanSearch = (s: string) => s.replace(/[%*,()"\\]/g, " ").trim();
@@ -196,8 +272,9 @@ export function supabaseApi(sb: SupabaseClient): AdminApi {
       const { data } = await sb.auth.getSession();
       const user = data.session?.user;
       if (!user) return null;
-      const p = check(await sb.from("profiles").select("role, nickname").eq("id", user.id).maybeSingle());
-      return { id: user.id, email: user.email ?? "", role: (p?.role as Role | undefined) ?? "student", nickname: p?.nickname };
+      const p = check(await sb.from("profiles").select("role, nickname, must_change_password").eq("id", user.id).maybeSingle());
+      return { id: user.id, email: user.email ?? "", role: (p?.role as Role | undefined) ?? "student", nickname: p?.nickname,
+        mustChangePassword: p?.must_change_password === true };
     },
     onAuthChange(cb) {
       const { data } = sb.auth.onAuthStateChange((event) => {
@@ -220,6 +297,7 @@ export function supabaseApi(sb: SupabaseClient): AdminApi {
     async setPassword(password) {
       const { error } = await sb.auth.updateUser({ password });
       if (error) throw error;
+      check(await sb.rpc("password_changed")); // временный пароль сменён — пометку снимаем
     },
 
     async subjects() {
@@ -329,6 +407,44 @@ export function supabaseApi(sb: SupabaseClient): AdminApi {
     },
     async deleteSchool(id) {
       check(await sb.from("schools").delete().eq("id", id));
+    },
+
+    async users(f) {
+      return check(await sb.rpc("admin_users", {
+        p_search: f.search?.trim() || null, p_role: f.role ?? null, p_blocked: f.blocked ?? null, p_limit: 500,
+      })) as UserRow[];
+    },
+    async setRole(id, role) {
+      check(await sb.rpc("set_user_role", { p_user: id, p_role: role }));
+    },
+    async setBlocked(id, blocked) {
+      check(await sb.rpc("set_user_blocked", { p_user: id, p_blocked: blocked }));
+    },
+    async createTeacher(email, data) {
+      return invoke(sb, "admin-users", { action: "create_teacher", email, data });
+    },
+    async resetUserPassword(id) {
+      return invoke(sb, "admin-users", { action: "reset_password", user_id: id });
+    },
+    async settings() {
+      const rows = check(await sb.from("app_settings").select("key, value").in("key", ["signup", "limits"])) as
+        { key: string; value: Record<string, unknown> }[];
+      const v = (k: string) => rows.find((r) => r.key === k)?.value ?? {};
+      return {
+        teacher: v("signup").teacher === true, student: v("signup").student === true,
+        teacher_drafts_per_day: Number(v("limits").teacher_drafts_per_day ?? 50),
+        student_signups_per_hour: Number(v("limits").student_signups_per_hour ?? 60),
+      };
+    },
+    async saveSettings(s) {
+      // limits дополняется, а не заменяется: в нём есть и другие лимиты (попытки, жалобы).
+      const rows = check(await sb.from("app_settings").select("value").eq("key", "limits")) as { value: object }[];
+      const limits = { ...(rows[0]?.value ?? {}), teacher_drafts_per_day: s.teacher_drafts_per_day,
+        student_signups_per_hour: s.student_signups_per_hour };
+      check(await sb.from("app_settings").upsert([
+        { key: "signup", value: { teacher: s.teacher, student: s.student } },
+        { key: "limits", value: limits },
+      ]));
     },
 
     async importQuestions(subjectId, grade, rows) {

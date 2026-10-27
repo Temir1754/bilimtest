@@ -1,21 +1,23 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { loadAccount, loginEmail, saveAccount, setRemember } from "../src/lib/account";
+import { loadAccount, loginEmail, saveAccount, setRemember, type Account } from "../src/lib/account";
 import type { AuthApi } from "../src/login/api";
 import { LoginApp } from "../src/login/LoginApp";
 
-// Заглушка входа: пароль «secret»; ник ученика превращается в адрес входа, как в настоящем api.
+// Заглушка входа: пароль «secret»; «temp» — временный пароль (нужно сменить).
+// Ник ученика превращается в адрес входа, как в настоящем api.
 function fakeApi() {
   const api: AuthApi = {
     signIn: vi.fn(async (id: string, password: string) => {
-      if (password !== "secret") throw new Error("Invalid login credentials");
+      if (password !== "secret" && password !== "temp") throw new Error("Invalid login credentials");
       const email = loginEmail(id);
-      return email.endsWith("@students.bilimtest.local")
-        ? { name: id.trim().toLowerCase(), role: "student" as const }
-        : { name: "aigerim_t", role: email.startsWith("admin") ? "admin" as const : "teacher" as const };
+      const account: Account = email.endsWith("@students.bilimtest.local")
+        ? { name: id.trim().toLowerCase(), role: "student" }
+        : { name: "aigerim_t", role: email.startsWith("admin") ? "admin" : "teacher" };
+      return { account, mustChange: password === "temp" };
     }),
-    resetPassword: vi.fn(async () => {}),
+    changePassword: vi.fn(async () => {}),
   };
   return api;
 }
@@ -27,15 +29,19 @@ beforeEach(() => {
 });
 afterEach(cleanup);
 
+async function logIn(user: ReturnType<typeof userEvent.setup>, id: string, password: string) {
+  await user.type(screen.getByLabelText("Email или ник"), id);
+  await user.type(screen.getByLabelText("Пароль"), password);
+  await user.click(screen.getByRole("button", { name: "Войти" }));
+}
+
 describe("экран входа /login", () => {
   it("«Запомнить меня» по умолчанию не отмечено; неверный пароль — понятная ошибка", async () => {
     const user = userEvent.setup();
     const api = fakeApi();
     render(<LoginApp api={api} go={vi.fn()} />);
     expect((screen.getByRole("checkbox", { name: /Запомнить меня/ }) as HTMLInputElement).checked).toBe(false);
-    await user.type(screen.getByLabelText("Email или ник"), "aigerim@mail.kz");
-    await user.type(screen.getByLabelText("Пароль"), "wrong");
-    await user.click(screen.getByRole("button", { name: "Войти" }));
+    await logIn(user, "aigerim@mail.kz", "wrong");
     expect(await screen.findByText("Неверный email, ник или пароль.")).toBeTruthy();
     expect(api.signIn).toHaveBeenCalledWith("aigerim@mail.kz", "wrong", false);
   });
@@ -45,30 +51,48 @@ describe("экран входа /login", () => {
       const user = userEvent.setup();
       const go = vi.fn();
       render(<LoginApp api={fakeApi()} go={go} />);
-      await user.type(screen.getByLabelText("Email или ник"), id);
-      await user.type(screen.getByLabelText("Пароль"), "secret");
-      await user.click(screen.getByRole("checkbox", { name: /Запомнить меня/ }));
-      await user.click(screen.getByRole("button", { name: "Войти" }));
+      await logIn(user, id, "secret");
       await vi.waitFor(() => expect(go).toHaveBeenCalledWith(path));
       cleanup();
     }
   });
 
-  it("глаз показывает пароль; «Забыли пароль?» отправляет письмо; вкладки «Регистрация» пока нет", async () => {
+  it("временный пароль: сначала новый пароль (не короче 8, совпадают), потом переход", async () => {
     const user = userEvent.setup();
     const api = fakeApi();
-    render(<LoginApp api={api} go={vi.fn()} />);
+    const go = vi.fn();
+    render(<LoginApp api={api} go={go} />);
+    await logIn(user, "aigerim@mail.kz", "temp");
+    expect(await screen.findByText("Придумайте новый пароль")).toBeTruthy();
+    expect(go).not.toHaveBeenCalled();
+
+    await user.type(screen.getByLabelText("Новый пароль (не короче 8 знаков)"), "short");
+    await user.type(screen.getByLabelText("Повторите пароль"), "short");
+    await user.click(screen.getByRole("button", { name: "Сохранить и войти" }));
+    expect(await screen.findByText("Пароль должен быть не короче 8 знаков.")).toBeTruthy();
+
+    await user.clear(screen.getByLabelText("Новый пароль (не короче 8 знаков)"));
+    await user.type(screen.getByLabelText("Новый пароль (не короче 8 знаков)"), "my-new-pass");
+    await user.clear(screen.getByLabelText("Повторите пароль"));
+    await user.type(screen.getByLabelText("Повторите пароль"), "my-new-pass");
+    await user.click(screen.getByRole("button", { name: "Сохранить и войти" }));
+    await vi.waitFor(() => expect(go).toHaveBeenCalledWith("/admin"));
+    expect(api.changePassword).toHaveBeenCalledWith("my-new-pass");
+  });
+
+  it("глаз показывает пароль; «Забыли пароль?» — обратиться к администратору; вкладки «Регистрация» пока нет", async () => {
+    const user = userEvent.setup();
+    render(<LoginApp api={fakeApi()} go={vi.fn()} />);
     const pw = screen.getByLabelText("Пароль") as HTMLInputElement;
     expect(pw.type).toBe("password");
     await user.click(screen.getByRole("button", { name: "Показать пароль" }));
     expect(pw.type).toBe("text");
-    expect(screen.queryByText("Регистрация")).toBeNull(); // регистрация закрыта до Resend (№76)
+    expect(screen.queryByText("Регистрация")).toBeNull();
 
     await user.click(screen.getByRole("button", { name: "Забыли пароль?" }));
-    await user.type(screen.getByLabelText("Email"), "aigerim@mail.kz");
-    await user.click(screen.getByRole("button", { name: "Отправить ссылку" }));
-    expect(await screen.findByText(/Письмо отправлено на aigerim@mail.kz/)).toBeTruthy();
-    expect(api.resetPassword).toHaveBeenCalledWith("aigerim@mail.kz");
+    expect(screen.getByText(/обратитесь к администратору сайта/)).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: "← Вернуться ко входу" }));
+    expect(screen.getByLabelText("Email или ник")).toBeTruthy();
   });
 
   it("язык экрана переключается; девиз на трёх языках", async () => {

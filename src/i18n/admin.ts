@@ -12,7 +12,7 @@ const kk = {
   roles: { admin: "әкімші", teacher: "мұғалім", student: "оқушы" },
   logout: "Шығу",
   noAccess: (email: string) => `${email} аккаунтының әкімші панеліне рұқсаты жоқ. Әкімшіден мұғалім рөлін беруді сұраңыз.`,
-  nav: { label: "Бөлімдер", questions: "Сұрақтар", review: "Тексеруде", schools: "Мектептер" },
+  nav: { label: "Бөлімдер", questions: "Сұрақтар", review: "Тексеруде", schools: "Мектептер", users: "Пайдаланушылар" },
 
   login: {
     title: "Әкімші панеліне кіру",
@@ -105,6 +105,37 @@ const kk = {
     empty: "Тексеруді күтіп тұрған ештеңе жоқ.",
   },
 
+  users: {
+    title: "Пайдаланушылар", search: "Іздеу: лақап ат, аты, email", role: "Рөл", anyRole: "Барлық рөлдер",
+    blockedOnly: "Тек бұғатталғандар", create: "+ Мұғалім құру", none: "Ешкім табылмады.",
+    you: "сіз", studentLogin: "лақап атпен кіреді", gradeShort: (g: number) => `${g}-сынып`,
+    created: "Тіркелген", lastSeen: "Соңғы кіру", never: "кірмеген", blocked: "бұғатталған",
+    mustChange: "уақытша құпиясөз", block: "Бұғаттау", unblock: "Бұғаттан шығару", reset: "Құпиясөзді қалпына келтіру",
+    confirmBlock: (n: string) => `${n} бұғатталсын ба? Ол сайтқа кіре алмайды.`,
+    confirmReset: (n: string) => `${n} үшін жаңа уақытша құпиясөз жасалсын ба? Ескісі жұмыс істемейді.`,
+    confirmRole: (n: string, r: string) => `${n} рөлі «${r}» болып өзгерсін бе?`,
+    tempTitle: "Уақытша құпиясөз", copy: "Көшіру", copied: "Көшірілді",
+    tempNote: (who: string) => `${who} үшін. Оны мұғалімге өзіңіз беріңіз — ол қайта көрсетілмейді. Алғаш кірген кезде құпиясөзді ауыстыру керек болады.`,
+    form: {
+      title: "Жаңа мұғалім", first: "Аты", last: "Тегі", nick: "Лақап ат (латын әріптері, сандар, _ .)", email: "Email",
+      region: "Облыс / қала", place: "Аудан / қала", school: "Мектеп", pick: "— таңдаңыз —", whole: "— облыстың өзі —",
+      other: "Тізімде жоқ — қолмен жазу", otherName: "Мектептің атауы", grades: "Сыныптар", subjects: "Пәндер",
+      pickGrades: "Алдымен сыныптарды таңдаңыз.", submit: "Мұғалім құру", busy: "Құрылуда…",
+    },
+    settings: {
+      title: "Тіркелу баптаулары", student: "Оқушыларды тіркеу (пилот: лақап ат, құпиясөз, сынып)",
+      teacher: "Мұғалімдердің өздері тіркелуі", teacherWarn: "Домен мен пошта қосылғанша қоспаңыз (№79)",
+      drafts: "Мұғалімге күніне жобалар", signups: "Бір мекенжайдан сағатына оқушы тіркеу", saved: "Сақталды.",
+    },
+    err: {
+      emailTaken: "Бұл email-мен аккаунт бар.", nickTaken: "Бұл лақап ат бос емес.", badEmail: "Email дұрыс емес.",
+      badNick: "Лақап ат: 3–20 таңба, латын әріптері, сандар, _ және нүкте.", noSchool: "Мектепті таңдаңыз немесе жазыңыз.",
+      noSubjects: "Кемінде бір сынып пен бір пәнді таңдаңыз.", noName: "Аты мен тегін жазыңыз.",
+      lastAdmin: "Соңғы әкімшіні өзгертуге болмайды.", self: "Өзіңізді бұғаттауға болмайды.",
+      draftLimit: "Бүгінгі жобалар лимиті бітті. Ертең жалғастырыңыз.",
+      noFunction: "Сервердегі функция әлі жүктелмеген (npm run functions).",
+    },
+  },
   schools: {
     title: "Мектептер анықтамалығы", region: "Облыс / қала", pickRegion: "— облысты таңдаңыз —",
     lede: "Тіркелу кезінде мұғалімдер мен оқушылар мектебін осы тізімнен таңдайды. Облыстар бар; аудандар, қалалар және мектептерді осында қосыңыз.",
@@ -187,7 +218,7 @@ const ru: AdminText = {
   roles: { admin: "админ", teacher: "учитель", student: "ученик" },
   logout: "Выйти",
   noAccess: (email) => `У аккаунта ${email} нет доступа к админке. Попросите админа выдать роль учителя.`,
-  nav: { label: "Разделы", questions: "Вопросы", review: "На проверке", schools: "Школы" },
+  nav: { label: "Разделы", questions: "Вопросы", review: "На проверке", schools: "Школы", users: "Пользователи" },
 
   login: {
     title: "Вход в админку",
@@ -280,6 +311,37 @@ const ru: AdminText = {
     empty: "Ничего не ждёт проверки.",
   },
 
+  users: {
+    title: "Пользователи", search: "Поиск: ник, имя, email", role: "Роль", anyRole: "Все роли",
+    blockedOnly: "Только заблокированные", create: "+ Создать учителя", none: "Никого не найдено.",
+    you: "вы", studentLogin: "входит по нику", gradeShort: (g) => `${g} класс`,
+    created: "Создан", lastSeen: "Последний вход", never: "не входил", blocked: "заблокирован",
+    mustChange: "временный пароль", block: "Заблокировать", unblock: "Разблокировать", reset: "Сбросить пароль",
+    confirmBlock: (n) => `Заблокировать ${n}? Он не сможет войти на сайт.`,
+    confirmReset: (n) => `Создать новый временный пароль для ${n}? Старый перестанет работать.`,
+    confirmRole: (n, r) => `Сменить роль ${n} на «${r}»?`,
+    tempTitle: "Временный пароль", copy: "Копировать", copied: "Скопировано",
+    tempNote: (who) => `Для ${who}. Передайте его сами — больше он показан не будет. При первом входе пароль нужно будет сменить.`,
+    form: {
+      title: "Новый учитель", first: "Имя", last: "Фамилия", nick: "Ник (латинские буквы, цифры, _ .)", email: "Email",
+      region: "Область / город", place: "Район / город", school: "Школа", pick: "— выберите —", whole: "— сама область —",
+      other: "Нет в списке — вписать вручную", otherName: "Название школы", grades: "Классы", subjects: "Предметы",
+      pickGrades: "Сначала выберите классы.", submit: "Создать учителя", busy: "Создаём…",
+    },
+    settings: {
+      title: "Настройки регистрации", student: "Регистрация учеников (пилот: ник, пароль, класс)",
+      teacher: "Самостоятельная регистрация учителей", teacherWarn: "Не включайте до домена и почты (№79)",
+      drafts: "Черновиков в день у учителя", signups: "Регистраций учеников в час с одного адреса", saved: "Сохранено.",
+    },
+    err: {
+      emailTaken: "Аккаунт с таким email уже есть.", nickTaken: "Этот ник уже занят.", badEmail: "Неверный email.",
+      badNick: "Ник: 3–20 знаков, латинские буквы, цифры, _ и точка.", noSchool: "Выберите школу или впишите её.",
+      noSubjects: "Выберите хотя бы один класс и один предмет.", noName: "Укажите имя и фамилию.",
+      lastAdmin: "Нельзя изменить последнего админа.", self: "Нельзя заблокировать себя.",
+      draftLimit: "Дневной лимит черновиков исчерпан. Продолжите завтра.",
+      noFunction: "Функция на сервере ещё не загружена (npm run functions).",
+    },
+  },
   schools: {
     title: "Справочник школ", region: "Область / город", pickRegion: "— выберите область —",
     lede: "При регистрации учителя и ученики выбирают школу из этого списка. Области уже есть; районы, города и школы добавляйте здесь.",
@@ -360,7 +422,7 @@ const en: AdminText = {
   roles: { admin: "admin", teacher: "teacher", student: "student" },
   logout: "Log out",
   noAccess: (email) => `The account ${email} has no access to the admin panel. Ask an admin to give you the teacher role.`,
-  nav: { label: "Sections", questions: "Questions", review: "In review", schools: "Schools" },
+  nav: { label: "Sections", questions: "Questions", review: "In review", schools: "Schools", users: "Users" },
 
   login: {
     title: "Admin sign-in",
@@ -453,6 +515,37 @@ const en: AdminText = {
     empty: "Nothing is waiting for review.",
   },
 
+  users: {
+    title: "Users", search: "Search: nickname, name, email", role: "Role", anyRole: "All roles",
+    blockedOnly: "Blocked only", create: "+ Create teacher", none: "No one found.",
+    you: "you", studentLogin: "logs in with nickname", gradeShort: (g) => `grade ${g}`,
+    created: "Created", lastSeen: "Last login", never: "never", blocked: "blocked",
+    mustChange: "temporary password", block: "Block", unblock: "Unblock", reset: "Reset password",
+    confirmBlock: (n) => `Block ${n}? They won't be able to log in.`,
+    confirmReset: (n) => `Create a new temporary password for ${n}? The old one will stop working.`,
+    confirmRole: (n, r) => `Change ${n}'s role to «${r}»?`,
+    tempTitle: "Temporary password", copy: "Copy", copied: "Copied",
+    tempNote: (who) => `For ${who}. Hand it over yourself — it won't be shown again. They'll have to change it at first login.`,
+    form: {
+      title: "New teacher", first: "First name", last: "Last name", nick: "Nickname (Latin letters, digits, _ .)", email: "Email",
+      region: "Region / city", place: "District / town", school: "School", pick: "— choose —", whole: "— the region itself —",
+      other: "Not in the list — type it", otherName: "School name", grades: "Grades", subjects: "Subjects",
+      pickGrades: "Choose grades first.", submit: "Create teacher", busy: "Creating…",
+    },
+    settings: {
+      title: "Sign-up settings", student: "Student sign-up (pilot: nickname, password, grade)",
+      teacher: "Teacher self sign-up", teacherWarn: "Don't enable before the domain and email (№79)",
+      drafts: "Teacher drafts per day", signups: "Student sign-ups per hour from one address", saved: "Saved.",
+    },
+    err: {
+      emailTaken: "An account with this email already exists.", nickTaken: "This nickname is taken.", badEmail: "Invalid email.",
+      badNick: "Nickname: 3–20 characters, Latin letters, digits, _ and dot.", noSchool: "Choose or type a school.",
+      noSubjects: "Choose at least one grade and one subject.", noName: "Enter first and last name.",
+      lastAdmin: "The last admin can't be changed.", self: "You can't block yourself.",
+      draftLimit: "Today's draft limit is used up. Continue tomorrow.",
+      noFunction: "The server function isn't deployed yet (npm run functions).",
+    },
+  },
   schools: {
     title: "Schools directory", region: "Region / city", pickRegion: "— choose a region —",
     lede: "Teachers and students pick their school from this list when they sign up. Regions are already there; add districts, towns and schools here.",

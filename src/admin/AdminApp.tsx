@@ -10,11 +10,12 @@ import { AdminLang } from "./lang";
 import { ReviewQueue } from "./ReviewQueue";
 import { SchoolsView } from "./SchoolsView";
 import { QuestionEditor } from "./QuestionEditor";
+import { UsersView } from "./UsersView";
 import "./admin.css";
 
 /** Что открыто: список вопросов, очередь проверки, конкретный вопрос или загрузка из Excel. */
 export type AdminView =
-  | { name: "browse" | "review" | "schools" }
+  | { name: "browse" | "review" | "schools" | "users" }
   | { name: "edit"; id: string | null; topicId: string; back: "browse" | "review" }
   | { name: "import"; subjectId: string; grade: number };
 
@@ -59,8 +60,10 @@ export function AdminApp({ api }: { api: AdminApi }) {
   let body;
   if (me === undefined) body = <p className="loading">{t.loading}</p>;
   else if (me === null) body = <Login api={api} t={t} onDone={refresh} initialError={failure ? humanError(failure, t) : ""} />;
-  else if (reset) {
-    body = <NewPassword api={api} t={t} onDone={() => { history.replaceState(null, "", "/admin"); setReset(false); }} />;
+  else if (reset || me.mustChangePassword) {
+    // По ссылке из письма или после входа с временным паролем (№80–81) — сначала новый пароль.
+    body = <NewPassword api={api} t={t}
+      onDone={() => { history.replaceState(null, "", "/admin"); setReset(false); refresh(); }} />;
   } else if (me.role === "student") {
     body = (
       <div className="adm-box">
@@ -75,6 +78,8 @@ export function AdminApp({ api }: { api: AdminApi }) {
     body = <ImportView api={api} subjectId={view.subjectId} grade={view.grade} onClose={() => setView({ name: "browse" })} />;
   } else if (view.name === "schools" && me.role === "admin") {
     body = <SchoolsView api={api} />;
+  } else if (view.name === "users" && me.role === "admin") {
+    body = <UsersView api={api} me={me} />;
   } else if (view.name === "review") {
     body = <ReviewQueue api={api} onOpen={(id, topicId) => setView({ name: "edit", id, topicId, back: "review" })} />;
   } else {
@@ -99,7 +104,7 @@ export function AdminApp({ api }: { api: AdminApi }) {
         </a>
         {me && me.role !== "student" && (
           <nav className="adm-nav" aria-label={t.nav.label}>
-            <button type="button" aria-pressed={view.name !== "review" && view.name !== "schools"}
+            <button type="button" aria-pressed={!["review", "schools", "users"].includes(view.name)}
               onClick={() => setView({ name: "browse" })}>
               {t.nav.questions}
             </button>
@@ -111,6 +116,11 @@ export function AdminApp({ api }: { api: AdminApi }) {
             {me.role === "admin" && (
               <button type="button" aria-pressed={view.name === "schools"} onClick={() => setView({ name: "schools" })}>
                 {t.nav.schools}
+              </button>
+            )}
+            {me.role === "admin" && (
+              <button type="button" aria-pressed={view.name === "users"} onClick={() => setView({ name: "users" })}>
+                {t.nav.users}
               </button>
             )}
           </nav>

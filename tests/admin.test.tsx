@@ -2,7 +2,9 @@ import { cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AdminApp } from "../src/admin/AdminApp";
-import type { AdminApi, Me, QuestionItem, RegionRow, SchoolRow, SectionRow, SubjectRow, TopicRow } from "../src/admin/api";
+import type {
+  AdminApi, Me, QuestionItem, RegionRow, SchoolRow, SectionRow, SignupSettings, SubjectRow, TopicRow, UserRow,
+} from "../src/admin/api";
 import type { QuestionRow, toPayload } from "../src/admin/form";
 import { headers } from "../src/admin/excel";
 import { ADMIN } from "../src/i18n/admin";
@@ -43,6 +45,15 @@ function fakeApi(me: Me | null) {
     { id: "r2", parent_id: null, name_kk: "Абай облысы", name_ru: "Абайская область", sort_order: 10 },
   ];
   const schools: SchoolRow[] = [];
+  const person = (id: string, email: string, role: UserRow["role"], extra: Partial<UserRow> = {}): UserRow => ({
+    id, email, role, nickname: null, first_name: "", last_name: "", school_kk: null, school_ru: null, school_other: null,
+    grade: null, blocked_at: null, must_change_password: false, created_at: "2026-10-27T10:00:00Z", last_sign_in_at: null, ...extra,
+  });
+  const users: UserRow[] = [
+    person("admin", "a@x.kz", "admin"),
+    person("kid", "kid07@students.bilimtest.local", "student", { nickname: "kid07", grade: 6 }),
+  ];
+  let settings: SignupSettings = { teacher: false, student: false, teacher_drafts_per_day: 50, student_signups_per_hour: 60 };
   let user = me;
   const saved: ReturnType<typeof toPayload>[] = [];
   const api: AdminApi = {
@@ -107,11 +118,27 @@ function fakeApi(me: Me | null) {
       if (old) Object.assign(old, x); else schools.push({ ...x, id: `sc${schools.length + 1}` });
     }),
     async deleteSchool(id) { schools.splice(schools.findIndex((x) => x.id === id), 1); },
+    async users(f) {
+      return users.filter((x) => (!f.role || x.role === f.role) && (!f.blocked || x.blocked_at) &&
+        (!f.search || `${x.email} ${x.nickname}`.includes(f.search))).map((x) => ({ ...x }));
+    },
+    setRole: vi.fn(async (id: string, role: UserRow["role"]) => { users.find((x) => x.id === id)!.role = role; }),
+    setBlocked: vi.fn(async (id: string, b: boolean) => { users.find((x) => x.id === id)!.blocked_at = b ? "now" : null; }),
+    createTeacher: vi.fn(async (email: string, data: Parameters<AdminApi["createTeacher"]>[1]) => {
+      users.unshift(person("t9", email, "teacher", { nickname: data.nickname, must_change_password: true }));
+      return { id: "t9", password: "tempabc234" };
+    }),
+    resetUserPassword: vi.fn(async (id: string) => {
+      users.find((x) => x.id === id)!.must_change_password = true;
+      return { password: "newpass789" };
+    }),
+    async settings() { return { ...settings }; },
+    saveSettings: vi.fn(async (s: SignupSettings) => { settings = s; }),
     importQuestions: vi.fn(async (_s: string, _g: number, rows: unknown[]) => ({ questions: rows.length, topics: 1 })),
     async exportQuestions() { return questions.map((q) => ({ topic: "Дроби", q })); },
     publish: vi.fn(async (ids: string[]) => { for (const q of questions) if (ids.includes(q.id)) q.status = "published"; }),
   };
-  return { api, saved, sections, topics, regions, schools };
+  return { api, saved, sections, topics, regions, schools, users, getSettings: () => settings };
 }
 
 beforeEach(() => {
@@ -389,9 +416,68 @@ describe("админка", () => {
     expect(schools[0]).toMatchObject({ region_id: "r3", approved: true, name_kk: "" });
   });
 
-  it("учитель не видит экран «Школы»", async () => {
+  it("учитель не видит экраны «Школы» и «Пользователи»", async () => {
     render(<AdminApp api={fakeApi({ id: "teacher", email: "t@x.kz", role: "teacher" }).api} />);
     await screen.findByRole("button", { name: "Вопросы" });
     expect(screen.queryByRole("button", { name: "Школы" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Пользователи" })).toBeNull();
+  });
+
+  it("«Пользователи»: создать учителя (предметы — по классам), временный пароль показан один раз", async () => {
+    const user = userEvent.setup();
+    const { api } = fakeApi({ id: "admin", email: "a@x.kz", role: "admin" });
+    render(<AdminApp api={api} />);
+    await user.click(await screen.findByRole("button", { name: "Пользователи" }));
+    expect(await screen.findByText("kid07")).toBeTruthy();
+    expect(screen.getByText("входит по нику")).toBeTruthy(); // технический адрес ученика не показываем
+
+    await user.click(screen.getByRole("button", { name: "+ Создать учителя" }));
+    await user.type(screen.getByLabelText("Имя"), "Болат");
+    await user.type(screen.getByLabelText("Фамилия"), "Ахметов");
+    await user.type(screen.getByLabelText(/^Ник/), "bolat_t");
+    await user.type(screen.getByLabelText("Email"), "bolat@mail.kz");
+    await user.selectOptions(screen.getByLabelText("Школа"), "Нет в списке — вписать вручную");
+    await user.type(screen.getByLabelText("Название школы"), "Школа №7");
+    expect(screen.getByText("Сначала выберите классы.")).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: "5" }));
+    await user.click(await screen.findByRole("button", { name: "Математика" }));
+    expect(screen.queryByRole("button", { name: "Физика" })).toBeNull(); // физики в 5 классе нет
+    await user.click(screen.getByRole("button", { name: "Создать учителя" }));
+
+    expect(await screen.findByText("tempabc234")).toBeTruthy();
+    expect(api.createTeacher).toHaveBeenCalledWith("bolat@mail.kz", {
+      nickname: "bolat_t", first_name: "Болат", last_name: "Ахметов", school_id: null, school_other: "Школа №7",
+      subjects: ["s1"], grades: [5] });
+    await user.click(screen.getByRole("button", { name: "OK" }));
+    expect(screen.queryByText("tempabc234")).toBeNull();
+    expect(await screen.findByText("bolat_t")).toBeTruthy();
+  });
+
+  it("учитель с временным паролем в админке сначала меняет пароль", async () => {
+    const { api } = fakeApi({ id: "teacher", email: "t@x.kz", role: "teacher", mustChangePassword: true });
+    render(<AdminApp api={api} />);
+    expect(await screen.findByLabelText("Новый пароль")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /2\+2\?/ })).toBeNull();
+  });
+
+  it("«Пользователи»: сбросить пароль, заблокировать; себя — нельзя; настройки регистрации", async () => {
+    const user = userEvent.setup();
+    const { api, users, getSettings } = fakeApi({ id: "admin", email: "a@x.kz", role: "admin" });
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+    render(<AdminApp api={api} />);
+    await user.click(await screen.findByRole("button", { name: "Пользователи" }));
+    const kid = (await screen.findByText("kid07")).closest("li")!;
+    const me = screen.getByText("(вы)").closest("li")!;
+    expect(within(me).queryByRole("button", { name: "Заблокировать" })).toBeNull();
+
+    await user.click(within(kid).getByRole("button", { name: "Сбросить пароль" }));
+    expect(await screen.findByText("newpass789")).toBeTruthy();
+    await user.click(within(kid).getByRole("button", { name: "Заблокировать" }));
+    await vi.waitFor(() => expect(users.find((x) => x.id === "kid")!.blocked_at).toBe("now"));
+
+    await user.click(screen.getByRole("checkbox", { name: /Регистрация учеников/ }));
+    await user.click(screen.getAllByRole("button", { name: "Сохранить" }).at(-1)!);
+    expect(await screen.findByText("Сохранено.")).toBeTruthy();
+    expect(getSettings()).toMatchObject({ student: true, teacher: false });
   });
 });

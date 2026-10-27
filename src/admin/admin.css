@@ -151,3 +151,15 @@ fieldset:disabled{opacity:.75}
 .adm-topics ol{list-style:none;margin:0 0 4px;padding:0 0 0 10px;display:grid;gap:2px;border-left:2px solid var(--line)}
 .adm-topics .sec{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);margin-top:6px}
 .adm-topics div.sec{padding:5px 8px}
+
+/* «Пользователи»: создание учителя, временный пароль, настройки регистрации */
+.adm-users{display:grid;gap:12px}
+.adm-create h3,.adm-settings h3{margin:0;font-size:16px}
+.adm-chips{border:0;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:6px}
+.adm-chips legend{font-size:14px;font-weight:700;color:var(--muted);margin-bottom:6px;padding:0}
+.adm-chips button{border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:999px;padding:5px 12px;font-size:14px}
+.adm-chips button[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.adm-temp{display:grid;gap:6px;justify-items:start}
+.adm-temp code{font-size:20px;font-weight:700;letter-spacing:.06em;user-select:all}
+.adm-temp p{margin:0}
+.adm-settings{margin-top:12px}
