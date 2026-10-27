@@ -282,7 +282,7 @@ describe("админка", () => {
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(sheet), "Вопросы");
     const file = new File([XLSX.write(wb, { type: "array", bookType: "xlsx" })], "q.xlsx");
-    await user.upload(screen.getByLabelText(/Выберите заполненный файл/), file);
+    await user.upload(await screen.findByLabelText(/Выберите заполненный файл/), file);
 
     expect(await screen.findByText(/Ошибка: нужно минимум 2 неверных ответа/)).toBeTruthy();
     expect(screen.queryByText(/Будут созданы новые темы/)).toBeNull(); // «Новая тема» с ошибкой не создаётся

@@ -65,18 +65,19 @@ describe("Word (.docx)", () => {
       ["1", 2, "Ең ежелгі тұрақ қай жерде табылған?", 3, null], // «Д» — 4-й вариант, а их 3
       ["38-39", 1, "Қазақ хандығы қай жылы құрылды?", 4, 2],
       ["38-39", 2, "Алғашқы хандар кімдер?", 5, 1],
-      ["38-39", 5, "Бесінші сұрақ", 4, null], // в ключе нет 5-го; нумерация сбита: ждали 3
+      ["38-39", 5, "Бесінші сұрақ", 4, null], // нумерация сбита (ждали 3); ответ — 3-й по порядку: «E», а вариантов 4
     ]);
     expect(issues(drafts[0])).toEqual([]);
     expect(issues(drafts[1])).toEqual([{ code: "keyOut", letter: "Д" }]);
     expect(issues(drafts[3])).toEqual([{ code: "tooMany", n: 5 }]);
     expect(drafts[4].numbering).toEqual({ found: 5, expected: 3 });
-    expect(issues(drafts[4])).toEqual([{ code: "noKey" }]);
+    expect(issues(drafts[4])).toEqual([{ code: "keyOut", letter: "E" }]);
   });
 
   it("нумерация сбита — ошибка, пока правильный ответ не отмечен вручную", () => {
     const { drafts } = parseTest(docxParas(documentXml([
-      { t: "1. А?", b: true }, ...opts("x", "y", "z"), { t: "3. Б?", b: true }, ...opts("x", "y", "z"), "$1 1A 3B"])));
+      { t: "1. А?", b: true }, ...opts("x", "y", "z"), { t: "3. Б?", b: true }, ...opts("x", "y", "z"), "$1 1A 2B"])));
+    expect(drafts[1].correct).toBe(1); // ответ — по порядку вопроса в теме
     expect(issues(drafts[1])).toEqual([{ code: "numbering", found: 3, expected: 2 }]);
     expect(issues({ ...drafts[1], checked: true })).toEqual([]);
   });
@@ -88,10 +89,38 @@ describe("Word (.docx)", () => {
     expect(drafts[0]).toMatchObject({ text: "Мәтінді оқы. Негізгі ой қандай?", options: ["бір", "екі", "үш"], correct: 1 });
   });
 
+  it("ловушки настоящего файла «6 ҚТ 1-57»", () => {
+    const q = (n: number, b = true) => [{ t: `${n}. Сұрақ ${n}`, b }, ...opts("a", "b", "c", "d")];
+    const { topics, drafts } = parseTest(docxParas(documentXml([
+      { t: "6 ҚТ 1-57", b: true }, // название файла до первой темы
+      "§31. Отыз бірінші", ...q(1), ...q(2),
+      "§33. Отыз үшінші", ...q(1), ...q(2),
+      "§34. Ноғай Ордасы", ...[1, 2, 3, 4, 5, 6, 7].flatMap((n) => q(n)), "8 Ноғай Ордасы құрылды", ...opts("1440", "1465", "1500", "1511"),
+      "§35. Нумерация", ...[1, 2, 3, 4, 5, 6, 8, 9, 10].flatMap((n) => q(n)),
+      "§40-41. Екі тақырып", ...q(1), ...q(2), ...q(3),
+      "§46. Есім хан", { t: "Есiм хан (1598–1628 ж.)", b: true }, ...q(1),
+      { t: "6 ҚТ 1-57 тақырыптық тест жауаптары", b: true },
+      "$31 11A. 2D.", "$33 1С. 2А.", "$34 1A 2A 3A 4A 5A 6A 7B 8C", "$35 1A 2A 3A 4A 5A 6A 7B 8C 9D", "$40-41 1A 2B 3.D", "$46 1B",
+    ])));
+    expect(topics.map((t) => [t.key, t.title])).toEqual([["31", "Отыз бірінші"], ["33", "Отыз үшінші"], ["34", "Ноғай Ордасы"],
+      ["35", "Нумерация"], ["40-41", "Екі тақырып"], ["46", "Есім хан Есiм хан (1598–1628 ж.)"]]);
+    const by = (k: string) => drafts.filter((d) => d.topic === k);
+    expect(by("31").map((d) => d.correct)).toEqual([0, 3]); // «11A» — это 1A
+    expect(by("33").map((d) => d.correct)).toEqual([2, 0]); // кириллица
+    expect(by("34").slice(6).map((d) => [d.text, d.options.length, d.correct, d.numbering])).toEqual([
+      ["Сұрақ 7", 4, 1, undefined], ["Ноғай Ордасы құрылды", 4, 2, undefined]]); // «8 …» без точки — отдельный вопрос
+    const n35 = by("35");
+    expect(n35.map((d) => d.correct)).toEqual([0, 0, 0, 0, 0, 0, 1, 2, 3]); // по порядку: «8» берёт 7-й ответ
+    expect(n35.filter((d) => issues(d).some((x) => x.code === "numbering")).map((d) => d.num)).toEqual([8, 9, 10]);
+    expect(by("40-41").map((d) => d.correct)).toEqual([0, 1, 3]); // «3.D»
+    expect(by("46").map((d) => d.text)).toEqual(["Сұрақ 1"]); // подзаголовок — не вопрос
+    expect(drafts).toHaveLength(2 + 2 + 8 + 9 + 3 + 1); // «… жауаптары» — не вопрос
+  });
+
   it("ключ: разные записи", () => {
-    const k = parseKey("$1 1A. 2D. 3 – c $38 – 39 1С,2е");
+    const k = parseKey("$1 1A. 2D. 3 – c $38 – 39 1С,2е $31 11A. 2D.");
     expect([...k.entries()].map(([t, m]) => [t, [...m.entries()]])).toEqual([
-      ["1", [[1, "A"], [2, "D"], [3, "C"]]], ["38-39", [[1, "С"], [2, "Е"]]]]);
+      ["1", [[1, "A"], [2, "D"], [3, "C"]]], ["38-39", [[1, "С"], [2, "Е"]]], ["31", [[1, "A"], [2, "D"]]]]);
   });
 });
 

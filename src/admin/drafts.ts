@@ -111,9 +111,13 @@ export function parseKey(text: string): Map<string, Map<number, string>> {
     const m = /^\s*(\d+(?:\s*[-–—,]\s*\d+)*)\s*[.:)]?([\s\S]*)$/.exec(part);
     if (!m) continue;
     const answers = out.get(topicKey(m[1])) ?? new Map<number, string>();
-    for (const a of m[2].matchAll(/(\d{1,3})\s*[-–—.):]?\s*([A-Za-zА-Яа-я])(?![A-Za-zА-Яа-я])/g)) {
-      if (letterIndex(a[2]) !== null) answers.set(Number(a[1]), a[2].toUpperCase());
+    const pairs = [...m[2].matchAll(/(\d{1,3})\s*[-–—.):]?\s*([A-Za-zА-Яа-я])(?![A-Za-zА-Яа-я])/g)]
+      .filter((a) => letterIndex(a[2]) !== null).map((a) => [Number(a[1]), a[2].toUpperCase()] as const);
+    // Опечатка «$31 11A. 2D.»: первый ответ — не 1, но кончается на 1, а следующий — 2. Это 1A.
+    if (pairs.length > 1 && pairs[0][0] !== 1 && String(pairs[0][0]).endsWith("1") && pairs[1][0] === 2) {
+      pairs[0] = [1, pairs[0][1]];
     }
+    for (const [n, letter] of pairs) answers.set(n, letter);
     out.set(topicKey(m[1]), answers);
   }
   return out;

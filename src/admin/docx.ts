@@ -75,39 +75,61 @@ const QNUM = /^(\d{1,3})\s*[.)]\s*(.+)$/;
 // Метка варианта в начале строки: «A) », «в. », «– », «• ».
 const MARK = /^(?:[A-EА-Еa-eа-е]\s*[).]\s+|[-–—•·▪●○◦]\s*)/;
 
+// «8 Ноғай Ордасы құрылды» — номер без точки (вопрос, только если номер — следующий по порядку).
+const LOOSE = /^(\d{1,3})\s+(\D.*)$/;
+// Заголовок перед ключом: «6 ҚТ 1-57 тақырыптық тест жауаптары».
+const KEY_TITLE = /жауап|ответ|кілт|ключ|answer|key/i;
+
 /** Абзацы → темы, вопросы и ответы из ключа. */
 export function parseTest(paras: Para[]): DraftSet {
   const topics: FileTopic[] = [];
   const drafts: Draft[] = [];
+  const pos = new Map<Draft, number>(); // порядковый номер вопроса в теме — по нему берётся ответ из ключа
   let topic: FileTopic | null = null;
   let q: Draft | null = null;
   let expected = 1;
   let keyText = "";
 
+  const ps = paras.filter((p) => p.text);
+  const keyAt = ps.findIndex((p) => /^\$\s*\d/.test(p.text));
+  const firstTopic = ps.findIndex((p) => TOPIC.test(p.text));
   const startTopic = (t: FileTopic) => { topics.push(t); topic = t; q = null; expected = 1; };
-  for (const p of paras) {
+  for (let i = 0; i < ps.length; i++) {
+    const p = ps[i];
     const t = p.text;
-    if (!t) continue;
-    if (keyText || /^\$\s*\d/.test(t)) { keyText += ` ${t}`; continue; } // ключ — до конца файла
+    if (keyAt >= 0 && i >= keyAt) { keyText += ` ${t}`; continue; } // ключ — до конца файла
+    if (i < firstTopic) continue; // название файла до первой темы «§»
+    if (keyAt >= 0 && i === keyAt - 1 && KEY_TITLE.test(t)) continue; // заголовок ключа — не вопрос
     const tm = TOPIC.exec(t);
     if (tm) { startTopic({ key: topicKey(tm[1]), label: `§${tm[1].replace(/\s+/g, "")}`, title: tm[2].trim() }); continue; }
 
     const cur = q as Draft | null;
     const typed = QNUM.exec(t);
+    const loose = !typed && !p.bold && cur && cur.options.length >= 3 ? LOOSE.exec(t) : null;
+    const next = ps[i + 1];
+    // Подзаголовок под названием темы («Есiм хан (1598–1628 ж.)»): без номера, а за ним — вопрос с номером.
+    const tp = topic as FileTopic | null;
+    if (!typed && !cur && tp && p.list !== "decimal" && next && QNUM.test(next.text)) {
+      tp.title = `${tp.title} ${t}`.trim();
+      continue;
+    }
     const isQuestion = typed ? p.bold || p.list !== "bullet" || !cur
+      : loose ? Number(loose[1]) === expected
       : p.list === "decimal" ? p.bold || !cur || cur.options.length >= 3
       : p.bold && (!cur || cur.options.length >= 2);
     if (!isQuestion && cur && !cur.options.length && p.bold) { cur.text += ` ${t}`; continue; } // вопрос в два абзаца
     if (isQuestion) {
       if (!topic) startTopic({ key: "", label: "", title: "" });
-      const d: Draft = { id: `q${drafts.length + 1}`, topic: topic!.key, num: expected, text: typed ? typed[2].trim() : t, options: [],
-        correct: null };
-      if (typed) {
-        const found = Number(typed[1]);
+      const number = typed ?? loose;
+      const d: Draft = { id: `q${drafts.length + 1}`, topic: topic!.key, num: expected, text: number ? number[2].trim() : t,
+        options: [], correct: null };
+      if (number) {
+        const found = Number(number[1]);
         if (found !== expected) d.numbering = { found, expected };
         d.num = found;
       }
-      expected = d.num! + 1;
+      pos.set(d, expected);
+      expected++;
       drafts.push(d);
       q = d;
       continue;
@@ -115,11 +137,12 @@ export function parseTest(paras: Para[]): DraftSet {
     if (cur) cur.options.push(t.replace(MARK, "").trim());
   }
 
-  // Ответы из ключа. Если в файле нет тем «§», а в ключе одна тема — её ответы относятся ко всем вопросам.
+  // Ответы из ключа — по порядку вопроса в теме (при сбитой нумерации строка помечена).
+  // Если в файле нет тем «§», а в ключе одна тема — её ответы относятся ко всем вопросам.
   const key = parseKey(keyText);
   for (const d of drafts) {
     const answers = key.get(d.topic) ?? (d.topic === "" && key.size === 1 ? [...key.values()][0] : undefined);
-    const letter = d.num === null ? undefined : answers?.get(d.num);
+    const letter = answers?.get(pos.get(d)!);
     if (!letter) continue;
     const idx = letterIndex(letter)!;
     if (idx < d.options.length) d.correct = idx;
