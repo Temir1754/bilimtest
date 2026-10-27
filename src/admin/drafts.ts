@@ -52,10 +52,14 @@ export function issues(d: Draft): Issue[] {
   return out;
 }
 
-/** Строки без ошибок → аргумент import_questions: тема программы по id, текст на языке lang. */
-export function draftRows(drafts: Draft[], topicOf: Record<string, string>, lang: Lang) {
+/** Куда идут вопросы темы файла: тема программы (id) или новая тема с названием из файла (№92). */
+export type TopicChoice = string | { title: string; section_id: string | null };
+
+/** Строки без ошибок → аргумент import_questions: тема программы по id или новая тема, текст на языке lang. */
+export function draftRows(drafts: Draft[], topicOf: Record<string, TopicChoice>, lang: Lang) {
+  const where = (c: TopicChoice) => (typeof c === "string" ? { topic_id: c } : { topic: c.title, section_id: c.section_id });
   return drafts.filter((d) => topicOf[d.topic] && !issues(d).length).map((d) => ({
-    topic_id: topicOf[d.topic], difficulty: 2, [`text_${lang}`]: d.text.trim(),
+    ...where(topicOf[d.topic]), difficulty: 2, [`text_${lang}`]: d.text.trim(),
     [`explanation_${lang}`]: d.explanation?.trim() ?? "",
     options: d.options.map((o, i) => ({ [`text_${lang}`]: o.trim(), is_correct: i === d.correct })).filter((o) => o[`text_${lang}`]),
   }));

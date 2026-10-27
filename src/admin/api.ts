@@ -281,7 +281,7 @@ export function humanError(e: unknown, t: AdminText): string {
   if (/заблокировать себя/i.test(m)) return u.self;
   if (/Дневной лимит черновиков/i.test(m)) return u.draftLimit;
   if (/Дневной лимит загрузки/i.test(m)) return u.importLimit;
-  if (/Тема не найдена в этом предмете/i.test(m)) return u.badTopic;
+  if (/(Тема|Раздел) не найден[а]? в этом предмете/i.test(m)) return u.badTopic;
   if (/Edge Function|FunctionsFetchError|FunctionsRelayError|function not found/i.test(m)) return u.noFunction;
   return m;
 }

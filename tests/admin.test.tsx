@@ -302,7 +302,8 @@ describe("админка", () => {
     const para = (t: string, b = false) => `<w:p><w:r>${b ? "<w:rPr><w:b/></w:rPr>" : ""}<w:t>${t}</w:t></w:r></w:p>`;
     const xml = `<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>${[
       para("§1. Дроби"), para("1. Сколько будет 1/2 + 1/2?", true), para("1"), para("2"), para("1/4"),
-      para("2. Сколько будет 2 + 2?", true), para("3"), para("4"), para("5"), para("6"), para("7"), para("$1 1A 2В"),
+      para("2. Сколько будет 2 + 2?", true), para("3"), para("4"), para("5"), para("6"), para("7"),
+      para("§2. Ежелгі өлшемдер"), para("1. Сколько шагов в сажени?", true), para("2"), para("3"), para("4"), para("$1 1A 2В"), para("$2 1A"),
     ].join("")}</w:body></w:document>`;
     const { zipSync, strToU8 } = await import("fflate");
     const file = new File([new Uint8Array(zipSync({ "word/document.xml": new Uint8Array(strToU8(xml)) }))], "test.docx");
@@ -311,15 +312,21 @@ describe("админка", () => {
     const topic = await screen.findByRole("combobox", { name: "Тема программы: §1. Дроби" });
     expect((topic as HTMLSelectElement).value).toBe("t1"); // подобрана по названию
     expect(screen.getByText(/5 вариантов — уберите один/)).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Загрузить 1 в черновики" })).toBeTruthy();
+    // темы «Ежелгі өлшемдер» в программе нет — по умолчанию новая тема с названием из файла (№92)
+    const fresh = screen.getByRole("combobox", { name: "Тема программы: §2. Ежелгі өлшемдер" }) as HTMLSelectElement;
+    expect(fresh.value).toBe("new");
+    expect(within(fresh).getByRole("option", { name: "+ Новая тема: «Ежелгі өлшемдер»" })).toBeTruthy();
+    await user.selectOptions(screen.getByLabelText("Раздел для всех новых тем"), "Натуральные числа");
+    expect(screen.getByRole("button", { name: "Загрузить 2 в черновики" })).toBeTruthy();
     await user.click(screen.getByRole("button", { name: "Вопрос §1 · 2: удалить вариант 5" }));
-    await user.click(screen.getByRole("button", { name: "Загрузить 2 в черновики" }));
-    expect(await screen.findByText(/загружено вопросов — 2/)).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: "Загрузить 3 в черновики" }));
+    expect(await screen.findByText(/загружено вопросов — 3/)).toBeTruthy();
     const [subject, grade, rows] = (api.importQuestions as ReturnType<typeof vi.fn>).mock.calls[0];
     expect([subject, grade]).toEqual(["s1", 5]);
     expect(rows[1]).toEqual({ topic_id: "t1", difficulty: 2, text_ru: "Сколько будет 2 + 2?", explanation_ru: "",
       options: [{ text_ru: "3", is_correct: false }, { text_ru: "4", is_correct: true }, { text_ru: "5", is_correct: false },
         { text_ru: "6", is_correct: false }] });
+    expect(rows[2]).toMatchObject({ topic: "Ежелгі өлшемдер", section_id: "sec1", text_ru: "Сколько шагов в сажени?" });
   });
 
   it("Excel со своими столбцами: окно «какой столбец что значит», затем та же таблица", async () => {
@@ -484,6 +491,27 @@ describe("админка", () => {
     expect(schools[0]).toMatchObject({ region_id: "r3", approved: true, name_kk: "" });
   });
 
+  it("шаг 2 (№92): учитель добавляет тему и раздел, переименовывает; удалять — только админ", async () => {
+    const user = userEvent.setup();
+    history.replaceState(null, "", "/admin/questions/math/5");
+    const { api, topics } = fakeApi({ id: "teacher", email: "t@x.kz", role: "teacher" });
+    render(<AdminApp api={api} />);
+    const sec = (await screen.findByRole("heading", { name: "Обыкновенные дроби" })).closest("section")!;
+    await user.click(within(sec).getByRole("button", { name: "+ тема" }));
+    await user.type(within(sec).getByLabelText("Название KK"), "Бөлшектерді салыстыру");
+    await user.click(within(sec).getByRole("button", { name: "Сохранить" }));
+    await vi.waitFor(() => expect(topics.find((x) => x.title_kk === "Бөлшектерді салыстыру")).toMatchObject({ section_id: "sec2" }));
+
+    await user.click(screen.getByRole("button", { name: "+ раздел" }));
+    await user.type(screen.getByLabelText("Название KK"), "Жаңа бөлім");
+    await user.click(screen.getByRole("button", { name: "Сохранить" }));
+    expect(api.saveSection).toHaveBeenCalledWith(expect.objectContaining({ title_kk: "Жаңа бөлім", subject_id: "s1", grade: 5 }));
+
+    await user.click(screen.getByRole("button", { name: "«Дроби»: действия" }));
+    expect(screen.getByRole("menuitem", { name: "переименовать" })).toBeTruthy();
+    expect(screen.queryByRole("menuitem", { name: "удалить" })).toBeNull();
+  });
+
   it("учитель не видит экраны «Школы» и «Пользователи»", async () => {
     render(<AdminApp api={fakeApi({ id: "teacher", email: "t@x.kz", role: "teacher" }).api} />);
     await screen.findByRole("link", { name: "Вопросы" });
@@ -645,7 +673,7 @@ describe("админка", () => {
     expect(await screen.findByRole("heading", { name: "Выберите тему" })).toBeTruthy();
   });
 
-  it("учитель: один класс и один предмет — сразу шаг 2; меню «⋯» нет; вопрос — черновик и «Отправить на проверку»", async () => {
+  it("учитель: один класс и один предмет — сразу шаг 2; меню «⋯» без удаления; вопрос — черновик и «Отправить на проверку»", async () => {
     const user = userEvent.setup();
     history.replaceState(null, "", "/admin/questions");
     const { api, saved, setScope } = fakeApi({ id: "teacher", email: "t@x.kz", role: "teacher" });
@@ -653,7 +681,7 @@ describe("админка", () => {
     render(<AdminApp api={api} />);
     expect(await screen.findByRole("heading", { name: "Выберите тему" })).toBeTruthy();
     expect(location.pathname).toBe("/admin/questions/math/5");
-    expect(screen.queryByRole("button", { name: /действия/ })).toBeNull();
+    expect(screen.getAllByRole("button", { name: /действия/ }).length).toBeGreaterThan(0); // «⋯» есть, но без «удалить» (№92)
     expect(screen.getByRole("button", { name: "Файл ▾" })).toBeTruthy();
 
     await user.click(within(screen.getByRole("link", { name: "Сложение" }).closest("li")!).getByRole("link", { name: "+ Добавить вопрос" }));

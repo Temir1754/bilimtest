@@ -1,28 +1,34 @@
 import { useMemo, useState } from "react";
 import { LANGS, type Lang } from "../lib/types";
-import type { TopicRow } from "./api";
-import { issues, suggestTopic, type ColumnMap, type Draft, type DraftSet, type Issue } from "./drafts";
+import type { SectionRow, TopicRow } from "./api";
+import { issues, suggestTopic, type ColumnMap, type Draft, type DraftSet, type Issue, type TopicChoice } from "./drafts";
 import { nm, useT } from "./lang";
 
 /** Таблица-предпросмотр вопросов из Word или Excel со своими столбцами (№91): тема из файла → тема программы,
- *  правка вопроса и вариантов прямо в таблице, ошибки по строкам. Наверх отдаёт строки, готовые к загрузке. */
-export function DraftPreview({ set, topics, lang, fixedLang, onLang, busy, onUpload }: {
+ *  или новая тема с названием из файла в выбранном разделе (№92); правка вопроса и вариантов прямо в таблице,
+ *  ошибки по строкам. Наверх отдаёт строки, готовые к загрузке. */
+export function DraftPreview({ set, topics, sections, lang, fixedLang, onLang, busy, onUpload }: {
   set: DraftSet;
   topics: TopicRow[];
+  sections: SectionRow[];
   lang: Lang;
   fixedLang: boolean; // языковой предмет: язык вопросов — язык предмета
   onLang: (l: Lang) => void;
   busy: boolean;
-  onUpload: (drafts: Draft[], topicOf: Record<string, string>) => void;
+  onUpload: (drafts: Draft[], topicOf: Record<string, TopicChoice>) => void;
 }) {
   const { lang: ui, t } = useT();
   const m = t.imp;
   const [drafts, setDrafts] = useState(set.drafts);
-  // Тема программы для каждой темы файла: сначала — подсказка по названию.
+  // Тема программы для каждой темы файла: подсказка по названию, иначе — новая тема с названием из файла.
   const suggested = useMemo(() => Object.fromEntries(set.topics.map((x) => [x.key, x.title ? suggestTopic(x.title, topics) : null])),
     [set.topics, topics]);
-  const [topicOf, setTopicOf] = useState<Record<string, string>>({});
-  const chosen = (key: string) => topicOf[key] ?? suggested[key] ?? "";
+  const [topicOf, setTopicOf] = useState<Record<string, string>>({}); // id темы, "new" или "" — не выбрана
+  const [sectionOf, setSectionOf] = useState<Record<string, string>>({}); // раздел новой темы
+  const [allSection, setAllSection] = useState<string | null>(null); // раздел для всех новых тем сразу
+  const newTitle = (key: string) => { const x = set.topics.find((y) => y.key === key)!; return x.title || x.label; };
+  const chosen = (key: string) => topicOf[key] ?? suggested[key] ?? (newTitle(key) ? "new" : "");
+  const sectionFor = (key: string) => allSection ?? sectionOf[key] ?? "";
   const [onlyErrors, setOnlyErrors] = useState(false);
 
   const edit = (id: string, f: (d: Draft) => Draft) => setDrafts((ds) => ds.map((d) => (d.id === id ? f(d) : d)));
@@ -38,7 +44,18 @@ export function DraftPreview({ set, topics, lang, fixedLang, onLang, busy, onUpl
   };
   const bad = drafts.filter((d) => all(d).length);
   const good = drafts.length - bad.length;
-  const resolved = Object.fromEntries(set.topics.map((x) => [x.key, chosen(x.key)]));
+  const resolved: Record<string, TopicChoice> = Object.fromEntries(set.topics.map((x) => [x.key, chosen(x.key) === "new"
+    ? { title: newTitle(x.key), section_id: sectionFor(x.key) || null } : chosen(x.key)]));
+  const anyNew = set.topics.some((x) => chosen(x.key) === "new");
+  const sectionSelect = (value: string, onChange: (v: string) => void, label: string, withSame = false) => (
+    <label>{label}
+      <select value={value} onChange={(e) => onChange(e.target.value)}>
+        {withSame && <option value="*">{m.sameSection}</option>}
+        <option value="">{t.browse.noSection}</option>
+        {sections.map((x) => <option key={x.id} value={x.id}>{nm(x, "title", ui)}</option>)}
+      </select>
+    </label>
+  );
 
   return (
     <div className="im-preview">
@@ -54,6 +71,11 @@ export function DraftPreview({ set, topics, lang, fixedLang, onLang, busy, onUpl
           {m.onlyErrors}</label>
       </div>
       {set.noKey && <p className="note">{m.noKeyAll}</p>}
+      {anyNew && (
+        <div className="im-topic-head">
+          {sectionSelect(allSection ?? "*", (v) => setAllSection(v === "*" ? null : v), m.allNewSection, true)}
+        </div>
+      )}
 
       {set.topics.map((ft) => {
         const rows = drafts.filter((d) => d.topic === ft.key && (!onlyErrors || all(d).length));
@@ -67,9 +89,12 @@ export function DraftPreview({ set, topics, lang, fixedLang, onLang, busy, onUpl
                 <select value={chosen(ft.key)} aria-label={`${m.progTopic}: ${head}`}
                   onChange={(e) => setTopicOf({ ...topicOf, [ft.key]: e.target.value })}>
                   <option value="">{m.pickTopic}</option>
+                  {newTitle(ft.key) && <option value="new">{m.newTopic(newTitle(ft.key))}</option>}
                   {topics.map((x) => <option key={x.id} value={x.id}>{nm(x, "title", ui)}</option>)}
                 </select>
               </label>
+              {chosen(ft.key) === "new" && allSection === null &&
+                sectionSelect(sectionFor(ft.key), (v) => setSectionOf({ ...sectionOf, [ft.key]: v }), m.newSection)}
               {!topicOf[ft.key] && suggested[ft.key] && <small className="muted">{m.suggested}</small>}
             </div>
             <div className="adm-table-wrap im-wrap">

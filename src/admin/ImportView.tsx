@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { GRADES, type Lang } from "../lib/types";
-import { humanError, type AdminApi, type SubjectRow, type TopicRow } from "./api";
+import { humanError, type AdminApi, type SectionRow, type SubjectRow, type TopicRow } from "./api";
 import { readDocx, parseTest } from "./docx";
 import { ColumnMapper, DraftPreview } from "./DraftPreview";
 import { detectLang, draftRows, guessColumns, sheetToDrafts, type Draft, type DraftSet } from "./drafts";
@@ -26,6 +26,7 @@ export function ImportView({ api, subjectId: startSubject, grade: startGrade, on
   const [inGrade, setInGrade] = useState<string[]>([]);
   const [scope, setScope] = useState<{ subjects: string[]; grades: number[] } | null>(null);
   const [topics, setTopics] = useState<TopicRow[]>([]);
+  const [sections, setSections] = useState<SectionRow[]>([]);
   const [fileName, setFileName] = useState("");
   const [sheet, setSheet] = useState<unknown[][] | null>(null); // строки Excel как есть
   const [mapping, setMapping] = useState(false); // Excel со своими столбцами: окно «какой столбец что значит»
@@ -42,7 +43,10 @@ export function ImportView({ api, subjectId: startSubject, grade: startGrade, on
     api.teacherScope().then(setScope, setError);
   }, [api]);
   useEffect(() => { api.gradeSubjects(grade).then(setInGrade, setError); }, [api, grade]);
-  useEffect(() => { api.topics(subjectId, grade).then(setTopics, setError); }, [api, subjectId, grade]);
+  useEffect(() => {
+    api.topics(subjectId, grade).then(setTopics, setError);
+    api.sections(subjectId, grade).then(setSections, setError);
+  }, [api, subjectId, grade]);
   const subject = subjects.find((s) => s.id === subjectId) ?? null;
   const only = (subject?.only_lang ?? null) as Lang | null;
 
@@ -177,7 +181,7 @@ export function ImportView({ api, subjectId: startSubject, grade: startGrade, on
       {drafts && (
         <>
           <p className="muted">{m.file(fileName, drafts.drafts.length)}</p>
-          <DraftPreview key={`${fileName}/${subjectId}/${grade}`} set={drafts} topics={topics} lang={qLang} fixedLang={only !== null}
+          <DraftPreview key={`${fileName}/${subjectId}/${grade}`} set={drafts} topics={topics} sections={sections} lang={qLang} fixedLang={only !== null}
             onLang={setQLang} busy={busy}
             onUpload={(ds: Draft[], topicOf) => upload(draftRows(ds, topicOf, qLang))} />
         </>

@@ -275,14 +275,14 @@ export function TopicsStep({ api, me, slug, grade, nav }: { api: AdminApi; me: M
         <section key={g.section?.id ?? "none"} className="st-section">
           <div className="st-sec-head">
             <h2>{g.section ? nm(g.section, "title", lang) : b.noSection}</h2>
-            {isAdmin && g.section && (
+            {g.section && (
               <More label={s.more(nm(g.section, "title", lang))} items={[
                 { label: b.rename, onClick: () => setEditing({ kind: "section", id: g.section!.id }) },
                 { label: `↑ ${b.sectionUp}`, disabled: gi === 0,
                   onClick: () => saveOrder([...swap(groups.filter((x) => x.section), gi, -1), ...groups.filter((x) => !x.section)]) },
                 { label: `↓ ${b.sectionDown}`, disabled: !groups[gi + 1]?.section,
                   onClick: () => saveOrder([...swap(groups.filter((x) => x.section), gi, 1), ...groups.filter((x) => !x.section)]) },
-                { label: t.del, danger: true, onClick: () => removeSection(g.section!) },
+                ...(isAdmin ? [{ label: t.del, danger: true, onClick: () => removeSection(g.section!) }] : []),
               ]} />
             )}
           </div>
@@ -300,16 +300,14 @@ export function TopicsStep({ api, me, slug, grade, nav }: { api: AdminApi; me: M
                     {n >= min
                       ? <Go to={{ name: "topic", topicId: x.id }} nav={nav} className="btn ghost st-act">{s.open}</Go>
                       : <Go to={{ name: "new", topicId: x.id }} nav={nav} className="btn st-act">{s.add}</Go>}
-                    {isAdmin && (
-                      <More label={s.more(nm(x, "title", lang))} items={[
-                        { label: b.rename, onClick: () => setEditing({ kind: "topic", id: x.id }) },
-                        { label: `↑ ${b.up}`, disabled: i === 0,
-                          onClick: () => saveOrder(groups.map((y, k) => (k === gi ? { ...y, topics: swap(y.topics, i, -1) } : y))) },
-                        { label: `↓ ${b.down}`, disabled: i === g.topics.length - 1,
-                          onClick: () => saveOrder(groups.map((y, k) => (k === gi ? { ...y, topics: swap(y.topics, i, 1) } : y))) },
-                        { label: t.del, danger: true, onClick: () => removeTopic(x) },
-                      ]} />
-                    )}
+                    <More label={s.more(nm(x, "title", lang))} items={[
+                      { label: b.rename, onClick: () => setEditing({ kind: "topic", id: x.id }) },
+                      { label: `↑ ${b.up}`, disabled: i === 0,
+                        onClick: () => saveOrder(groups.map((y, k) => (k === gi ? { ...y, topics: swap(y.topics, i, -1) } : y))) },
+                      { label: `↓ ${b.down}`, disabled: i === g.topics.length - 1,
+                        onClick: () => saveOrder(groups.map((y, k) => (k === gi ? { ...y, topics: swap(y.topics, i, 1) } : y))) },
+                      ...(isAdmin ? [{ label: t.del, danger: true, onClick: () => removeTopic(x) }] : []),
+                    ]} />
                   </div>
                   {editing?.kind === "topic" && editing.id === x.id && (
                     <TitleForm api={api} kind="topic" row={x} base={x} sections={sections} nextSort={nextSort} onDone={afterSave} />
@@ -318,8 +316,21 @@ export function TopicsStep({ api, me, slug, grade, nav }: { api: AdminApi; me: M
               );
             })}
           </ol>
+          {editing?.kind === "topic" && editing.id === `new:${g.section?.id ?? ""}` ? (
+            <TitleForm api={api} kind="topic" row={null} sections={sections} nextSort={nextSort} onDone={afterSave}
+              base={{ subject_id: subject.id, grade, sort_order: nextSort, section_id: g.section?.id ?? null }} />
+          ) : (
+            <button type="button" className="link st-add" onClick={() => setEditing({ kind: "topic", id: `new:${g.section?.id ?? ""}` })}>
+              {b.addTopic}</button>
+          )}
         </section>
       ))}
+      {editing?.kind === "section" && editing.id === "new" ? (
+        <TitleForm api={api} kind="section" row={null} onDone={afterSave}
+          base={{ subject_id: subject.id, grade, sort_order: sections.reduce((m, x) => Math.max(m, x.sort_order + 1), 0) }} />
+      ) : (
+        <button type="button" className="btn ghost st-add-sec" onClick={() => setEditing({ kind: "section", id: "new" })}>{b.addSection}</button>
+      )}
     </div>
   );
 }

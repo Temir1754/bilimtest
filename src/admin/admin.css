@@ -391,3 +391,7 @@ label.adm-check{display:flex;align-items:center;gap:8px;font-size:14px;font-weig
   .im-table td:first-child{font-weight:700}
   .im-table td:first-child::before{content:"№ "}
 }
+/* шаг 2: «+ тақырып» под темами раздела и «+ бөлім» внизу — учителю и админу */
+.st-add{justify-self:start;min-height:40px}
+.st-add-sec{justify-self:start;margin-top:8px}
+.st-section > .adm-mini,.st-page > .adm-mini{background:var(--surface);border:1px solid var(--line)}

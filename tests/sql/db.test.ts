@@ -329,6 +329,22 @@ describe("загрузка из Excel (import_questions)", () => {
     expect(await one("select 1 from public.topics where title_ru = 'Тема X'")).toBeUndefined();
   });
 
+  it("новая тема из файла создаётся в выбранном разделе; раздел другого класса — отказ (№92)", async () => {
+    const math = (await one<{ id: string }>("select id from public.subjects where slug = 'math'"))!.id;
+    const section = async (grade: number) => (await one<{ id: string }>(`insert into public.sections (subject_id, grade, title_kk, title_ru)
+      values ($1, $2, 'Бөлім-word', 'Раздел-word') returning id`, [math, grade]))!.id;
+    const sec = await section(5);
+    const other = await section(6);
+    expect(await run("teacherA", [row("Тема из Word", "Word 1", { section_id: sec })])).toEqual({ questions: 1, topics: 1 });
+    expect(await one("select section_id from public.topics where title_kk = 'Тема из Word'")).toEqual({ section_id: sec });
+    await expect(run("teacherA", [row("Ещё тема из Word", "Word 2", { section_id: other })])).rejects.toThrow(/Раздел не найден/);
+    // убрать за собой: другие тесты считают разделы
+    await db.exec(`delete from public.options where question_id in (select id from public.questions where text_ru like 'Word %');
+      delete from public.questions where text_ru like 'Word %';
+      delete from public.topics where title_kk = 'Тема из Word';
+      delete from public.sections where title_ru = 'Раздел-word';`);
+  });
+
   it("ученик и аноним загружать не могут", async () => {
     await expect(run("student", [row("Тема Y", "x")])).rejects.toThrow(/row-level security/);
     await expect(run(null, [row("Тема Y", "x")])).rejects.toThrow(/permission denied/);
