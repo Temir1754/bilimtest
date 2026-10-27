@@ -386,8 +386,9 @@ describe("админка", () => {
     const user = userEvent.setup();
     render(<AdminApp api={fakeApi({ id: "admin", email: "a@x.kz", role: "admin" }).api} />);
     const list = await screen.findByLabelText("Предмет");
+    // сначала дождаться загрузки предметов, иначе пустой список «проходит» проверку на отсутствие физики
+    await within(list).findByRole("option", { name: /Математика/ });
     await vi.waitFor(() => expect(within(list).queryByRole("option", { name: /Физика/ })).toBeNull());
-    expect(within(list).getByRole("option", { name: /Математика/ })).toBeTruthy();
     await user.click(screen.getByRole("button", { name: "Показать все предметы" }));
     expect(within(list).getByRole("option", { name: /Физика/ })).toBeTruthy();
     await user.click(screen.getByRole("button", { name: "Только предметы 5 класса" }));
