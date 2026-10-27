@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { GRADES, LANGS, type Lang } from "../lib/types";
 import { humanError, type AdminApi, type Counts, type Me, type QuestionItem, type SubjectRow, type TopicRow } from "./api";
-import { download, exportSheet } from "./excel";
+import { checkSheet, download, exportSheet } from "./excel";
 import { fromRow, publishProblems, type Status } from "./form";
 import { nm, useT } from "./lang";
 
@@ -14,9 +14,10 @@ interface Sel {
   status: Status | "";
   missingLang: Lang | "";
   search: string;
+  teacherCheck: boolean; // «требует проверки учителем» — по всем классам и предметам
 }
 function loadSel(): Sel {
-  const d: Sel = { grade: 5, subjectId: null, topicId: null, status: "", missingLang: "", search: "" };
+  const d: Sel = { grade: 5, subjectId: null, topicId: null, status: "", missingLang: "", search: "", teacherCheck: false };
   try {
     return { ...d, ...JSON.parse(sessionStorage.getItem(KEY) ?? "{}") };
   } catch {
@@ -78,14 +79,16 @@ export function Browser({ api, me, onOpen, onImport }: Props) {
   useEffect(() => { loadTopics(); }, [loadTopics]);
 
   // Вопросы: в выбранной теме, иначе в предмете и классе; без предмета — только по фильтрам.
-  const hasFilter = Boolean(sel.status || sel.missingLang || sel.search.trim());
+  // «Требует проверки учителем» — по всем классам и предметам: таких вопросов немного, их отдают учителю списком.
+  const hasFilter = Boolean(sel.status || sel.missingLang || sel.search.trim() || sel.teacherCheck);
   useEffect(() => {
     if (!sel.topicId && !sel.subjectId && !hasFilter) { setQuestions(null); return; }
     let alive = true;
+    const where = sel.teacherCheck ? { teacherCheck: true }
+      : { topicId: sel.topicId ?? undefined, subjectId: sel.subjectId ?? undefined, grade: sel.grade };
     const timer = setTimeout(() => {
       api.questions({
-        topicId: sel.topicId ?? undefined, subjectId: sel.subjectId ?? undefined, grade: sel.grade,
-        status: sel.status || undefined, missingLang: sel.missingLang || undefined, search: sel.search,
+        ...where, status: sel.status || undefined, missingLang: sel.missingLang || undefined, search: sel.search,
       }).then((q) => alive && setQuestions(q), setError);
     }, sel.search ? 300 : 0);
     return () => { alive = false; clearTimeout(timer); };
@@ -112,6 +115,18 @@ export function Browser({ api, me, onOpen, onImport }: Props) {
       if (!items.length) { setNotice(b.nothingToExport); return; }
       await download(`${t.xl.file(s.slug, sel.grade)}${topic ? "-" + (topic.sort_order + 1) : ""}.xlsx`,
         { [t.xl.sheet]: exportSheet(items, t) });
+    } catch (e) { setError(e); } finally { setBusy(null); }
+  }
+
+  // Выгрузка всех вопросов «требует проверки учителем» — список для учителя.
+  async function exportChecks() {
+    setBusy("export");
+    try {
+      const items = await api.exportChecks();
+      if (!items.length) { setNotice(b.nothingToExport); return; }
+      await download(`${b.checkFile}.xlsx`, {
+        [t.xl.sheet]: checkSheet(items.map((x) => ({ ...x, subject: nm(x.subject, "name", lang) })), t),
+      });
     } catch (e) { setError(e); } finally { setBusy(null); }
   }
 
@@ -245,28 +260,41 @@ export function Browser({ api, me, onOpen, onImport }: Props) {
             <option value="">{b.allLangs}</option>
             {LANGS.map((l) => <option key={l} value={l}>{b.missing(l.toUpperCase())}</option>)}
           </select>
+          <label className="adm-check">
+            <input type="checkbox" checked={sel.teacherCheck} onChange={(e) => update({ teacherCheck: e.target.checked })} />
+            {b.needsCheck}
+          </label>
         </div>
 
         <div className="adm-head">
-          <h2>{topic ? nm(topic, "title", lang) : subject ? b.subjGrade(nm(subject, "name", lang), sel.grade) : b.questions}</h2>
-          <div className="adm-row">
-            {subject && (
-              <>
-                <button type="button" className="btn ghost sm" onClick={() => onImport(subject.id, sel.grade)}>
-                  {b.importBtn}
-                </button>
-                <button type="button" className="btn ghost sm" disabled={busy !== null} onClick={() => exportExcel(subject)}>
-                  {busy === "export" ? b.exporting : b.exportBtn}
-                </button>
-              </>
-            )}
-            {isAdmin && subject && topic && (
-              <button type="button" className="btn ghost sm" disabled={busy !== null} onClick={() => publishReady(subject, topic)}>
-                {busy === "publish" ? b.publishing : b.publishReady}
+          <h2>{sel.teacherCheck ? b.needsCheck : topic ? nm(topic, "title", lang)
+            : subject ? b.subjGrade(nm(subject, "name", lang), sel.grade) : b.questions}</h2>
+          {sel.teacherCheck ? (
+            <div className="adm-row">
+              <button type="button" className="btn ghost sm" disabled={busy !== null} onClick={exportChecks}>
+                {busy === "export" ? b.exporting : b.exportBtn}
               </button>
-            )}
-            {topic && <button type="button" className="btn sm" onClick={() => onOpen(null, topic.id)}>{b.newQuestion}</button>}
-          </div>
+            </div>
+          ) : (
+            <div className="adm-row">
+              {subject && (
+                <>
+                  <button type="button" className="btn ghost sm" onClick={() => onImport(subject.id, sel.grade)}>
+                    {b.importBtn}
+                  </button>
+                  <button type="button" className="btn ghost sm" disabled={busy !== null} onClick={() => exportExcel(subject)}>
+                    {busy === "export" ? b.exporting : b.exportBtn}
+                  </button>
+                </>
+              )}
+              {isAdmin && subject && topic && (
+                <button type="button" className="btn ghost sm" disabled={busy !== null} onClick={() => publishReady(subject, topic)}>
+                  {busy === "publish" ? b.publishing : b.publishReady}
+                </button>
+              )}
+              {topic && <button type="button" className="btn sm" onClick={() => onOpen(null, topic.id)}>{b.newQuestion}</button>}
+            </div>
+          )}
         </div>
         {error !== null && (
           <p className="error" role="alert">{humanError(error, t)}{" "}
@@ -279,7 +307,7 @@ export function Browser({ api, me, onOpen, onImport }: Props) {
         ) : questions.length === 0 ? (
           <p className="muted">{b.noneFound}</p>
         ) : (
-          <QuestionList items={questions} showTopic={!topic} onOpen={onOpen} />
+          <QuestionList items={questions} showTopic={!topic || sel.teacherCheck} onOpen={onOpen} />
         )}
         {questions && questions.length >= 300 && <p className="muted">{b.first300}</p>}
       </section>
@@ -302,6 +330,7 @@ export function QuestionList({ items, showTopic, onOpen }: {
             <span className="meta">
               <span className={`st ${q.status}`}>{t.status[q.status]}</span>
               {showTopic && <span>{t.browse.gradeShort(q.topics.grade)} · {nm(q.topics, "title", lang)}</span>}
+              {q.teacher_check && <span className="miss" title={q.teacher_check}>{t.browse.checkShort}</span>}
               {LANGS.filter((l) => !(q as unknown as Record<string, string | null>)[`text_${l}`]?.trim())
                 .map((l) => <span key={l} className="miss">{t.browse.missShort(l.toUpperCase())}</span>)}
             </span>

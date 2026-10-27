@@ -33,6 +33,7 @@ export interface QuestionRow {
   status: Status;
   review_comment: string | null;
   author_id: string | null;
+  teacher_check?: string | null; // «требует проверки учителем»: что проверить (DECISIONS.md №66)
   options: OptionRow[];
 }
 
@@ -52,6 +53,7 @@ export interface QuestionForm {
   status: Status;
   reviewComment: string;
   authorId: string | null;
+  teacherCheck: string; // только показывается; снимает админ отдельной кнопкой
 }
 
 const l3 = (row: object, prefix: string): L3 => {
@@ -64,7 +66,7 @@ export function newForm(topicId: string): QuestionForm {
   return {
     id: null, topicId, text: empty3(), explanation: empty3(),
     options: [0, 1, 2, 3].map((i) => ({ text: empty3(), correct: i === 0 })),
-    imageUrl: null, difficulty: 2, status: "draft", reviewComment: "", authorId: null,
+    imageUrl: null, difficulty: 2, status: "draft", reviewComment: "", authorId: null, teacherCheck: "",
   };
 }
 
@@ -74,7 +76,7 @@ export function fromRow(row: QuestionRow): QuestionForm {
     options: row.options.slice().sort((a, b) => a.sort_order - b.sort_order)
       .map((o) => ({ text: l3(o, "text"), correct: o.is_correct })),
     imageUrl: row.image_url, difficulty: row.difficulty, status: row.status,
-    reviewComment: row.review_comment ?? "", authorId: row.author_id,
+    reviewComment: row.review_comment ?? "", authorId: row.author_id, teacherCheck: row.teacher_check ?? "",
   };
 }
 

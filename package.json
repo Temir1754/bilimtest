@@ -16,6 +16,7 @@
     "curriculum": "tsx scripts/load-curriculum.ts",
     "backup": "tsx scripts/backup-db.ts",
     "move-questions": "tsx scripts/move-questions.ts",
+    "old-topics": "tsx scripts/old-topics.ts",
     "restore": "tsx scripts/restore-db.ts"
   },
   "dependencies": {

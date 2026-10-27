@@ -109,6 +109,13 @@ export function exportSheet(items: { topic: string; q: QuestionRow }[], t: Admin
   })];
 }
 
+/** Вопросы «требует проверки учителем» → лист для учителя: класс, предмет, что проверить, дальше — как в выгрузке. */
+export function checkSheet(items: { grade: number; subject: string; topic: string; q: QuestionRow }[], t: AdminText): string[][] {
+  const [head, ...rows] = exportSheet(items, t);
+  return [[t.xl.grade, t.xl.subject, t.xl.check, ...head],
+    ...rows.map((r, i) => [String(items[i].grade), items[i].subject, items[i].q.teacher_check ?? "", ...r])];
+}
+
 /** Шаблон: пример строки и лист с объяснением. */
 export function templateSheets(t: AdminText): Record<string, string[][]> {
   const example = ["Обыкновенные дроби",

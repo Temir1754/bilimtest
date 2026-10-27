@@ -22,7 +22,7 @@ function fakeApi(me: Me | null) {
   const questions: QuestionRow[] = [{
     id: "q1", topic_id: "t1", text_kk: "2+2?", text_ru: "2+2?", text_en: "2+2?",
     explanation_kk: null, explanation_ru: null, explanation_en: null, image_url: null, difficulty: 2,
-    status: "review", review_comment: null, author_id: "teacher",
+    status: "review", review_comment: null, author_id: "teacher", teacher_check: "Нет подходящей темы",
     options: ["4", "5", "6"].map((s, i) => ({ sort_order: i, is_correct: i === 0, text_kk: s, text_ru: s, text_en: s })),
   }, {
     // неполный черновик: два варианта — при массовой публикации пропускается
@@ -52,7 +52,8 @@ function fakeApi(me: Me | null) {
     async saveTopic() {},
     async deleteTopic() {},
     async questions(f) {
-      return questions.filter((q) => (!f.topicId || q.topic_id === f.topicId) && (!f.status || q.status === f.status))
+      return questions.filter((q) => (!f.topicId || q.topic_id === f.topicId) && (!f.status || q.status === f.status) &&
+        (!f.teacherCheck || q.teacher_check))
         .map((q) => ({ ...q, updated_at: "", topics: topics[0] })) as QuestionItem[];
     },
     async question(id) { return questions.find((q) => q.id === id)!; },
@@ -63,6 +64,10 @@ function fakeApi(me: Me | null) {
       return q.id;
     }),
     async deleteQuestion() {},
+    clearTeacherCheck: vi.fn(async (id: string) => { questions.find((q) => q.id === id)!.teacher_check = null; }),
+    async exportChecks() {
+      return questions.filter((q) => q.teacher_check).map((q) => ({ grade: 5, subject: subjects[0], topic: "Дроби", q }));
+    },
     async uploadImage() { return "https://img/x.png"; },
     importQuestions: vi.fn(async (_s: string, _g: number, rows: unknown[]) => ({ questions: rows.length, topics: 1 })),
     async exportQuestions() { return questions.map((q) => ({ topic: "Дроби", q })); },
@@ -243,5 +248,19 @@ describe("админка", () => {
     expect(opts.map((b) => b.textContent)).toEqual(["A4", "B5", "C6"]);
     await user.click(opts[1]);
     expect(await screen.findByText(/Қате/)).toBeTruthy();
+  });
+
+  it("фильтр «Требует проверки учителем»: показывает помеченные вопросы; админ снимает пометку", async () => {
+    const user = userEvent.setup();
+    const { api } = fakeApi({ id: "admin", email: "a@x.kz", role: "admin" });
+    render(<AdminApp api={api} />);
+    await user.click(await screen.findByLabelText("Требует проверки учителем"));
+    expect(await screen.findByRole("heading", { name: "Требует проверки учителем" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /Неполный/ })).toBeNull();
+    await user.click(await screen.findByRole("button", { name: /2\+2\?/ }));
+    expect(await screen.findByText("Нет подходящей темы")).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: "Проверено — снять пометку" }));
+    expect(api.clearTeacherCheck).toHaveBeenCalledWith("q1");
+    expect(screen.queryByText("Нет подходящей темы")).toBeNull();
   });
 });

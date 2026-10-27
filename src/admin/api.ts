@@ -36,6 +36,7 @@ export interface QuestionItem {
   text_en: string | null;
   review_comment: string | null;
   updated_at: string;
+  teacher_check?: string | null;
   topics: Pick<TopicRow, "grade" | "subject_id" | "title_kk" | "title_ru" | "title_en">;
 }
 
@@ -52,9 +53,18 @@ export interface QuestionFilter {
   status?: Status;
   missingLang?: Lang; // вопросы без текста на этом языке
   search?: string;
+  teacherCheck?: boolean; // только «требует проверки учителем»
 }
 
 export type Counts = Record<Status, number>;
+
+/** Вопрос с пометкой «требует проверки учителем» и его тема. */
+export interface CheckItem {
+  grade: number;
+  subject: SubjectRow;
+  topic: string;
+  q: QuestionRow;
+}
 
 export interface AdminApi {
   /** Текущий пользователь с ролью; null — не вошёл. */
@@ -82,6 +92,8 @@ export interface AdminApi {
   question(id: string): Promise<QuestionRow>;
   saveQuestion(p: ReturnType<typeof toPayload>): Promise<string>;
   deleteQuestion(id: string): Promise<void>;
+  /** Снимает пометку «требует проверки учителем» (админ). */
+  clearTeacherCheck(id: string): Promise<void>;
   uploadImage(file: File): Promise<string>;
 
   /** Загрузка из Excel одной транзакцией; все вопросы — черновики. */
@@ -90,6 +102,8 @@ export interface AdminApi {
   publish(ids: string[]): Promise<void>;
   /** Вопросы с вариантами для выгрузки в Excel, по порядку тем. */
   exportQuestions(subjectId: string, grade: number, topicId?: string): Promise<{ topic: string; q: QuestionRow }[]>;
+  /** Все вопросы с пометкой «требует проверки учителем» — для выгрузки в Excel. */
+  exportChecks(): Promise<CheckItem[]>;
 }
 
 /** Сообщения базы и Supabase → понятный текст на языке админки. */
@@ -116,7 +130,7 @@ export function humanError(e: unknown, t: AdminText): string {
 }
 
 const QUESTION_COLS = "id, topic_id, text_kk, text_ru, text_en, explanation_kk, explanation_ru, explanation_en, " +
-  "image_url, difficulty, status, review_comment, author_id, options(id, sort_order, is_correct, text_kk, text_ru, text_en)";
+  "image_url, difficulty, status, review_comment, teacher_check, author_id, options(id, sort_order, is_correct, text_kk, text_ru, text_en)";
 
 /** Убирает из строки поиска символы, которые ломают фильтр PostgREST. */
 const cleanSearch = (s: string) => s.replace(/[%*,()"\\]/g, " ").trim();
@@ -170,7 +184,7 @@ export function supabaseApi(sb: SupabaseClient): AdminApi {
 
     async topics(subjectId, grade) {
       return check(await sb.from("topics").select("id, subject_id, grade, title_kk, title_ru, title_en, sort_order")
-        .eq("subject_id", subjectId).eq("grade", grade).order("sort_order")) as TopicRow[];
+        .eq("subject_id", subjectId).eq("grade", grade).eq("archived", false).order("sort_order")) as TopicRow[];
     },
     async topic(id) {
       return check(await sb.from("topics").select("id, subject_id, grade, title_kk, title_ru, title_en, sort_order")
@@ -193,13 +207,14 @@ export function supabaseApi(sb: SupabaseClient): AdminApi {
 
     async questions(f) {
       let q = sb.from("questions")
-        .select("id, topic_id, status, text_kk, text_ru, text_en, review_comment, updated_at, " +
+        .select("id, topic_id, status, text_kk, text_ru, text_en, review_comment, teacher_check, updated_at, " +
           "topics!inner(grade, subject_id, title_kk, title_ru, title_en)")
         .order("sort_order").limit(300);
       if (f.topicId) q = q.eq("topic_id", f.topicId);
       if (f.subjectId) q = q.eq("topics.subject_id", f.subjectId);
       if (f.grade) q = q.eq("topics.grade", f.grade);
       if (f.status) q = q.eq("status", f.status);
+      if (f.teacherCheck) q = q.not("teacher_check", "is", null);
       if (f.missingLang) q = q.or(`text_${f.missingLang}.is.null,text_${f.missingLang}.eq.`);
       const s = cleanSearch(f.search ?? "");
       if (s) q = q.or(["kk", "ru", "en"].map((l) => `text_${l}.ilike."*${s}*"`).join(","));
@@ -213,6 +228,9 @@ export function supabaseApi(sb: SupabaseClient): AdminApi {
     },
     async deleteQuestion(id) {
       check(await sb.from("questions").delete().eq("id", id));
+    },
+    async clearTeacherCheck(id) {
+      check(await sb.from("questions").update({ teacher_check: null }).eq("id", id));
     },
     async uploadImage(file) {
       if (file.size > 2 * 1024 * 1024) throw new Error("image_too_big");
@@ -233,6 +251,16 @@ export function supabaseApi(sb: SupabaseClient): AdminApi {
         check(await sb.from("questions").update({ status: "published", review_comment: null })
           .in("id", ids.slice(i, i + 100)));
       }
+    },
+    async exportChecks() {
+      const [subjects, rows] = await Promise.all([this.subjects(), sb.from("questions")
+        .select(`${QUESTION_COLS}, topics!inner(grade, subject_id, title_kk, title_ru, title_en)`)
+        .not("teacher_check", "is", null).limit(10000).then(check)]);
+      type Row = QuestionRow & { topics: Pick<TopicRow, "grade" | "subject_id" | "title_kk" | "title_ru" | "title_en"> };
+      return (rows as unknown as Row[]).map(({ topics: t, ...q }) => ({
+        grade: t.grade, subject: subjects.find((s) => s.id === t.subject_id)!,
+        topic: t.title_ru || t.title_kk || t.title_en, q,
+      })).sort((a, b) => a.grade - b.grade || a.subject.sort_order - b.subject.sort_order || a.topic.localeCompare(b.topic));
     },
     async exportQuestions(subjectId, grade, topicId) {
       const topics = (await this.topics(subjectId, grade)).filter((t) => !topicId || t.id === topicId);

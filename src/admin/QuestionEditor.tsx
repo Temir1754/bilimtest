@@ -120,6 +120,20 @@ export function QuestionEditor({ api, me, id, topicId, onClose }: Props) {
     }
   }
 
+  // Пометку снимаем отдельно от сохранения: несохранённые правки формы остаются как есть.
+  async function clearCheck() {
+    setBusy(true);
+    try {
+      await api.clearTeacherCheck(form!.id!);
+      setForm({ ...form!, teacherCheck: "" });
+      setSaved(JSON.stringify({ ...JSON.parse(saved), teacherCheck: "" }));
+    } catch (err) {
+      setFailure(err);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function upload(file: File | undefined) {
     if (!file) return;
     setBusy(true);
@@ -154,6 +168,11 @@ export function QuestionEditor({ api, me, id, topicId, onClose }: Props) {
       {!editable && <p className="note">{st === "published" ? e.readOnlyPublished : e.readOnlyOther}</p>}
       {form.reviewComment && !isAdmin && (
         <p className="note"><b>{e.reviewComment}</b> {form.reviewComment}</p>
+      )}
+      {form.teacherCheck && (
+        <p className="note"><b>{e.teacherCheck}</b> {form.teacherCheck}{" "}
+          {isAdmin && <button type="button" className="link" disabled={busy} onClick={clearCheck}>{e.clearCheck}</button>}
+        </p>
       )}
 
       <fieldset disabled={!editable || busy} className="adm-form">

@@ -57,6 +57,7 @@ fieldset:disabled{opacity:.75}
 .adm-mini{display:grid;gap:8px;background:var(--bg);border-radius:8px;padding:10px}
 .adm-filters{display:grid;grid-template-columns:1fr auto auto;gap:8px}
 @media (max-width:560px){.adm-filters{grid-template-columns:1fr}}
+.adm-check{display:flex;align-items:center;gap:6px;font-size:14px;color:var(--muted)}
 
 /* список вопросов */
 .adm-qs{list-style:none;margin:0;padding:0;display:grid;gap:5px}

@@ -8,7 +8,8 @@ import { beforeAll, describe, expect, it } from "vitest";
 import { importSubjects, type Db } from "../../scripts/importer";
 import { loadCurriculum, validateCurriculum, type Curriculum } from "../../scripts/curriculum";
 import { dumpDb, restoreDb, tablesInOrder } from "../../scripts/backup";
-import { applyMoves, planMoves, readMappings } from "../../scripts/mapping";
+import { applyMoves, cleanupOldTopics, emptyOldTopics, isReferenced, markForTeacher, planMoves, readMappings }
+  from "../../scripts/mapping";
 import type { RawSubject } from "../../src/lib/legacy";
 
 const root = join(__dirname, "..", "..");
@@ -495,7 +496,7 @@ describe("перенос старых вопросов по таблицам doc
       await db.transaction((tx) => loadCurriculum(asDb(tx), JSON.parse(
         readFileSync(join(root, "data", "curriculum", `grade${g}.json`), "utf8")) as Curriculum));
     }
-    const { moves } = readMappings(root);
+    const moves = readMappings(root).moves.filter((m) => m.mark !== "none"); // ⛔ остаются на месте (№66)
     const plan = await planMoves(asDb(db), moves);
     expect(plan.errors).toEqual([]);
     const n = await db.transaction((tx) => applyMoves(asDb(tx), plan.rows));
@@ -508,4 +509,37 @@ describe("перенос старых вопросов по таблицам doc
     // повтор ничего не меняет
     expect(await db.transaction((tx) => applyMoves(asDb(tx), plan.rows))).toBe(0);
   }, 60_000);
+
+  it("вопросы ⛔ остаются в старых темах с пометкой «требует проверки учителем»", async () => {
+    const none = readMappings(root).moves.filter((m) => m.mark === "none");
+    expect(none.length).toBeGreaterThan(0);
+    expect(await db.transaction((tx) => markForTeacher(asDb(tx), none))).toBe(none.length);
+    const q = await one<{ teacher_check: string; section_id: string | null }>(`select q.teacher_check, t.section_id
+      from public.questions q join public.topics t on t.id = q.topic_id where q.legacy_key = $1`, [none[0].questionKey]);
+    expect(q!.teacher_check).toMatch(/^Нет подходящей темы в программе\. Предложено: \d+ кл\./);
+    expect(q!.section_id).toBeNull();
+    expect(await db.transaction((tx) => markForTeacher(asDb(tx), none))).toBe(0); // повтор ничего не меняет
+  });
+
+  it("пустые старые темы: без ссылок удаляются, с историей правок — скрываются и не находятся при загрузке из Excel", async () => {
+    const subj = (await one<{ id: string }>("select id from public.subjects where slug = 'math'"))!.id;
+    const lonely = (await one<{ id: string }>(`insert into public.topics (subject_id, grade, title_ru)
+      values ($1, 4, 'Пустая тема без ссылок') returning id`, [subj]))!.id;
+    const list = await emptyOldTopics(asDb(db));
+    expect(list.find((t) => t.id === lonely)).toMatchObject({ attempts: 0, reports: 0, stats: 0, history: 0 });
+    const moved = list.filter(isReferenced);
+    expect(moved.length).toBeGreaterThan(100); // темы, из которых вопросы уехали: в истории правок их прежняя тема
+    const r = await db.transaction((tx) => cleanupOldTopics(asDb(tx), list));
+    expect(r).toEqual({ deleted: list.length - moved.length, archived: moved.length });
+    expect(await one("select id from public.topics where id = $1", [lonely])).toBeUndefined();
+    expect(await emptyOldTopics(asDb(db))).toEqual([]);
+
+    const hidden = (await one<{ subject_id: string; grade: number; title_ru: string }>(
+      "select subject_id, grade, title_ru from public.topics where id = $1 and archived", [moved[0].id]))!;
+    const res = await as("teacherA", (q) => q<{ r: { topics: number } }>(
+      "select public.import_questions($1, $2, $3::jsonb) as r", [hidden.subject_id, hidden.grade, JSON.stringify([{
+        topic: hidden.title_ru, text_ru: "Вопрос", options: [{ text_ru: "а", is_correct: true }, { text_ru: "б" }, { text_ru: "в" }],
+      }])]));
+    expect(res[0].r.topics).toBe(1); // создана новая видимая тема, а не вопрос в скрытой
+  });
 });

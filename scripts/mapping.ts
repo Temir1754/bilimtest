@@ -171,7 +171,64 @@ export async function planMoves(db: Db, moves: Move[]): Promise<{ rows: { key: s
 export async function applyMoves(db: Db, rows: { key: string; topic_id: string }[]): Promise<number> {
   const done = await db.query(`
     update public.questions q set topic_id = m.topic_id
-      from json_to_recordset($1::json) as m(key text, topic_id uuid)
+      from json_to_recordset($1::text::json) as m(key text, topic_id uuid)
      where q.legacy_key = m.key and q.topic_id is distinct from m.topic_id returning q.id`, [JSON.stringify(rows)]);
   return done.length;
+}
+
+/** Текст пометки «требует проверки учителем» для строки ⛔: что предложено и откуда строка. */
+export const teacherNote = (m: Move) =>
+  `Нет подходящей темы в программе. Предложено: ${m.grade} кл. · ${m.section} → ${m.topic}.` +
+  (m.note ? ` ${m.note}` : "") + ` (${m.file}, строка ${m.row})`;
+
+/** Помечает вопросы строк ⛔ «требует проверки учителем»; вопросы остаются в старых темах.
+ *  Вызывать внутри транзакции. Возвращает число вопросов, у которых пометка поменялась. */
+export async function markForTeacher(db: Db, moves: Move[]): Promise<number> {
+  const rows = moves.filter((m) => m.mark === "none").map((m) => ({ key: m.questionKey, note: teacherNote(m) }));
+  const done = await db.query(`
+    update public.questions q set teacher_check = m.note
+      from json_to_recordset($1::text::json) as m(key text, note text)
+     where q.legacy_key = m.key and q.teacher_check is distinct from m.note returning q.id`, [JSON.stringify(rows)]);
+  return done.length;
+}
+
+export interface OldTopic {
+  id: string;
+  subject: string;
+  grade: number;
+  title: string;
+  /** Что ссылается на тему: попытки; жалобы, статистика и история правок вопросов, которые в ней были. */
+  attempts: number;
+  reports: number;
+  stats: number;
+  history: number;
+}
+export const isReferenced = (t: OldTopic) => t.attempts + t.reports + t.stats + t.history > 0;
+
+/** Пустые старые темы (без раздела, без вопросов, не скрытые) и ссылки на них. */
+export async function emptyOldTopics(db: Db): Promise<OldTopic[]> {
+  return db.query<OldTopic>(`
+    with was as ( -- вопросы, которые раньше были в теме (по истории правок)
+      select distinct h.snapshot ->> 'topic_id' as topic_id, h.question_id from public.question_history h)
+    select t.id, s.slug as subject, t.grade::int as grade,
+           coalesce(nullif(t.title_ru, ''), nullif(t.title_kk, ''), t.title_en) as title,
+           (select count(*)::int from public.attempts a where a.topic_id = t.id) as attempts,
+           (select count(*)::int from public.reports r join was w on w.question_id = r.question_id
+             where w.topic_id = t.id::text) as reports,
+           (select count(*)::int from public.answer_stats x join was w on w.question_id = x.question_id
+             where w.topic_id = t.id::text) as stats,
+           (select count(*)::int from public.question_history h where h.snapshot ->> 'topic_id' = t.id::text) as history
+      from public.topics t join public.subjects s on s.id = t.subject_id
+     where t.section_id is null and not t.archived
+       and not exists (select 1 from public.questions q where q.topic_id = t.id)
+     order by t.grade, s.sort_order, t.sort_order`);
+}
+
+/** Удаляет пустые старые темы без ссылок, остальные скрывает. Вызывать внутри транзакции. */
+export async function cleanupOldTopics(db: Db, topics: OldTopic[]): Promise<{ deleted: number; archived: number }> {
+  const del = topics.filter((t) => !isReferenced(t)).map((t) => t.id);
+  const arc = topics.filter(isReferenced).map((t) => t.id);
+  const d = await db.query("delete from public.topics where id = any($1::uuid[]) returning id", [del]);
+  const a = await db.query("update public.topics set archived = true where id = any($1::uuid[]) returning id", [arc]);
+  return { deleted: d.length, archived: a.length };
 }

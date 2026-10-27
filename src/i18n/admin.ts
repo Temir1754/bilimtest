@@ -51,6 +51,7 @@ const kk = {
     publishedN: (n: number, skip: number) => `Жарияланды: ${n}.` +
       (skip ? ` Өткізілді: ${skip} — оларды «Жоба» сүзгісімен ашып, түзетіңіз.` : ""),
     noneReady: "Жариялауға дайын сұрақ жоқ: барлығында қате бар.",
+    needsCheck: "Мұғалімнің тексеруі қажет", checkShort: "тексеру", checkFile: "mugalim-tekserui",
   },
 
   subjectForm: {
@@ -79,6 +80,7 @@ const kk = {
     publish: "Жариялау", publishedMsg: "Жарияланды.",
     returnBtn: "Пысықтауға қайтару", returnTitle: "Алдымен мұғалімге пікір жазыңыз",
     returnedMsg: "Сұрақ мұғалімге пысықтауға қайтарылды.",
+    teacherCheck: "Мұғалімнің тексеруі қажет:", clearCheck: "Тексерілді — белгіні алып тастау",
     unpublish: "Жариялаудан алу", unpublishedMsg: "Жариялаудан алынды, енді бұл — жоба.",
     deleteBtn: "Жою", confirmLeave: "Сақталмаған өзгерістер бар. Сақтамай жабу керек пе?",
     confirmDelete: "Сұрақты біржола жою керек пе? Мұны қайтару мүмкін емес.",
@@ -141,6 +143,7 @@ const kk = {
     },
     notTemplate: "Үлгі бағандары табылмады. Үлгіні жүктеп алып, сұрақтарды соған қойыңыз.",
     emptyFile: "Файлда сұрақ жоқ.",
+    grade: "Сынып", subject: "Пән", check: "Нені тексеру керек",
   },
 
   err: {
@@ -212,6 +215,7 @@ const ru: AdminText = {
     publishedN: (n, skip) => `Опубликовано: ${n}.` +
       (skip ? ` Пропущено: ${skip} — откройте их фильтром «Черновик» и исправьте.` : ""),
     noneReady: "Нет вопросов, готовых к публикации: во всех есть ошибки.",
+    needsCheck: "Требует проверки учителем", checkShort: "проверить", checkFile: "proverka-uchitelem",
   },
 
   subjectForm: {
@@ -240,6 +244,7 @@ const ru: AdminText = {
     publish: "Опубликовать", publishedMsg: "Опубликовано.",
     returnBtn: "Вернуть на доработку", returnTitle: "Сначала напишите комментарий для учителя",
     returnedMsg: "Вопрос возвращён учителю на доработку.",
+    teacherCheck: "Требует проверки учителем:", clearCheck: "Проверено — снять пометку",
     unpublish: "Снять с публикации", unpublishedMsg: "Снято с публикации, теперь это черновик.",
     deleteBtn: "Удалить", confirmLeave: "Есть несохранённые изменения. Закрыть без сохранения?",
     confirmDelete: "Удалить вопрос навсегда? Это нельзя отменить.",
@@ -302,6 +307,7 @@ const ru: AdminText = {
     },
     notTemplate: "Не найдены столбцы шаблона. Скачайте шаблон и вставьте вопросы в него.",
     emptyFile: "В файле нет вопросов.",
+    grade: "Класс", subject: "Предмет", check: "Что проверить",
   },
 
   err: {
@@ -371,6 +377,7 @@ const en: AdminText = {
     publishedN: (n, skip) => `Published: ${n}.` +
       (skip ? ` Skipped: ${skip} — open them with the “Draft” filter and fix them.` : ""),
     noneReady: "No questions are ready to publish: all of them have errors.",
+    needsCheck: "Needs teacher check", checkShort: "check", checkFile: "teacher-check",
   },
 
   subjectForm: {
@@ -399,6 +406,7 @@ const en: AdminText = {
     publish: "Publish", publishedMsg: "Published.",
     returnBtn: "Send back for changes", returnTitle: "Write a comment for the teacher first",
     returnedMsg: "The question was sent back to the teacher.",
+    teacherCheck: "Needs teacher check:", clearCheck: "Checked — remove mark",
     unpublish: "Unpublish", unpublishedMsg: "Unpublished, it is a draft now.",
     deleteBtn: "Delete", confirmLeave: "You have unsaved changes. Close without saving?",
     confirmDelete: "Delete this question forever? This can't be undone.",
@@ -461,6 +469,7 @@ const en: AdminText = {
     },
     notTemplate: "Template columns not found. Download the template and paste your questions into it.",
     emptyFile: "The file has no questions.",
+    grade: "Grade", subject: "Subject", check: "What to check",
   },
 
   err: {

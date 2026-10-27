@@ -1,6 +1,6 @@
 import * as XLSX from "xlsx";
 import { describe, expect, it } from "vitest";
-import { exportHeaders, exportSheet, headers, parseSheet, templateSheets, toImportRows } from "../src/admin/excel";
+import { checkSheet, exportHeaders, exportSheet, headers, parseSheet, templateSheets, toImportRows } from "../src/admin/excel";
 import { ADMIN } from "../src/i18n/admin";
 import type { QuestionRow } from "../src/admin/form";
 
@@ -43,6 +43,12 @@ describe("Excel", () => {
     expect(r).toMatchObject({ topic: "Счёт", text_ru: "2+2?", explanation_ru: "Счёт", explanation_en: "", difficulty: 1 });
     expect((r.options as { text_ru: string; is_correct: boolean }[]).map((o) => [o.text_ru, o.is_correct]))
       .toEqual([["4", true], ["5", false], ["3", false]]);
+  });
+
+  it("список для учителя: класс, предмет, что проверить, дальше — столбцы выгрузки", () => {
+    const sheet = checkSheet([{ grade: 7, subject: "Математика", topic: "Счёт", q: { ...q, teacher_check: "Нет темы" } }], T);
+    expect(sheet[0]).toEqual(["Класс", "Предмет", "Что проверить", ...exportHeaders(T)]);
+    expect(sheet[1].slice(0, 5)).toEqual(["7", "Математика", "Нет темы", "Счёт", "2+2?"]);
   });
 
   it("числа из ячеек становятся текстом", () => {

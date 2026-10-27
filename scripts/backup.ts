@@ -51,7 +51,7 @@ export async function restoreDb(db: Db, backup: Backup): Promise<Record<string, 
        where attrelid = $1::regclass and attnum > 0 and not attisdropped and attgenerated = '' order by attnum`,
       [`public."${t}"`])).map((r) => `"${r.name}"`).join(", ");
     await db.query(`insert into public."${t}" (${cols})
-      select ${cols} from json_populate_recordset(null::public."${t}", $1::json)`, [JSON.stringify(rows)]);
+      select ${cols} from json_populate_recordset(null::public."${t}", $1::text::json)`, [JSON.stringify(rows)]);
   }
   return counts;
 }
