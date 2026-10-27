@@ -595,7 +595,7 @@ describe("аккаунты: регистрация, роли, блокировк
     mathId = (await one<{ id: string }>("select id from public.subjects where slug = 'math'"))!.id;
     topicId = (await one<{ id: string }>("select id from public.topics where section_id is not null limit 1"))!.id;
     const region = (await one<{ id: string }>(
-      "insert into public.regions (name_kk, name_ru) values ('Алматы облысы', 'Алматинская область') returning id"))!.id;
+      "insert into public.regions (name_kk, name_ru) values ('Тест облысы', 'Тестовая область') returning id"))!.id;
     schoolId = (await one<{ id: string }>(
       "insert into public.schools (region_id, name_ru, approved) values ($1, 'Школа №5', true) returning id", [region]))!.id;
   });
@@ -702,5 +702,20 @@ describe("аккаунты: регистрация, роли, блокировк
     expect(await one("select count(*)::int as n from auth.users where id = $1", [sid])).toEqual({ n: 0 });
     expect(await one("select count(*)::int as n from public.profiles where id = $1", [sid])).toEqual({ n: 0 });
     expect(await one("select count(*)::int as n from school.students where user_id = $1", [sid])).toEqual({ n: 0 });
+  });
+});
+
+describe("справочник: области и школы (№77)", () => {
+  it("20 областей и городов республиканского значения; дубль в одной области запрещён; школы добавляет админ", async () => {
+    expect(await one("select count(*)::int as n from public.regions where parent_id is null and name_ru not like 'Тест%'"))
+      .toEqual({ n: 20 });
+    const astana = (await one<{ id: string }>("select id from public.regions where name_ru = 'Астана'"))!.id;
+    await as("admin", (q) => q("insert into public.regions (parent_id, name_kk, name_ru) values ($1, 'Есіл ауданы', 'район Есиль')", [astana]));
+    await expect(as("admin", (q) => q(
+      "insert into public.regions (parent_id, name_kk, name_ru) values ($1, 'Есіл', 'район Есиль')", [astana]))).rejects.toThrow(/duplicate|unique/i);
+    await expect(as("teacherA", (q) => q(
+      "insert into public.schools (region_id, name_ru, approved) values ($1, 'Школа', true)", [astana]))).rejects.toThrow(/row-level security/);
+    await as("admin", (q) => q("insert into public.schools (region_id, name_ru) values ($1, 'Непроверенная школа')", [astana]));
+    expect(await as(null, (q) => q("select name_ru from public.schools where region_id = $1", [astana]))).toEqual([]);
   });
 });

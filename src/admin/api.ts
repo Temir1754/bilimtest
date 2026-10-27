@@ -16,6 +16,23 @@ export interface SubjectRow {
   sort_order: number;
 }
 
+/** Область или город республиканского значения (parent_id пустой); внутри — районы и города (№77). */
+export interface RegionRow {
+  id: string;
+  parent_id: string | null;
+  name_kk: string;
+  name_ru: string;
+  sort_order: number;
+}
+
+export interface SchoolRow {
+  id: string;
+  region_id: string;
+  name_kk: string;
+  name_ru: string;
+  approved: boolean;
+}
+
 /** Раздел — группа тем внутри предмета и класса (DECISIONS.md №48). */
 export interface SectionRow {
   id: string;
@@ -115,6 +132,14 @@ export interface AdminApi {
   /** Снимает пометку «требует проверки учителем» (админ). */
   clearTeacherCheck(id: string): Promise<void>;
   uploadImage(file: File): Promise<string>;
+
+  /** Справочник для регистрации: области → районы и города → школы. Меняет только админ. */
+  regions(): Promise<RegionRow[]>;
+  saveRegion(r: Omit<RegionRow, "id"> & { id?: string }): Promise<void>;
+  deleteRegion(id: string): Promise<void>;
+  schools(regionId: string): Promise<SchoolRow[]>;
+  saveSchool(s: Omit<SchoolRow, "id"> & { id?: string }): Promise<void>;
+  deleteSchool(id: string): Promise<void>;
 
   /** Загрузка из Excel одной транзакцией; все вопросы — черновики. */
   importQuestions(subjectId: string, grade: number, rows: unknown[]): Promise<{ questions: number; topics: number }>;
@@ -280,6 +305,27 @@ export function supabaseApi(sb: SupabaseClient): AdminApi {
       const path = `${data.session?.user.id ?? "anon"}/${crypto.randomUUID()}.${ext}`;
       check(await sb.storage.from("question-images").upload(path, file, { contentType: file.type }));
       return sb.storage.from("question-images").getPublicUrl(path).data.publicUrl;
+    },
+
+    async regions() {
+      return check(await sb.from("regions").select("id, parent_id, name_kk, name_ru, sort_order")
+        .order("sort_order").order("name_ru").limit(5000)) as RegionRow[];
+    },
+    async saveRegion({ id, ...r }) {
+      check(id ? await sb.from("regions").update(r).eq("id", id) : await sb.from("regions").insert(r));
+    },
+    async deleteRegion(id) {
+      check(await sb.from("regions").delete().eq("id", id));
+    },
+    async schools(regionId) {
+      return check(await sb.from("schools").select("id, region_id, name_kk, name_ru, approved")
+        .eq("region_id", regionId).order("name_ru").limit(2000)) as SchoolRow[];
+    },
+    async saveSchool({ id, ...x }) {
+      check(id ? await sb.from("schools").update(x).eq("id", id) : await sb.from("schools").insert(x));
+    },
+    async deleteSchool(id) {
+      check(await sb.from("schools").delete().eq("id", id));
     },
 
     async importQuestions(subjectId, grade, rows) {

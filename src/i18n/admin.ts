@@ -12,7 +12,7 @@ const kk = {
   roles: { admin: "әкімші", teacher: "мұғалім", student: "оқушы" },
   logout: "Шығу",
   noAccess: (email: string) => `${email} аккаунтының әкімші панеліне рұқсаты жоқ. Әкімшіден мұғалім рөлін беруді сұраңыз.`,
-  nav: { label: "Бөлімдер", questions: "Сұрақтар", review: "Тексеруде" },
+  nav: { label: "Бөлімдер", questions: "Сұрақтар", review: "Тексеруде", schools: "Мектептер" },
 
   login: {
     title: "Әкімші панеліне кіру",
@@ -105,6 +105,14 @@ const kk = {
     empty: "Тексеруді күтіп тұрған ештеңе жоқ.",
   },
 
+  schools: {
+    title: "Мектептер анықтамалығы", region: "Облыс / қала", pickRegion: "— облысты таңдаңыз —",
+    lede: "Тіркелу кезінде мұғалімдер мен оқушылар мектебін осы тізімнен таңдайды. Облыстар бар; аудандар, қалалар және мектептерді осында қосыңыз.",
+    places: "Аудандар мен қалалар", addPlace: "+ аудан / қала", wholeRegion: "— облыстың / қаланың өзі —",
+    addSchool: "+ Мектеп", noSchools: "Мұнда әзірге мектеп жоқ.", notApproved: "тексерілмеген", approve: "растау",
+    needBoth: "Атауын қазақша да, орысша да жазыңыз.",
+    confirmDel: (n: string) => `«${n}» жою керек пе? Ішінде мектептер болса, жоюға болмайды.`,
+  },
   imp: {
     back: "← Сұрақтарға", title: "Excel-ден сұрақтар жүктеу",
     step1: "Үлгіні жүктеп алып, толтырыңыз: бір жол — бір сұрақ.", template: "Үлгіні жүктеп алу",
@@ -179,7 +187,7 @@ const ru: AdminText = {
   roles: { admin: "админ", teacher: "учитель", student: "ученик" },
   logout: "Выйти",
   noAccess: (email) => `У аккаунта ${email} нет доступа к админке. Попросите админа выдать роль учителя.`,
-  nav: { label: "Разделы", questions: "Вопросы", review: "На проверке" },
+  nav: { label: "Разделы", questions: "Вопросы", review: "На проверке", schools: "Школы" },
 
   login: {
     title: "Вход в админку",
@@ -272,6 +280,14 @@ const ru: AdminText = {
     empty: "Ничего не ждёт проверки.",
   },
 
+  schools: {
+    title: "Справочник школ", region: "Область / город", pickRegion: "— выберите область —",
+    lede: "При регистрации учителя и ученики выбирают школу из этого списка. Области уже есть; районы, города и школы добавляйте здесь.",
+    places: "Районы и города", addPlace: "+ район / город", wholeRegion: "— сама область / город —",
+    addSchool: "+ Школа", noSchools: "Здесь пока нет школ.", notApproved: "не проверена", approve: "одобрить",
+    needBoth: "Напишите название и на казахском, и на русском.",
+    confirmDel: (n) => `Удалить «${n}»? Если внутри есть школы, удалить нельзя.`,
+  },
   imp: {
     back: "← К вопросам", title: "Загрузка вопросов из Excel",
     step1: "Скачайте шаблон и заполните его: одна строка — один вопрос.", template: "Скачать шаблон",
@@ -344,7 +360,7 @@ const en: AdminText = {
   roles: { admin: "admin", teacher: "teacher", student: "student" },
   logout: "Log out",
   noAccess: (email) => `The account ${email} has no access to the admin panel. Ask an admin to give you the teacher role.`,
-  nav: { label: "Sections", questions: "Questions", review: "In review" },
+  nav: { label: "Sections", questions: "Questions", review: "In review", schools: "Schools" },
 
   login: {
     title: "Admin sign-in",
@@ -437,6 +453,14 @@ const en: AdminText = {
     empty: "Nothing is waiting for review.",
   },
 
+  schools: {
+    title: "Schools directory", region: "Region / city", pickRegion: "— choose a region —",
+    lede: "Teachers and students pick their school from this list when they sign up. Regions are already there; add districts, towns and schools here.",
+    places: "Districts and towns", addPlace: "+ district / town", wholeRegion: "— the region / city itself —",
+    addSchool: "+ School", noSchools: "No schools here yet.", notApproved: "not checked", approve: "approve",
+    needBoth: "Enter the name in both Kazakh and Russian.",
+    confirmDel: (n) => `Delete «${n}»? It can't be deleted while it contains schools.`,
+  },
   imp: {
     back: "← Back to questions", title: "Import questions from Excel",
     step1: "Download the template and fill it in: one row is one question.", template: "Download template",

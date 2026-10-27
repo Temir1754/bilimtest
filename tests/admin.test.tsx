@@ -2,7 +2,7 @@ import { cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AdminApp } from "../src/admin/AdminApp";
-import type { AdminApi, Me, QuestionItem, SectionRow, SubjectRow, TopicRow } from "../src/admin/api";
+import type { AdminApi, Me, QuestionItem, RegionRow, SchoolRow, SectionRow, SubjectRow, TopicRow } from "../src/admin/api";
 import type { QuestionRow, toPayload } from "../src/admin/form";
 import { headers } from "../src/admin/excel";
 import { ADMIN } from "../src/i18n/admin";
@@ -38,6 +38,11 @@ function fakeApi(me: Me | null) {
     status: "draft", review_comment: null, author_id: "teacher",
     options: ["1", "2"].map((s, i) => ({ sort_order: i, is_correct: i === 0, text_kk: s, text_ru: s, text_en: s })),
   }];
+  const regions: RegionRow[] = [
+    { id: "r1", parent_id: null, name_kk: "Астана", name_ru: "Астана", sort_order: 1 },
+    { id: "r2", parent_id: null, name_kk: "Абай облысы", name_ru: "Абайская область", sort_order: 10 },
+  ];
+  const schools: SchoolRow[] = [];
   let user = me;
   const saved: ReturnType<typeof toPayload>[] = [];
   const api: AdminApi = {
@@ -90,11 +95,23 @@ function fakeApi(me: Me | null) {
       return questions.filter((q) => q.teacher_check).map((q) => ({ grade: 5, subject: subjects[0], topic: "Дроби", q }));
     },
     async uploadImage() { return "https://img/x.png"; },
+    async regions() { return regions.map((r) => ({ ...r })); },
+    saveRegion: vi.fn(async ({ id, ...r }: Omit<RegionRow, "id"> & { id?: string }) => {
+      const old = regions.find((x) => x.id === id);
+      if (old) Object.assign(old, r); else regions.push({ ...r, id: `r${regions.length + 1}` });
+    }),
+    async deleteRegion(id) { regions.splice(regions.findIndex((x) => x.id === id), 1); },
+    async schools(regionId) { return schools.filter((x) => x.region_id === regionId).map((x) => ({ ...x })); },
+    saveSchool: vi.fn(async ({ id, ...x }: Omit<SchoolRow, "id"> & { id?: string }) => {
+      const old = schools.find((r) => r.id === id);
+      if (old) Object.assign(old, x); else schools.push({ ...x, id: `sc${schools.length + 1}` });
+    }),
+    async deleteSchool(id) { schools.splice(schools.findIndex((x) => x.id === id), 1); },
     importQuestions: vi.fn(async (_s: string, _g: number, rows: unknown[]) => ({ questions: rows.length, topics: 1 })),
     async exportQuestions() { return questions.map((q) => ({ topic: "Дроби", q })); },
     publish: vi.fn(async (ids: string[]) => { for (const q of questions) if (ids.includes(q.id)) q.status = "published"; }),
   };
-  return { api, saved, sections, topics };
+  return { api, saved, sections, topics, regions, schools };
 }
 
 beforeEach(() => {
@@ -348,5 +365,33 @@ describe("админка", () => {
     expect(within(list).getByRole("option", { name: /Физика/ })).toBeTruthy();
     await user.click(screen.getByRole("button", { name: "Только предметы 5 класса" }));
     expect(within(list).queryByRole("option", { name: /Физика/ })).toBeNull();
+  });
+
+  it("«Школы» (админ): район в области, школа в районе; учитель экрана не видит", async () => {
+    const user = userEvent.setup();
+    const { api, regions, schools } = fakeApi({ id: "admin", email: "a@x.kz", role: "admin" });
+    render(<AdminApp api={api} />);
+    await user.click(await screen.findByRole("button", { name: "Школы" }));
+    await user.selectOptions(await screen.findByLabelText("Область / город"), "Абайская область");
+    await user.click(screen.getByRole("button", { name: "+ район / город" }));
+    await user.type(screen.getByLabelText("Название RU"), "Семей");
+    await user.click(screen.getByRole("button", { name: "Сохранить" }));
+    expect(await screen.findByText("Напишите название и на казахском, и на русском.")).toBeTruthy();
+    await user.type(screen.getByLabelText("Название KK"), "Семей");
+    await user.click(screen.getByRole("button", { name: "Сохранить" }));
+    await user.click(await screen.findByRole("button", { name: "Семей" }));
+    expect(regions.find((r) => r.name_ru === "Семей")).toMatchObject({ parent_id: "r2" });
+
+    await user.click(screen.getByRole("button", { name: "+ Школа" }));
+    await user.type(screen.getByLabelText("Название RU"), "Школа-лицей №1");
+    await user.click(screen.getByRole("button", { name: "Сохранить" }));
+    expect(await screen.findByText("Школа-лицей №1")).toBeTruthy();
+    expect(schools[0]).toMatchObject({ region_id: "r3", approved: true, name_kk: "" });
+  });
+
+  it("учитель не видит экран «Школы»", async () => {
+    render(<AdminApp api={fakeApi({ id: "teacher", email: "t@x.kz", role: "teacher" }).api} />);
+    await screen.findByRole("button", { name: "Вопросы" });
+    expect(screen.queryByRole("button", { name: "Школы" })).toBeNull();
   });
 });

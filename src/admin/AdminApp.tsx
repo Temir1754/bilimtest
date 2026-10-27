@@ -7,12 +7,13 @@ import { Browser } from "./Browser";
 import { ImportView } from "./ImportView";
 import { AdminLang } from "./lang";
 import { ReviewQueue } from "./ReviewQueue";
+import { SchoolsView } from "./SchoolsView";
 import { QuestionEditor } from "./QuestionEditor";
 import "./admin.css";
 
 /** Что открыто: список вопросов, очередь проверки, конкретный вопрос или загрузка из Excel. */
 export type AdminView =
-  | { name: "browse" | "review" }
+  | { name: "browse" | "review" | "schools" }
   | { name: "edit"; id: string | null; topicId: string; back: "browse" | "review" }
   | { name: "import"; subjectId: string; grade: number };
 
@@ -66,6 +67,8 @@ export function AdminApp({ api }: { api: AdminApi }) {
       onClose={() => setView({ name: view.back })} />;
   } else if (view.name === "import") {
     body = <ImportView api={api} subjectId={view.subjectId} grade={view.grade} onClose={() => setView({ name: "browse" })} />;
+  } else if (view.name === "schools" && me.role === "admin") {
+    body = <SchoolsView api={api} />;
   } else if (view.name === "review") {
     body = <ReviewQueue api={api} onOpen={(id, topicId) => setView({ name: "edit", id, topicId, back: "review" })} />;
   } else {
@@ -90,12 +93,18 @@ export function AdminApp({ api }: { api: AdminApi }) {
         </a>
         {me && me.role !== "student" && (
           <nav className="adm-nav" aria-label={t.nav.label}>
-            <button type="button" aria-pressed={view.name !== "review"} onClick={() => setView({ name: "browse" })}>
+            <button type="button" aria-pressed={view.name !== "review" && view.name !== "schools"}
+              onClick={() => setView({ name: "browse" })}>
               {t.nav.questions}
             </button>
             {me.role === "admin" && (
               <button type="button" aria-pressed={view.name === "review"} onClick={() => setView({ name: "review" })}>
                 {t.nav.review}
+              </button>
+            )}
+            {me.role === "admin" && (
+              <button type="button" aria-pressed={view.name === "schools"} onClick={() => setView({ name: "schools" })}>
+                {t.nav.schools}
               </button>
             )}
           </nav>
