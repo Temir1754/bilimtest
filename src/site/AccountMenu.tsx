@@ -1,12 +1,12 @@
 // Кнопка «Кіру» в шапке; после входа — ник с меню «Кабинет / Шығу».
 // Ник и роль берутся из памяти браузера (lib/account), библиотека входа грузится только при выходе.
 import { useEffect, useRef, useState } from "react";
-import { AUTH } from "../i18n/auth";
+import type { UiText } from "../i18n/ui";
 import { cabinetPath, clearAccount, loadAccount } from "../lib/account";
-import type { Lang } from "../lib/types";
 
-export function AccountMenu({ lang, loginText }: { lang: Lang; loginText: string }) {
-  const t = AUTH[lang].menu;
+export function AccountMenu({ ui }: { ui: UiText }) {
+  const t = ui.menu;
+  const loginText = ui.login;
   const [account, setAccount] = useState(loadAccount);
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);

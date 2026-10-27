@@ -42,3 +42,35 @@
 @media (max-width:720px) and (max-height:640px){
   .auth-hero img{display:none}
 }
+
+/* Вкладки «Кіру | Тіркелу» (видны, когда регистрация открыта) */
+.auth-tabs{display:grid;grid-template-columns:1fr 1fr;margin:-8px 0 18px;border-bottom:1px solid var(--line)}
+.auth-tabs button{border:0;background:none;padding:10px;font:inherit;font-weight:700;color:var(--muted);
+  border-bottom:3px solid transparent;margin-bottom:-1px}
+.auth-tabs button[aria-selected="true"]{color:var(--accent);border-bottom-color:var(--accent)}
+
+/* Карточки выбора роли с барысом */
+.auth-roles{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:16px}
+.auth-role{display:grid;justify-items:center;gap:6px;text-align:center;padding:14px 10px;border:1px solid var(--line);
+  border-radius:14px;background:var(--bg);color:var(--ink);font:inherit}
+.auth-role:hover:not(:disabled){border-color:var(--accent)}
+.auth-role:disabled{opacity:.5;cursor:default}
+.auth-role img{width:100%;max-width:130px;height:auto}
+.auth-role b{font-family:var(--display);font-size:18px}
+.auth-role span{font-size:13px;color:var(--muted)}
+.auth-backlink{margin-bottom:8px;font-size:15px}
+
+/* Класс ученика: кнопки 4–11 */
+.auth-grades{border:0;margin:14px 0 0;padding:0;display:flex;flex-wrap:wrap;gap:6px}
+.auth-grades legend{font-weight:700;font-size:15px;margin-bottom:8px;padding:0}
+.auth-grades button{width:40px;height:40px;border:1px solid var(--line);border-radius:10px;background:var(--bg);
+  color:var(--ink);font:inherit;font-weight:700}
+.auth-grades button[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.auth-check span{line-height:1.35}
+
+/* Поле-ловушка: человек его не видит, бот заполняет */
+.auth-trap{position:absolute;left:-10000px;width:1px;height:1px;overflow:hidden}
+
+@media (max-width:720px){
+  .auth-role img{max-width:90px}
+}

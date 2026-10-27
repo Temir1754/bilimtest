@@ -6,6 +6,24 @@ const kk = {
   slogan: "Білім — жарқын болашақтың кілті!",
   back: "← Тесттерге оралу",
   tabs: { login: "Кіру", signup: "Тіркелу" },
+  signup: {
+    who: "Сен кімсің?", whoLede: "Тіркелу үшін рөліңді таңда",
+    teacher: "Мұғалім", teacherText: "Сұрақ қосу, кейін — сынып кабинеті",
+    teacherClosed: "Мұғалімдерге аккаунтты сайт әкімшісі ашады. Әкімшіге хабарласыңыз.",
+    student: "Оқушы", studentText: "Нәтижелерің кез келген құрылғыда сақталады",
+    back: "← Артқа", title: "Оқушыны тіркеу", lede: "Тек лақап ат, құпиясөз және сынып. Аты-жөнің керек емес.",
+    nick: "Лақап ат", nickHint: "Нағыз атыңды жазба. Латын әріптері, сандар, _ және нүкте, 3–20 таңба.",
+    password: "Құпиясөз (кемінде 8 таңба)", repeat: "Құпиясөзді қайталаңыз",
+    passwordHint: "Құпиясөзді жазып қой: email жоқ, ұмытсаң — мұғалімге немесе әкімшіге айт.",
+    grade: "Сыныбың", consent: "Құпиялылық саясатымен келісемін. Маған 16 жас толды немесе ата-анам тіркелуге келісті.",
+    submit: "Тіркелу", busy: "Тіркелуде…",
+    err: {
+      nickTaken: "Бұл лақап ат бос емес — басқасын ойлап тап.", badNick: "Лақап ат: 3–20 таңба, латын әріптері, сандар, _ және нүкте.",
+      weak: "Құпиясөз кемінде 8 таңбадан тұруы керек.", mismatch: "Құпиясөздер сәйкес емес.", grade: "Сыныбыңды таңда.",
+      consent: "Келісім белгісін қой.", rate: "Бұл желіден тіркелу тым көп. Бір сағаттан кейін көр.",
+      closed: "Тіркелу әзірге жабық.",
+    },
+  },
   login: {
     title: "Кіру",
     lede: "Жеке кабинетіңізге кіріңіз. Тесттерді тіркелмей-ақ тапсыруға болады.",
@@ -43,7 +61,6 @@ const kk = {
     network: "Интернетке қосылу жоқ. Байланысты тексеріп, қайталаңыз.",
     noDb: "Сайт дерекқорға қосылмаған. Кейінірек көріңіз.",
   },
-  menu: { label: "Аккаунт мәзірі", cabinet: "Кабинет", logout: "Шығу" },
 };
 
 export type AuthText = typeof kk;
@@ -53,6 +70,24 @@ const ru: AuthText = {
   slogan: "Знания — ключ к светлому будущему!",
   back: "← Вернуться к тестам",
   tabs: { login: "Вход", signup: "Регистрация" },
+  signup: {
+    who: "Кто ты?", whoLede: "Выбери роль для регистрации",
+    teacher: "Учитель", teacherText: "Добавлять вопросы, позже — кабинет класса",
+    teacherClosed: "Учителям аккаунт создаёт администратор сайта. Обратитесь к администратору.",
+    student: "Ученик", studentText: "Результаты сохраняются на любом устройстве",
+    back: "← Назад", title: "Регистрация ученика", lede: "Только ник, пароль и класс. Имя и фамилия не нужны.",
+    nick: "Ник", nickHint: "Не пиши настоящее имя. Латинские буквы, цифры, _ и точка, 3–20 знаков.",
+    password: "Пароль (не короче 8 знаков)", repeat: "Повтори пароль",
+    passwordHint: "Запиши пароль: email нет, если забудешь — скажи учителю или администратору.",
+    grade: "Твой класс", consent: "Я согласен с политикой конфиденциальности. Мне есть 16 лет, или родитель согласен на регистрацию.",
+    submit: "Зарегистрироваться", busy: "Регистрируем…",
+    err: {
+      nickTaken: "Этот ник уже занят — придумай другой.", badNick: "Ник: 3–20 знаков, латинские буквы, цифры, _ и точка.",
+      weak: "Пароль должен быть не короче 8 знаков.", mismatch: "Пароли не совпадают.", grade: "Выбери свой класс.",
+      consent: "Отметь согласие.", rate: "Слишком много регистраций из этой сети. Попробуй через час.",
+      closed: "Регистрация пока закрыта.",
+    },
+  },
   login: {
     title: "Вход",
     lede: "Войдите в личный кабинет. Тесты можно проходить и без регистрации.",
@@ -90,7 +125,6 @@ const ru: AuthText = {
     network: "Нет подключения к интернету. Проверьте связь и повторите.",
     noDb: "Сайт не подключён к базе. Попробуйте позже.",
   },
-  menu: { label: "Меню аккаунта", cabinet: "Кабинет", logout: "Выйти" },
 };
 
 const en: AuthText = {
@@ -98,6 +132,24 @@ const en: AuthText = {
   slogan: "Knowledge is the key to a bright future!",
   back: "← Back to tests",
   tabs: { login: "Log in", signup: "Sign up" },
+  signup: {
+    who: "Who are you?", whoLede: "Choose your role to sign up",
+    teacher: "Teacher", teacherText: "Add questions, later — a class dashboard",
+    teacherClosed: "Teacher accounts are created by the site administrator. Please contact them.",
+    student: "Student", studentText: "Your results are saved on any device",
+    back: "← Back", title: "Student sign-up", lede: "Just a nickname, password and grade. No name needed.",
+    nick: "Nickname", nickHint: "Don't use your real name. Latin letters, digits, _ and dot, 3–20 characters.",
+    password: "Password (at least 8 characters)", repeat: "Repeat the password",
+    passwordHint: "Write your password down: there's no email, if you forget it — ask your teacher or the administrator.",
+    grade: "Your grade", consent: "I agree to the privacy policy. I'm 16 or older, or my parent agrees to the sign-up.",
+    submit: "Sign up", busy: "Signing up…",
+    err: {
+      nickTaken: "This nickname is taken — think of another one.", badNick: "Nickname: 3–20 characters, Latin letters, digits, _ and dot.",
+      weak: "The password must be at least 8 characters.", mismatch: "Passwords don't match.", grade: "Choose your grade.",
+      consent: "Tick the consent box.", rate: "Too many sign-ups from this network. Try again in an hour.",
+      closed: "Sign-up is closed for now.",
+    },
+  },
   login: {
     title: "Log in",
     lede: "Log in to your account. You can take tests without signing up.",
@@ -135,7 +187,6 @@ const en: AuthText = {
     network: "No internet connection. Check it and try again.",
     noDb: "The site isn't connected to the database. Try again later.",
   },
-  menu: { label: "Account menu", cabinet: "Dashboard", logout: "Log out" },
 };
 
 export const AUTH: Record<Lang, AuthText> = { kk, ru, en };

@@ -7,10 +7,16 @@ import { LoginApp } from "../src/login/LoginApp";
 
 // Заглушка входа: пароль «secret»; «temp» — временный пароль (нужно сменить).
 // Ник ученика превращается в адрес входа, как в настоящем api.
-function fakeApi() {
+function fakeApi(open = { teacher: false, student: false }) {
+  const taken = new Set(["aidos07"]);
   const api: AuthApi = {
+    signupOpen: async () => open,
+    signUpStudent: vi.fn(async (s) => {
+      if (taken.has(s.nickname)) throw new Error("nick_taken");
+      taken.add(s.nickname);
+    }),
     signIn: vi.fn(async (id: string, password: string) => {
-      if (password !== "secret" && password !== "temp") throw new Error("Invalid login credentials");
+      if (!["secret", "temp", "secret-123"].includes(password)) throw new Error("Invalid login credentials");
       const email = loginEmail(id);
       const account: Account = email.endsWith("@students.bilimtest.local")
         ? { name: id.trim().toLowerCase(), role: "student" }
@@ -93,6 +99,50 @@ describe("экран входа /login", () => {
     expect(screen.getByText(/обратитесь к администратору сайта/)).toBeTruthy();
     await user.click(screen.getByRole("button", { name: "← Вернуться ко входу" }));
     expect(screen.getByLabelText("Email или ник")).toBeTruthy();
+  });
+
+  it("регистрация ученика (пилот): ник, пароль, класс, согласие; занятый ник — понятная ошибка; затем вход", async () => {
+    const user = userEvent.setup();
+    const api = fakeApi({ teacher: false, student: true });
+    const go = vi.fn();
+    render(<LoginApp api={api} go={go} />);
+    await user.click(await screen.findByRole("tab", { name: "Регистрация" }));
+    // учителям — подсказка про администратора
+    await user.click(screen.getByRole("button", { name: /Учитель/ }));
+    expect(screen.getByText(/аккаунт создаёт администратор сайта/)).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: /Ученик/ }));
+
+    expect(screen.getByText(/Не пиши настоящее имя/)).toBeTruthy();
+    await user.type(screen.getByLabelText("Ник"), "Aidos07");
+    await user.type(screen.getByLabelText("Пароль (не короче 8 знаков)"), "secret-123");
+    await user.type(screen.getByLabelText("Повтори пароль"), "secret-123");
+    await user.click(screen.getByRole("button", { name: "Зарегистрироваться" }));
+    expect(await screen.findByText("Выбери свой класс.")).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: "7" }));
+    await user.click(screen.getByRole("button", { name: "Зарегистрироваться" }));
+    expect(await screen.findByText("Отметь согласие.")).toBeTruthy();
+    await user.click(screen.getByRole("checkbox", { name: /политикой конфиденциальности/ }));
+    await user.click(screen.getByRole("button", { name: "Зарегистрироваться" }));
+    expect(await screen.findByText("Этот ник уже занят — придумай другой.")).toBeTruthy();
+
+    await user.clear(screen.getByLabelText("Ник"));
+    await user.type(screen.getByLabelText("Ник"), "sky_fox");
+    await user.click(screen.getByRole("button", { name: "Зарегистрироваться" }));
+    await vi.waitFor(() => expect(go).toHaveBeenCalledWith("/"));
+    expect(api.signUpStudent).toHaveBeenLastCalledWith(
+      { nickname: "sky_fox", password: "secret-123", grade: 7, consent: true, website: "" });
+    expect(api.signIn).toHaveBeenCalledWith("sky_fox", "secret-123", false);
+  });
+
+  it("регистрация закрыта — вкладки «Регистрация» нет, по ссылке ?signup — «закрыта»", async () => {
+    history.replaceState(null, "", "/login?signup");
+    try {
+      render(<LoginApp api={fakeApi()} go={vi.fn()} />);
+      expect(await screen.findByText("Регистрация пока закрыта.")).toBeTruthy();
+      expect(screen.queryByRole("tab")).toBeNull();
+    } finally {
+      history.replaceState(null, "", "/");
+    }
   });
 
   it("язык экрана переключается; девиз на трёх языках", async () => {

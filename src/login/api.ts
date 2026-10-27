@@ -9,6 +9,18 @@ export interface AuthApi {
   signIn(id: string, password: string, remember: boolean): Promise<{ account: Account; mustChange: boolean }>;
   /** Новый пароль вместо временного; снимает пометку «сменить пароль». */
   changePassword(password: string): Promise<void>;
+  /** Открыта ли регистрация (переключатели в «Пользователях», №79, №83). */
+  signupOpen(): Promise<{ teacher: boolean; student: boolean }>;
+  /** Упрощённая регистрация ученика функцией на сервере (№83); после неё — обычный вход по нику. */
+  signUpStudent(s: StudentSignup): Promise<void>;
+}
+
+export interface StudentSignup {
+  nickname: string;
+  password: string;
+  grade: number;
+  consent: boolean;
+  website: string; // поле-ловушка: человек его не видит и не заполняет
 }
 
 /** Ответы Supabase → понятный текст. */
@@ -21,6 +33,15 @@ export function authError(e: unknown, t: AuthText): string {
   if (/rate limit|For security purposes|too many/i.test(m)) return r.rateLimit;
   if (/Failed to fetch|NetworkError|Load failed/i.test(m)) return r.network;
   if (/Password should be|weak.?password/i.test(m)) return t.change.short;
+  const s = t.signup.err; // коды ответа функции student-signup
+  if (m === "nick_taken") return s.nickTaken;
+  if (m === "bad_nickname") return s.badNick;
+  if (m === "weak_password") return s.weak;
+  if (m === "bad_grade") return s.grade;
+  if (m === "no_consent") return s.consent;
+  if (m === "rate_limited") return s.rate;
+  if (m === "closed") return s.closed;
+  if (/Edge Function|FunctionsFetchError|FunctionsRelayError/i.test(m)) return r.noDb;
   return m;
 }
 
@@ -42,6 +63,22 @@ export function supabaseAuthApi(sb: SupabaseClient): AuthApi {
       if (error) throw error;
       const { error: e2 } = await sb.rpc("password_changed");
       if (e2) throw e2;
+    },
+    async signupOpen() {
+      const { data, error } = await sb.rpc("signup_open");
+      if (error) throw error;
+      return { teacher: data?.teacher === true, student: data?.student === true };
+    },
+    async signUpStudent(s) {
+      const { error } = await sb.functions.invoke("student-signup", { body: s });
+      if (error) {
+        let code = error.message;
+        try {
+          const j = await (error as { context?: Response }).context?.json();
+          if (j?.error) code = String(j.error);
+        } catch { /* ответ не JSON */ }
+        throw new Error(code);
+      }
     },
   };
 }

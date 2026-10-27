@@ -127,7 +127,7 @@ export function App({ source }: { source: DataSource }) {
             ))}
           </div>
           {/* «Кіру» → /login; после входа — ник с меню (план «Кіру», шаг 3) */}
-          <AccountMenu lang={lang} loginText={t.login} />
+          <AccountMenu ui={t} />
         </div>
       </div></header>
       <main id="main"><div className="wrap">{body}</div></main>

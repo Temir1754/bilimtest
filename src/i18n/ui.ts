@@ -21,6 +21,7 @@ const kk = {
   loading: "Жүктелуде…", loadError: "Деректерді жүктеу мүмкін болмады. Бетті жаңартып көріңіз.",
   skip: "Мазмұнға өту",
   login: "Кіру",
+  menu: { label: "Аккаунт мәзірі", cabinet: "Кабинет", logout: "Шығу" },
 };
 
 export type UiText = typeof kk;
@@ -45,6 +46,7 @@ const ru: UiText = {
   loading: "Загрузка…", loadError: "Не удалось загрузить данные. Попробуйте обновить страницу.",
   skip: "Перейти к содержимому",
   login: "Войти",
+  menu: { label: "Меню аккаунта", cabinet: "Кабинет", logout: "Выйти" },
 };
 
 const en: UiText = {
@@ -67,6 +69,7 @@ const en: UiText = {
   loading: "Loading…", loadError: "Could not load data. Try refreshing the page.",
   skip: "Skip to content",
   login: "Log in",
+  menu: { label: "Account menu", cabinet: "Dashboard", logout: "Log out" },
 };
 
 export const UI: Record<Lang, UiText> = { kk, ru, en };

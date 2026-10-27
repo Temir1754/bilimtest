@@ -1,11 +1,12 @@
 // Экран /login: вход для всех по email или нику (DECISIONS.md №71); вошёл с временным паролем — сначала новый
 // пароль (№80–81); «Забыли пароль?» — подсказка обратиться к администратору (писем без своего домена нет, №79).
-// Макет — docs/design/mascot/login.png. Вкладка «Тіркелу» появится вместе с регистрацией учеников (шаг 7).
+// Макет — docs/design/mascot/login.png. Вкладка «Тіркелу» видна, только если регистрация открыта: в пилоте —
+// упрощённая регистрация ученика (№83); учителям аккаунты создаёт админ (№80).
 import { useEffect, useState } from "react";
 import { AUTH, type AuthText } from "../i18n/auth";
 import { cabinetPath, type Account } from "../lib/account";
 import { loadPrefs, savePrefs } from "../lib/storage";
-import { LANGS } from "../lib/types";
+import { GRADES, LANGS } from "../lib/types";
 import { authError, type AuthApi } from "./api";
 import "./login.css";
 
@@ -15,20 +16,56 @@ interface Props {
   go?: (path: string) => void;
 }
 
-type Mode = { name: "login" } | { name: "forgot" } | { name: "change"; account: Account };
+type Mode = { name: "login" } | { name: "forgot" } | { name: "change"; account: Account }
+  | { name: "roles"; teacherNote?: boolean } | { name: "student" };
 
 export function LoginApp({ api, go = (p) => location.assign(p) }: Props) {
   const [prefs, setPrefs] = useState(loadPrefs);
   const t = AUTH[prefs.lang];
-  const [mode, setMode] = useState<Mode>({ name: "login" });
+  const [mode, setMode] = useState<Mode>(() => (new URLSearchParams(location.search).has("signup")
+    ? { name: "roles" } : { name: "login" }));
+  const [open, setOpen] = useState({ teacher: false, student: false });
 
   useEffect(() => {
     document.title = t.title;
     document.documentElement.lang = prefs.lang;
   }, [t, prefs.lang]);
+  // Нет связи с базой — считаем регистрацию закрытой: вход всё равно работает.
+  useEffect(() => { api.signupOpen().then(setOpen, () => {}); }, [api]);
+
+  const signupTab = open.student || open.teacher;
+  const onSignup = mode.name === "roles" || mode.name === "student";
+  const tabs = signupTab && mode.name !== "change" && (
+    <div className="auth-tabs" role="tablist">
+      <button type="button" role="tab" aria-selected={!onSignup} onClick={() => setMode({ name: "login" })}>{t.tabs.login}</button>
+      <button type="button" role="tab" aria-selected={onSignup} onClick={() => setMode({ name: "roles" })}>{t.tabs.signup}</button>
+    </div>
+  );
 
   let card;
-  if (mode.name === "change") {
+  if (onSignup && !signupTab) {
+    card = <p className="lede">{t.signup.err.closed}</p>;
+  } else if (mode.name === "roles") {
+    card = (
+      <div>
+        <h1>{t.signup.who}</h1>
+        <p className="lede">{t.signup.whoLede}</p>
+        <div className="auth-roles">
+          <button type="button" className="auth-role" onClick={() => setMode({ name: "roles", teacherNote: true })}>
+            <img src="/mascot/barys-teacher.webp" alt="" width="290" height="240" />
+            <b>{t.signup.teacher}</b><span>{t.signup.teacherText}</span>
+          </button>
+          <button type="button" className="auth-role" disabled={!open.student} onClick={() => setMode({ name: "student" })}>
+            <img src="/mascot/barys-student.webp" alt="" width="240" height="256" />
+            <b>{t.signup.student}</b><span>{t.signup.studentText}</span>
+          </button>
+        </div>
+        {mode.teacherNote && <p className="note" role="status">{t.signup.teacherClosed}</p>}
+      </div>
+    );
+  } else if (mode.name === "student") {
+    card = <StudentSignupForm api={api} t={t} onBack={() => setMode({ name: "roles" })} onDone={() => go(cabinetPath("student"))} />;
+  } else if (mode.name === "change") {
     card = <ChangePassword api={api} t={t} onDone={() => go(cabinetPath(mode.account.role))} />;
   } else if (mode.name === "forgot") {
     card = (
@@ -71,7 +108,7 @@ export function LoginApp({ api, go = (p) => location.assign(p) }: Props) {
           <img src="/mascot/barys-wave.webp" alt="" width="530" height="500" />
           <p className="auth-slogan">{t.slogan}</p>
         </div>
-        <section className="auth-card">{card}</section>
+        <section className="auth-card">{tabs}{card}</section>
         <a className="auth-back" href="/">{t.back}</a>
       </main>
     </>
@@ -128,6 +165,77 @@ function LoginForm({ api, t, onForgot, onDone }: {
   );
 }
 
+/** Упрощённая регистрация ученика (№83): ник, пароль, класс, согласие. После неё — сразу вход. */
+function StudentSignupForm({ api, t, onBack, onDone }: { api: AuthApi; t: AuthText; onBack: () => void; onDone: () => void }) {
+  const s = t.signup;
+  const [nickname, setNickname] = useState("");
+  const [password, setPassword] = useState("");
+  const [repeat, setRepeat] = useState("");
+  const [grade, setGrade] = useState<number | null>(null);
+  const [consent, setConsent] = useState(false);
+  const [website, setWebsite] = useState(""); // поле-ловушка
+  const [error, setError] = useState<unknown>(null);
+  const [busy, setBusy] = useState(false);
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    const nick = nickname.trim().toLowerCase();
+    const problem = !/^[a-z0-9_.]{3,20}$/.test(nick) ? s.err.badNick : password.length < 8 ? s.err.weak
+      : password !== repeat ? s.err.mismatch : !grade ? s.err.grade : !consent ? s.err.consent : "";
+    if (problem) { setError(new Error(problem)); return; }
+    setBusy(true);
+    setError(null);
+    try {
+      await api.signUpStudent({ nickname: nick, password, grade: grade!, consent, website });
+      await api.signIn(nick, password, false);
+      onDone();
+    } catch (err) {
+      setError(err);
+      setBusy(false);
+    }
+  }
+
+  return (
+    <form onSubmit={submit}>
+      <button type="button" className="link auth-backlink" onClick={onBack}>{s.back}</button>
+      <h1>{s.title}</h1>
+      <p className="lede">{s.lede}</p>
+      <label className="auth-field">
+        <UserIcon />
+        <input required autoComplete="username" autoCapitalize="none" spellCheck={false} placeholder={s.nick}
+          aria-label={s.nick} aria-describedby="nick-hint" value={nickname} onChange={(e) => setNickname(e.target.value)} />
+      </label>
+      <p className="muted small" id="nick-hint">{s.nickHint}</p>
+      <label className="auth-field">
+        <LockIcon />
+        <input type="password" required autoComplete="new-password" placeholder={s.password} aria-label={s.password}
+          value={password} onChange={(e) => setPassword(e.target.value)} />
+      </label>
+      <label className="auth-field">
+        <LockIcon />
+        <input type="password" required autoComplete="new-password" placeholder={s.repeat} aria-label={s.repeat}
+          value={repeat} onChange={(e) => setRepeat(e.target.value)} />
+      </label>
+      <p className="muted small">{s.passwordHint}</p>
+      <fieldset className="auth-grades">
+        <legend>{s.grade}</legend>
+        {GRADES.map((g) => (
+          <button key={g} type="button" aria-pressed={grade === g} onClick={() => setGrade(g)}>{g}</button>
+        ))}
+      </fieldset>
+      <label className="auth-trap" aria-hidden="true">Website
+        <input tabIndex={-1} autoComplete="off" value={website} onChange={(e) => setWebsite(e.target.value)} />
+      </label>
+      <label className="auth-check">
+        <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} />
+        <span>{s.consent}</span>
+      </label>
+      {error !== null && <p className="error" role="alert">{authError(error, t)}</p>}
+      <button type="submit" className="btn auth-submit" disabled={busy}>{busy ? s.busy : s.submit}</button>
+    </form>
+  );
+}
+
 /** Новый пароль вместо временного — без этого дальше не пускаем. */
 function ChangePassword({ api, t, onDone }: { api: AuthApi; t: AuthText; onDone: () => void }) {
   const [password, setPassword] = useState("");
@@ -173,6 +281,7 @@ function ChangePassword({ api, t, onDone }: { api: AuthApi; t: AuthText; onDone:
 const icon = { width: 20, height: 20, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 1.8,
   strokeLinecap: "round" as const, strokeLinejoin: "round" as const, "aria-hidden": true, className: "auth-icon" };
 const MailIcon = () => <svg {...icon}><rect x="3" y="5" width="18" height="14" rx="2" /><path d="M3 7l9 6 9-6" /></svg>;
+const UserIcon = () => <svg {...icon}><circle cx="12" cy="8" r="4" /><path d="M4 21a8 8 0 0 1 16 0" /></svg>;
 const LockIcon = () => <svg {...icon}><rect x="5" y="11" width="14" height="10" rx="2" /><path d="M8 11V7a4 4 0 0 1 8 0v4" /></svg>;
 const EyeIcon = ({ off }: { off: boolean }) => (
   <svg {...icon} className="">
