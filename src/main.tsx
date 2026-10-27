@@ -4,14 +4,16 @@ import { App } from "./site/App";
 import { localSource } from "./lib/localSource";
 import "./styles/app.css";
 
-// Админка — отдельный файл: загружается только по адресу /admin.
+// Админка и экран входа — отдельные файлы: загружаются только по своим адресам.
 const Admin = lazy(() => import("./admin"));
-const isAdmin = /^\/admin(\/|$)/.test(location.pathname);
+const Login = lazy(() => import("./login"));
+const path = location.pathname;
+const Page = /^\/admin(\/|$)/.test(path) ? Admin : /^\/login(\/|$)/.test(path) ? Login : null;
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    {isAdmin ? (
-      <Suspense fallback={<p className="loading">Загрузка…</p>}><Admin /></Suspense>
+    {Page ? (
+      <Suspense fallback={<p className="loading">Загрузка…</p>}><Page /></Suspense>
     ) : (
       <App source={localSource} />
     )}

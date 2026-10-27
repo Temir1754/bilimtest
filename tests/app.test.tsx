@@ -76,6 +76,22 @@ describe("сайт ученика", () => {
     await user.click(await screen.findByRole("button", { name: "EN" }));
     expect(screen.getByText("Free tests for grades 4–11")).toBeTruthy();
     expect(JSON.parse(localStorage.getItem("bt-prefs")!).lang).toBe("en");
-    expect(screen.getByRole("link", { name: "Teacher login" }).getAttribute("href")).toBe("/admin");
+    expect(screen.getByRole("link", { name: "Log in" }).getAttribute("href")).toBe("/login");
+  });
+
+  it("после входа в шапке — ник с меню «Кабинет / Выйти»; без входа — «Войти»", async () => {
+    const user = userEvent.setup();
+    sessionStorage.setItem("bt-me", JSON.stringify({ name: "aigerim_t", role: "teacher" }));
+    try {
+      render(<App source={source} />);
+      expect(screen.queryByRole("link", { name: "Войти" })).toBeNull();
+      await user.click(await screen.findByRole("button", { name: "Меню аккаунта" }));
+      expect(screen.getByText("aigerim_t")).toBeTruthy();
+      expect(screen.getByRole("menuitem", { name: "Кабинет" }).getAttribute("href")).toBe("/admin");
+      await user.keyboard("{Escape}");
+      expect(screen.queryByRole("menu")).toBeNull();
+    } finally {
+      sessionStorage.clear();
+    }
   });
 });

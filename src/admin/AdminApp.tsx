@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { ADMIN, type AdminText } from "../i18n/admin";
+import { clearAccount, saveAccount } from "../lib/account";
 import { loadPrefs, savePrefs } from "../lib/storage";
 import { LANGS } from "../lib/types";
 import { humanError, type AdminApi, type Me } from "./api";
@@ -28,8 +29,13 @@ export function AdminApp({ api }: { api: AdminApi }) {
   const lang = prefs.lang;
   const t = ADMIN[lang];
 
+  // Вошедший в админку виден и в шапке сайта (ник с меню «Кабинет / Шығу»).
   const refresh = useCallback(() => {
-    api.me().then(setMe, (e) => { setFailure(e); setMe(null); });
+    api.me().then((m) => {
+      setMe(m);
+      if (m) saveAccount({ name: m.nickname || m.email.split("@")[0], role: m.role });
+      else clearAccount();
+    }, (e) => { setFailure(e); setMe(null); });
   }, [api]);
 
   useEffect(() => {

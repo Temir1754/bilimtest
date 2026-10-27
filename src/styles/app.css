@@ -125,3 +125,15 @@ footer .wrap{padding-block:18px}
   .staff{width:36px;height:36px;padding:0;justify-content:center}
   .staff span{display:none}
 }
+
+/* Меню аккаунта в шапке после входа (план «Кіру», шаг 3) */
+.acct{position:relative}
+.acct-btn{display:inline-flex;align-items:center;gap:8px;height:38px;padding:0 14px 0 16px;border-radius:999px;
+  border:1px solid var(--line);background:var(--bg);color:var(--ink);font-weight:700;font-size:15px}
+.acct-btn:hover{border-color:var(--accent)}
+.acct-name{max-width:16ch;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.acct-menu{position:absolute;right:0;top:calc(100% + 6px);min-width:180px;z-index:20;display:grid;padding:6px;
+  background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.18)}
+.acct-menu a,.acct-menu button{display:block;text-align:left;padding:10px 12px;border-radius:8px;border:0;background:none;
+  color:var(--ink);font:inherit;font-size:15px;text-decoration:none}
+.acct-menu a:hover,.acct-menu button:hover{background:var(--accent-soft);color:var(--accent)}

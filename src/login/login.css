@@ -1,0 +1,44 @@
+/* Экраны входа и регистрации (/login). Макет — docs/design/mascot/login.png.
+   Компьютер: слева барыс с девизом, справа форма. Телефон: барыс маленький рядом с девизом, форма без прокрутки. */
+.auth{display:grid;grid-template-columns:1fr minmax(320px,420px);gap:24px 40px;align-items:center;
+  max-width:920px;padding-block:40px}
+.auth-hero{display:flex;flex-direction:column;align-items:center;gap:12px;text-align:center}
+.auth-hero img{width:min(320px,100%);height:auto}
+.auth-slogan{margin:0;font-family:var(--display);font-weight:700;font-size:26px;line-height:1.25;color:var(--accent);max-width:14ch}
+
+.auth-card{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:28px}
+.auth-card h1{font-family:var(--display);font-size:30px;margin:0 0 6px}
+.auth-card .lede{font-size:15px}
+
+.auth-field{position:relative;display:block;margin-top:14px}
+.auth-field input{width:100%;padding:13px 46px;border:1px solid var(--line);border-radius:var(--r);
+  background:var(--bg);color:var(--ink);font:inherit;font-size:16px}
+.auth-field input:focus{outline:2px solid var(--accent);outline-offset:1px;border-color:var(--accent)}
+.auth-icon{position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--muted);pointer-events:none}
+.auth-eye{position:absolute;right:4px;top:50%;transform:translateY(-50%);border:0;background:none;color:var(--muted);
+  padding:10px;border-radius:8px;display:grid}
+.auth-eye:hover{color:var(--accent)}
+
+.auth-check{display:flex;gap:10px;align-items:center;margin:16px 0;font-size:15px;cursor:pointer}
+.auth-check input{width:20px;height:20px;margin:0;accent-color:var(--accent)}
+.auth-submit{width:100%;padding:13px;font-size:17px;margin-top:6px}
+.auth .link{border:0;background:none;padding:0;color:var(--accent);font:inherit;font-weight:700;text-decoration:underline;
+  text-underline-offset:3px;cursor:pointer}
+.auth-link{display:block;margin:16px auto 0;font-size:15px}
+.auth .error,.auth .note{margin:14px 0 0}
+.auth .muted{color:var(--muted)}
+.auth .small{font-size:14px;margin:10px 0 0}
+.auth-back{grid-column:1/-1;justify-self:center;color:var(--muted);font-size:15px}
+
+@media (max-width:720px){
+  .auth{grid-template-columns:1fr;padding-block:14px;gap:12px}
+  .auth-hero{flex-direction:row;justify-content:flex-start;text-align:left;gap:12px}
+  .auth-hero img{width:76px}
+  .auth-slogan{font-size:17px;max-width:none}
+  .auth-card{padding:20px 18px}
+  .auth-card h1{font-size:24px}
+}
+/* Низкий экран телефона: барыс скрыт, чтобы форма поместилась без прокрутки */
+@media (max-width:720px) and (max-height:640px){
+  .auth-hero img{display:none}
+}

@@ -2,6 +2,7 @@
 // поэтому в тестах вместо Supabase подставляется простая заглушка.
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { AdminText } from "../i18n/admin";
+import { setRemember } from "../lib/account";
 import type { Lang } from "../lib/types";
 import type { QuestionRow, Role, Status, toPayload } from "./form";
 
@@ -73,6 +74,7 @@ export interface Me {
   id: string;
   email: string;
   role: Role;
+  nickname?: string | null;
 }
 
 export interface QuestionFilter {
@@ -194,8 +196,8 @@ export function supabaseApi(sb: SupabaseClient): AdminApi {
       const { data } = await sb.auth.getSession();
       const user = data.session?.user;
       if (!user) return null;
-      const p = check(await sb.from("profiles").select("role").eq("id", user.id).maybeSingle());
-      return { id: user.id, email: user.email ?? "", role: (p?.role as Role | undefined) ?? "student" };
+      const p = check(await sb.from("profiles").select("role, nickname").eq("id", user.id).maybeSingle());
+      return { id: user.id, email: user.email ?? "", role: (p?.role as Role | undefined) ?? "student", nickname: p?.nickname };
     },
     onAuthChange(cb) {
       const { data } = sb.auth.onAuthStateChange((event) => {
@@ -204,6 +206,7 @@ export function supabaseApi(sb: SupabaseClient): AdminApi {
       return () => data.subscription.unsubscribe();
     },
     async signIn(email, password) {
+      setRemember(true); // вход в админку помнится, как раньше (галочка «Мені есте сақта» — только на /login)
       const { error } = await sb.auth.signInWithPassword({ email: email.trim(), password });
       if (error) throw error;
     },

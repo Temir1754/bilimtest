@@ -4,6 +4,7 @@ import { answer, mixedQuiz, percent, score, topicQuiz, type Quiz } from "../lib/
 import { loadBest, loadPrefs, recordBest, savePrefs, type Best } from "../lib/storage";
 import { tx } from "../lib/text";
 import { LANGS, type Catalog, type DataSource, type Lang } from "../lib/types";
+import { AccountMenu } from "./AccountMenu";
 import { Home } from "./Home";
 import { QuizView } from "./QuizView";
 import { ResultView } from "./ResultView";
@@ -125,16 +126,8 @@ export function App({ source }: { source: DataSource }) {
               </button>
             ))}
           </div>
-          {/* Вход в админку для учителей и админа */}
-          <a className="staff" href="/admin" title={t.staff} aria-label={t.staff}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
-              strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
-              <path d="M10 17l5-5-5-5" />
-              <path d="M15 12H3" />
-            </svg>
-            <span>{t.login}</span>
-          </a>
+          {/* «Кіру» → /login; после входа — ник с меню (план «Кіру», шаг 3) */}
+          <AccountMenu lang={lang} loginText={t.login} />
         </div>
       </div></header>
       <main id="main"><div className="wrap">{body}</div></main>
