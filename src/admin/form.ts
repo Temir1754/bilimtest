@@ -61,11 +61,11 @@ const l3 = (row: object, prefix: string): L3 => {
   return { kk: r[`${prefix}_kk`] ?? "", ru: r[`${prefix}_ru`] ?? "", en: r[`${prefix}_en`] ?? "" };
 };
 
-/** Новый вопрос: 4 пустых варианта, первый — правильный. */
+/** Новый вопрос: 4 пустых варианта, правильный не отмечен — его отмечает автор (иначе легко забыть). */
 export function newForm(topicId: string): QuestionForm {
   return {
     id: null, topicId, text: empty3(), explanation: empty3(),
-    options: [0, 1, 2, 3].map((i) => ({ text: empty3(), correct: i === 0 })),
+    options: [0, 1, 2, 3].map(() => ({ text: empty3(), correct: false })),
     imageUrl: null, difficulty: 2, status: "draft", reviewComment: "", authorId: null, teacherCheck: "",
   };
 }
@@ -82,8 +82,22 @@ export function fromRow(row: QuestionRow): QuestionForm {
 
 const orNull = (s: string) => (s.trim() ? s.trim() : null);
 
-/** Аргументы функции базы save_question. */
-export function toPayload(f: QuestionForm, status: Status) {
+const blank = (o: FormOption) => !LANGS.some((l) => o.text[l].trim());
+
+/** Пустые строки ответов (4-й ответ необязателен) не сохраняются. */
+export const dropEmpty = (f: QuestionForm): QuestionForm => ({ ...f, options: f.options.filter((o) => !blank(o)) });
+
+/** В форме всегда 4 строки ответов: недостающие — пустые. */
+export const padOptions = (f: QuestionForm): QuestionForm => ({
+  ...f, options: [...f.options, ...Array.from({ length: Math.max(0, 4 - f.options.length) }, () => ({ text: empty3(), correct: false }))],
+});
+
+/** Полный ли вопрос на языке: текст и все варианты (то же, что question_ready_in в базе). */
+export const readyIn = (f: QuestionForm, l: Lang) => Boolean(f.text[l].trim()) && f.options.every((o) => o.text[l].trim());
+
+/** Аргументы функции базы save_question. Пустые строки ответов отбрасываются. */
+export function toPayload(form: QuestionForm, status: Status) {
+  const f = dropEmpty(form);
   const q: Record<string, unknown> = {
     topic_id: f.topicId, image_url: f.imageUrl, difficulty: f.difficulty, status,
     review_comment: orNull(f.reviewComment),
@@ -98,21 +112,25 @@ export function toPayload(f: QuestionForm, status: Status) {
   return { p_id: f.id, p_q: q, p_options: options };
 }
 
-/** Языки, на которых вопрос обязан быть: у языкового предмета — один, у остальных — все три. */
+/** Языки, которые нужно заполнить: у языкового предмета — его язык, у остальных — kk, ru, en (обязателен любой один, №88). */
 export const requiredLangs = (onlyLang: Lang | null): Lang[] => (onlyLang ? [onlyLang] : [...LANGS]);
 
 /**
- * Что мешает опубликовать вопрос. Те же правила, что проверяет база (assert_question_publishable),
- * но с понятными сообщениями до отправки (на языке админки).
+ * Что мешает опубликовать вопрос. Те же правила, что проверяет база (assert_question_publishable, №88):
+ * 3–4 варианта, один правильный, полный хотя бы на одном языке (у языкового предмета — на его языке).
+ * Сообщения — на языке админки; если ни один язык не полный, подсказка — по языку, который начали заполнять.
  */
-export function publishProblems(f: QuestionForm, onlyLang: Lang | null, t: AdminText): string[] {
+export function publishProblems(form: QuestionForm, onlyLang: Lang | null, t: AdminText): string[] {
+  const f = dropEmpty(form);
   const p = t.problems;
   const out: string[] = [];
   const n = f.options.length;
   if (n < 3 || n > 4) out.push(p.optCount(n));
   const nCorrect = f.options.filter((o) => o.correct).length;
   if (nCorrect !== 1) out.push(p.oneCorrect);
-  for (const l of requiredLangs(onlyLang)) {
+  if (!onlyLang && LANGS.some((l) => readyIn(f, l))) return out;
+  const main = onlyLang ?? LANGS.find((l) => f.text[l].trim()) ?? "kk";
+  for (const l of [main]) {
     if (!f.text[l].trim()) out.push(p.noText(t.langIn[l]));
     const missing = f.options.map((o, i) => (o.text[l].trim() ? null : "ABCD"[i])).filter(Boolean);
     if (missing.length) out.push(p.noOptText(missing.join(", "), t.langIn[l]));

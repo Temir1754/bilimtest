@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
-  canEdit, copyFromRu, fromRow, newForm, publishProblems, saveProblems, toPayload, toQuestion, type QuestionRow,
+  canEdit, copyFromRu, fromRow, newForm, padOptions, publishProblems, readyIn, saveProblems, toPayload, toQuestion,
+  type QuestionRow,
 } from "../src/admin/form";
 import { flatTopics, groupTopics, renumber, swap } from "../src/admin/tree";
 import type { SectionRow, TopicRow } from "../src/admin/api";
@@ -30,21 +31,31 @@ describe("форма вопроса", () => {
     expect(p.p_options[0]).toEqual({ text_kk: "а", text_ru: "а", text_en: null, is_correct: true });
   });
 
-  it("перед публикацией находит то же, что проверяет база", () => {
+  it("перед публикацией находит то же, что проверяет база: хватает одного полного языка (№88)", () => {
     const f = fromRow(row);
-    expect(publishProblems(f, null, T)).toEqual([
-      "Нет текста вопроса на английском языке.",
-      "Нет текста варианта A, B, C на английском языке.",
-    ]);
+    expect(readyIn(f, "ru")).toBe(true);
+    expect(readyIn(f, "en")).toBe(false);
+    expect(publishProblems(f, null, T)).toEqual([]);
+    // Ни один язык не полный: подсказка — по языку, который начали заполнять.
+    const ruOnly = { ...f, text: { kk: "", ru: "Вопрос", en: "" }, options: f.options.map((o, i) => (i ? o : { ...o, text: { ...o.text, ru: "", kk: "а" } })) };
+    expect(publishProblems(ruOnly, null, T)).toEqual(["Нет текста варианта A на русском языке."]);
     // У языкового предмета (русский язык) нужен только русский.
     expect(publishProblems(f, "ru", T)).toEqual([]);
     const two = { ...f, options: f.options.slice(0, 2).map((o) => ({ ...o, correct: false })) };
-    expect(publishProblems(two, "ru", T)).toEqual(["Нужно 3 или 4 варианта ответа, сейчас 2.", "Отметьте ровно один правильный ответ."]);
+    expect(publishProblems(two, "ru", T)).toEqual(["Нужно 3 или 4 варианта ответа, сейчас 2.", "Отметьте правильный ответ."]);
+  });
+
+  it("4-й ответ необязателен: пустые строки не сохраняются; в форме всегда 4 строки", () => {
+    const f = padOptions(fromRow(row));
+    expect(f.options).toHaveLength(4);
+    expect(publishProblems(f, null, T)).toEqual([]);
+    expect(toPayload(f, "published").p_options).toHaveLength(3);
+    expect(newForm("t1").options.some((o) => o.correct)).toBe(false);
   });
 
   it("черновик можно сохранить незаконченным, но не пустым", () => {
     const f = newForm("t1");
-    expect(saveProblems(f, T)).toEqual(["Напишите текст вопроса хотя бы на одном языке."]);
+    expect(saveProblems(f, T)).toEqual(["Напишите вопрос."]);
     expect(saveProblems({ ...f, text: { kk: "", ru: "x", en: "" } }, T)).toEqual([]);
   });
 

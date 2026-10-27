@@ -86,11 +86,11 @@ const kk = {
 
   problems: {
     optCount: (n: number) => `3 немесе 4 жауап нұсқасы керек, қазір ${n}.`,
-    oneCorrect: "Тек бір дұрыс жауапты белгілеңіз.",
+    oneCorrect: "Дұрыс жауапты белгілеңіз.",
     noText: (inLang: string) => `Сұрақ мәтіні ${inLang} жоқ.`,
     noOptText: (letters: string, inLang: string) => `${letters} нұсқасының мәтіні ${inLang} жоқ.`,
     needTopic: "Тақырыпты таңдаңыз.", max4: "4-тен артық жауап нұсқасы болмауы керек.",
-    needText: "Сұрақ мәтінін кемінде бір тілде жазыңыз.",
+    needText: "Сұрақты жазыңыз.",
   },
 
   review: {
@@ -194,7 +194,7 @@ const kk = {
     duplicate: "Мұндай жазба бұрыннан бар.",
     network: "Базамен байланыс жоқ. Интернетті тексеріп, қайта көріңіз.",
     imageTooBig: "Сурет 2 МБ-тан үлкен. Оны кішірейтіп, қайта көріңіз.",
-    incomplete: "Сұрақ толық емес: нұсқаларды және барлық тілдегі мәтінді тексеріңіз.",
+    incomplete: "Сұрақ толық емес: кемінде бір тілде сұрақ пен барлық жауапты толтырыңыз.",
     tooMany: "Бір рет 1-ден 2000-ға дейін сұрақ жүктеуге болады.",
     noDbFunction: "Базада қажетті функция әлі жоқ. Әкімші базаны жаңартуы керек (npm run db:push).",
   },
@@ -286,11 +286,11 @@ const ru: AdminText = {
 
   problems: {
     optCount: (n) => `Нужно 3 или 4 варианта ответа, сейчас ${n}.`,
-    oneCorrect: "Отметьте ровно один правильный ответ.",
+    oneCorrect: "Отметьте правильный ответ.",
     noText: (inLang) => `Нет текста вопроса ${inLang}.`,
     noOptText: (letters, inLang) => `Нет текста варианта ${letters} ${inLang}.`,
     needTopic: "Выберите тему.", max4: "Не больше 4 вариантов ответа.",
-    needText: "Напишите текст вопроса хотя бы на одном языке.",
+    needText: "Напишите вопрос.",
   },
 
   review: {
@@ -394,7 +394,7 @@ const ru: AdminText = {
     duplicate: "Такая запись уже есть.",
     network: "Нет связи с базой. Проверьте интернет и попробуйте ещё раз.",
     imageTooBig: "Картинка больше 2 МБ. Уменьшите её и попробуйте снова.",
-    incomplete: "Вопрос неполный: проверьте варианты и текст на всех языках.",
+    incomplete: "Вопрос неполный: хотя бы на одном языке заполните вопрос и все ответы.",
     tooMany: "За один раз можно загрузить от 1 до 2000 вопросов.",
     noDbFunction: "В базе ещё нет нужной функции. Админу нужно обновить базу (npm run db:push).",
   },
@@ -484,11 +484,11 @@ const en: AdminText = {
 
   problems: {
     optCount: (n) => `3 or 4 answer options are needed, now ${n}.`,
-    oneCorrect: "Mark exactly one correct answer.",
+    oneCorrect: "Mark the correct answer.",
     noText: (inLang) => `No question text ${inLang}.`,
     noOptText: (letters, inLang) => `No text for option ${letters} ${inLang}.`,
     needTopic: "Choose a topic.", max4: "No more than 4 answer options.",
-    needText: "Write the question text in at least one language.",
+    needText: "Write the question.",
   },
 
   review: {
@@ -592,7 +592,7 @@ const en: AdminText = {
     duplicate: "This record already exists.",
     network: "No connection to the database. Check the internet and try again.",
     imageTooBig: "The image is larger than 2 MB. Make it smaller and try again.",
-    incomplete: "The question is incomplete: check the options and the text in every language.",
+    incomplete: "The question is incomplete: fill in the question and all answers in at least one language.",
     tooMany: "You can import from 1 to 2000 questions at a time.",
     noDbFunction: "The database doesn't have the required function yet. The admin needs to update it (npm run db:push).",
   },

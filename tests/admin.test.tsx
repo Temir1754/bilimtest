@@ -220,11 +220,13 @@ describe("админка", () => {
     const { api } = fakeApi({ id: "admin", email: "a@x.kz", role: "admin" });
     render(<AdminApp api={api} />);
     await user.click(await screen.findByRole("button", { name: /2\+2\?/ }));
-    await user.click(await screen.findByRole("tab", { name: /EN/ }));
-    await user.clear(screen.getByLabelText("Вариант C (EN)"));
+    for (const l of ["KK", "RU", "EN"]) {
+      await user.click(await screen.findByRole("tab", { name: new RegExp(l) }));
+      await user.clear(screen.getByLabelText(`Вариант C (${l})`));
+    }
     await user.click(screen.getByRole("button", { name: "Опубликовать" }));
     const alert = await screen.findByRole("alert");
-    expect(within(alert).getByText("Нет текста варианта C на английском языке.")).toBeTruthy();
+    expect(within(alert).getByText("Нужно 3 или 4 варианта ответа, сейчас 2.")).toBeTruthy();
     expect(api.saveQuestion).not.toHaveBeenCalled();
   });
 

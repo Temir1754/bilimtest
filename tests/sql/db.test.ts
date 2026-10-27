@@ -247,8 +247,41 @@ describe("сохранение вопроса из админки (save_question
     await save("admin", id, full("draft"), opts(0, 3));
     expect(await optionsOf(id)).toHaveLength(3);
     await expect(save("admin", id, full("published"), opts(0, 2))).rejects.toThrow(/3–4 варианта/);
-    await expect(save("admin", id, full("published", { text_en: "" }), opts(0))).rejects.toThrow(/на языке en/);
     await expect(save("admin", id, full("draft"), opts(0, 5))).rejects.toThrow(/не больше 4/);
+  });
+
+  it("публикация (№88): достаточно одного полного языка; без полного языка — отказ", async () => {
+    const kkOnly = (correct: number) => JSON.stringify(Array.from({ length: 3 }, (_, i) => ({ text_kk: `ж${i}`, is_correct: i === correct })));
+    const id = await save("admin", null, full("published", { text_ru: "", text_en: "" }), kkOnly(0));
+    expect(await one("select public.question_ready_in($1, 'kk') as kk, public.question_ready_in($1, 'ru') as ru", [id]))
+      .toEqual({ kk: true, ru: false });
+    // текст на русском есть, но варианты только на казахском, а казахского текста нет — ни один язык не полный
+    await expect(save("admin", id, full("published", { text_kk: "", text_en: "" }), kkOnly(0))).rejects.toThrow(/на языке/);
+  });
+
+  it("учитель удаляет свой черновик, но не опубликованный и не чужой (№89)", async () => {
+    const mine = await save("teacherA", null, full("draft"), opts(0));
+    const other = await save("teacherB", null, full("draft"), opts(0));
+    const pub = (await one<{ id: string }>("select id from public.questions where status = 'published' limit 1"))!.id;
+    for (const id of [other, pub]) await as("teacherA", (q) => q("delete from public.questions where id = $1", [id]));
+    expect(await one("select count(*)::int as n from public.questions where id in ($1, $2)", [other, pub])).toEqual({ n: 2 });
+    await as("teacherA", (q) => q("delete from public.questions where id = $1", [mine]));
+    expect(await one("select count(*)::int as n from public.questions where id = $1", [mine])).toEqual({ n: 0 });
+    await db.query("delete from public.questions where id = $1", [other]); // не тратить дневной лимит учителя Б
+  });
+
+  it("шаги 1–2: число вопросов теме (настройка) и готовые вопросы по темам на языке", async () => {
+    expect(await as("teacherA", (q) => q("select public.topic_min_questions() as n"))).toEqual([{ n: 5 }]);
+    const g = (await one<{ grade: number }>("select grade from public.topics where id = $1", [topicId]))!.grade;
+    const after = (lang: string) => as("teacherA", (q) => q<{ ready: number }>(
+      "select ready from public.topic_counts($2::smallint, $3) where topic_id = $1", [topicId, g, lang])).then((r) => r[0].ready);
+    const before = await after("ru");
+    await save("admin", null, full("published", { text_ru: "", text_en: "" }),
+      JSON.stringify(Array.from({ length: 3 }, (_, i) => ({ text_kk: `ж${i}`, is_correct: i === 0 }))));
+    await save("teacherA", null, full("draft"), opts(0)); // черновик не считается
+    expect(await after("ru")).toBe(before); // вопрос только на казахском в русском счётчике не виден
+    expect(await after("kk")).toBeGreaterThan(0);
+    await expect(as(null, (q) => q("select public.topic_min_questions()"))).rejects.toThrow(/permission denied/);
   });
 
   it("комментарий проверки пишет админ, учитель его не стирает; при публикации он очищается", async () => {
