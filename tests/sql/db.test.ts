@@ -700,21 +700,32 @@ describe("аккаунты: регистрация, роли, блокировк
     expect(await as("admin", (q) => q("select user_id from school.students"))).toEqual([{ user_id: sid }]);
   });
 
-  it("лимит черновиков учителя в сутки (с Excel), админ без лимита; блокировка снимает права", async () => {
-    await db.query("update public.app_settings set value = value || '{\"teacher_drafts_per_day\": 2}' where key = 'limits'");
+  it("лимит черновиков учителя в сутки; у загрузки из файла — свой лимит (№91); админ без лимита; блокировка снимает права", async () => {
+    await db.query(`update public.app_settings set value = value || '{"teacher_drafts_per_day": 2, "teacher_imports_per_day": 1}'
+      where key = 'limits'`);
     const draft = (q: Db["query"], author: string) => q(
       "insert into public.questions (topic_id, text_ru, author_id) values ($1, 'Черновик', $2)", [topicId, author]);
+    const mathTopic = (await one<{ id: string; grade: number }>(
+      "select id, grade from public.topics where subject_id = $1 and not archived order by grade limit 1", [mathId]))!;
+    const grade = mathTopic.grade;
+    const load = (topic: object) => as("teacherB", (q) => q("select public.import_questions($1, $2, $3::jsonb)", [mathId, grade,
+      JSON.stringify([{ ...topic, text_ru: "Из файла", options: [{ text_ru: "а", is_correct: true }, { text_ru: "б" }, { text_ru: "в" }] }])]));
     try {
       await as("teacherB", (q) => draft(q, ids.teacherB));
       await as("teacherB", (q) => draft(q, ids.teacherB));
       await expect(as("teacherB", (q) => draft(q, ids.teacherB))).rejects.toThrow(/лимит черновиков: 2/);
-      await expect(as("teacherB", (q) => q("select public.import_questions($1, 5, $2::jsonb)", [mathId, JSON.stringify([{
-        topic: "Тема", text_ru: "В", options: [{ text_ru: "а", is_correct: true }, { text_ru: "б" }, { text_ru: "в" }] }])])))
-        .rejects.toThrow(/лимит/);
+      await load({ topic_id: mathTopic.id }); // черновики кончились, а загрузка из файла — нет
+      expect(await one("select topic_id, imported from public.questions where text_ru = 'Из файла'"))
+        .toEqual({ topic_id: mathTopic.id, imported: true });
+      await expect(load({ topic_id: mathTopic.id })).rejects.toThrow(/лимит загрузки: 1/);
       for (let i = 0; i < 3; i++) await as("admin", (q) => draft(q, ids.admin));
     } finally {
-      await db.query("update public.app_settings set value = value || '{\"teacher_drafts_per_day\": 50}' where key = 'limits'");
+      await db.query(`update public.app_settings set value = value || '{"teacher_drafts_per_day": 50, "teacher_imports_per_day": 300}'
+        where key = 'limits'`);
     }
+    const other = (await one<{ id: string }>("select id from public.topics where subject_id = $1 and grade <> $2 limit 1",
+      [mathId, grade]))!.id;
+    await expect(load({ topic_id: other })).rejects.toThrow(/Тема не найдена в этом предмете и классе/);
 
     await expect(as("teacherA", (q) => q("select public.set_user_blocked($1, true)", [ids.teacherB]))).rejects.toThrow(/только админ/);
     await expect(as("admin", (q) => q("select public.set_user_blocked($1, true)", [ids.admin]))).rejects.toThrow(/себя/);

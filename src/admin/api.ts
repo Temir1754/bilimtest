@@ -96,6 +96,7 @@ export interface SignupSettings {
   teacher: boolean;
   student: boolean;
   teacher_drafts_per_day: number;
+  teacher_imports_per_day: number; // вопросов из файлов в день у учителя — отдельно от черновиков (№91)
   student_signups_per_hour: number;
   topic_min_questions: number; // сколько опубликованных вопросов нужно теме (№87)
   mail: boolean; // почта для писем подключена — без неё учителям, которые регистрируются сами, письма не дойдут (№90)
@@ -279,6 +280,8 @@ export function humanError(e: unknown, t: AdminText): string {
   if (/последнего админа/i.test(m)) return u.lastAdmin;
   if (/заблокировать себя/i.test(m)) return u.self;
   if (/Дневной лимит черновиков/i.test(m)) return u.draftLimit;
+  if (/Дневной лимит загрузки/i.test(m)) return u.importLimit;
+  if (/Тема не найдена в этом предмете/i.test(m)) return u.badTopic;
   if (/Edge Function|FunctionsFetchError|FunctionsRelayError|function not found/i.test(m)) return u.noFunction;
   return m;
 }
@@ -492,6 +495,7 @@ export function supabaseApi(sb: SupabaseClient): AdminApi {
       return {
         teacher: v("signup").teacher === true, student: v("signup").student === true,
         teacher_drafts_per_day: Number(v("limits").teacher_drafts_per_day ?? 50),
+        teacher_imports_per_day: Number(v("limits").teacher_imports_per_day ?? 300),
         student_signups_per_hour: Number(v("limits").student_signups_per_hour ?? 60),
         topic_min_questions: Number(v("limits").topic_min_questions ?? 5),
         mail: v("signup").mail === true,
@@ -500,7 +504,7 @@ export function supabaseApi(sb: SupabaseClient): AdminApi {
     async saveSettings(s) {
       // limits дополняется, а не заменяется: в нём есть и другие лимиты (попытки, жалобы).
       const rows = check(await sb.from("app_settings").select("value").eq("key", "limits")) as { value: object }[];
-      const limits = { ...(rows[0]?.value ?? {}), teacher_drafts_per_day: s.teacher_drafts_per_day,
+      const limits = { ...(rows[0]?.value ?? {}), teacher_drafts_per_day: s.teacher_drafts_per_day, teacher_imports_per_day: s.teacher_imports_per_day,
         student_signups_per_hour: s.student_signups_per_hour, topic_min_questions: s.topic_min_questions };
       check(await sb.from("app_settings").upsert([
         { key: "signup", value: { teacher: s.teacher, student: s.student, mail: s.mail } },

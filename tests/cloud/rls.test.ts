@@ -218,6 +218,20 @@ describe.skipIf(!configured)("Supabase: аккаунты (DECISIONS.md №70–7
     expect((await anon().auth.signInWithPassword({ email: email("teacherB"), password: PASSWORD })).error).toBeNull();
   });
 
+  it("загрузка из файла (№91): тема программы по id, вопрос помечен imported; тема другого класса — отказ", async () => {
+    const math = (await sql`select id from public.subjects where slug = 'math'`)[0].id;
+    const row = (topic_id: string) => [{ topic_id, text_ru: "Из Word", options: [
+      { text_ru: "а", is_correct: true }, { text_ru: "б" }, { text_ru: "в" }] }];
+    const topic = (await sql`select id from public.topics where subject_id = ${math} and grade = 5 and not archived limit 1`)[0].id;
+    const { data, error } = await clients.teacherA.rpc("import_questions", { p_subject_id: math, p_grade: 5, p_rows: row(topic) });
+    expect(error).toBeNull();
+    expect(data).toEqual({ questions: 1, topics: 0 });
+    expect((await sql`select imported, status from public.questions where text_ru = 'Из Word'`)[0]).toEqual({ imported: true, status: "draft" });
+    const other = (await sql`select id from public.topics where subject_id = ${math} and grade = 6 limit 1`)[0].id;
+    const bad = await clients.teacherA.rpc("import_questions", { p_subject_id: math, p_grade: 5, p_rows: row(other) });
+    expect(bad.error?.message).toMatch(/Тема не найдена/);
+  });
+
   it("«Пайдаланушылар» (№90): плитки, список и правка данных — только админ", async () => {
     const { data: { user } } = await clients.teacherB.auth.getUser();
     for (const c of [anon(), clients.student, clients.teacherA]) {

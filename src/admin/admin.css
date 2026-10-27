@@ -350,3 +350,44 @@ label.adm-check{display:flex;align-items:center;gap:8px;font-size:14px;font-weig
   .us-warn{flex-wrap:wrap}
   .us-modal{padding:16px}
 }
+
+/* ---------- Загрузка из файла: Word и Excel со своими столбцами (№91) ---------- */
+.adm-editor.im-page{max-width:1180px}
+.im-where{margin:6px 0 0;display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;font-size:16px}
+.im-change{margin-top:8px}
+.im-change label,.im-map label,.im-topic-head label,.im-lang{display:grid;gap:4px;font-size:14px;font-weight:700;color:var(--muted)}
+.adm-steps li > label + label{margin-top:10px}
+.im-preview{display:grid;gap:14px}
+.im-lang{grid-auto-flow:column;align-items:center;gap:8px}
+.im-topic{display:grid;gap:8px}
+.im-topic-head{display:flex;flex-wrap:wrap;align-items:end;gap:8px 16px}
+.im-topic-head h3{margin:0;font-size:17px;flex:1 1 260px}
+.im-topic-head label{flex:1 1 320px}
+.im-wrap{max-height:none}
+.im-table{min-width:760px}
+.im-table td{vertical-align:top}
+.im-table td:first-child{width:40px}
+.im-table td:nth-child(2){width:34%}
+.im-table td:last-child{width:22%;font-size:13px}
+.im-table tr.bad td:last-child{color:var(--bad);font-weight:700}
+.im-table textarea{min-height:58px}
+.im-opts{list-style:none;margin:0;padding:0;display:grid;gap:4px}
+.im-opts li{display:grid;grid-template-columns:auto 1fr auto;gap:6px;align-items:center;border:1px solid var(--line);border-radius:8px;padding:2px 6px}
+.im-opts li.on{border-color:var(--good);background:var(--good-soft)}
+.im-opts input[type=radio]{width:18px;height:18px;margin:0;accent-color:var(--good)}
+.wrap .im-opts input:not([type=radio]):not([type=checkbox]):not([type=file]){border:0;background:transparent;padding:4px 2px}
+.im-opts li.on input:not([type=radio]){color:var(--good);font-weight:700}
+.im-opts .link{font-size:18px;padding:0 4px;color:var(--muted)}
+.im-map{border:1px solid var(--accent)}
+.im-map h3{margin:0;font-size:17px}
+.im-map p{margin:0}
+/* на телефоне каждый вопрос — карточка: номер, вопрос, ответы, ошибка — друг под другом */
+@media (max-width:700px){
+  .im-table{min-width:0}
+  .im-table thead{display:none}
+  .im-table,.im-table tbody,.im-table tr,.im-table td{display:block;width:auto!important}
+  .im-table tr{padding:8px 0;border-bottom:1px solid var(--line)}
+  .im-table td{border:0;padding:4px 10px}
+  .im-table td:first-child{font-weight:700}
+  .im-table td:first-child::before{content:"№ "}
+}

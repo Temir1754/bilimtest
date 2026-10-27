@@ -554,6 +554,8 @@ function SettingsPanel({ api, onSaved }: { api: AdminApi; onSaved: () => void })
       <div className="adm-row grow">
         <label>{s.drafts}<input type="number" min={1} max={1000} value={v.teacher_drafts_per_day}
           onChange={(e) => set({ teacher_drafts_per_day: Number(e.target.value) })} /></label>
+        <label>{s.imports}<input type="number" min={1} max={2000} value={v.teacher_imports_per_day}
+          onChange={(e) => set({ teacher_imports_per_day: Number(e.target.value) })} /></label>
         <label>{s.signups}<input type="number" min={1} max={1000} value={v.student_signups_per_hour}
           onChange={(e) => set({ student_signups_per_hour: Number(e.target.value) })} /></label>
         <label>{s.topicMin}<input type="number" min={1} max={100} value={v.topic_min_questions}

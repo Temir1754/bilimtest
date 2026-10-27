@@ -53,7 +53,7 @@ function fakeApi(me: Me | null) {
     person("admin", "a@x.kz", "admin"),
     person("kid", "kid07@students.bilimtest.local", "student", { nickname: "kid07", grade: 6 }),
   ];
-  let settings: SignupSettings = { teacher: false, student: false, teacher_drafts_per_day: 50, student_signups_per_hour: 60, topic_min_questions: 5, mail: false };
+  let settings: SignupSettings = { teacher: false, student: false, teacher_drafts_per_day: 50, teacher_imports_per_day: 300, student_signups_per_hour: 60, topic_min_questions: 5, mail: false };
   let user = me;
   let scope: { subjects: string[]; grades: number[] } | null = null;
   const saved: ReturnType<typeof toPayload>[] = [];
@@ -290,6 +290,56 @@ describe("админка", () => {
     expect(await screen.findByText(/загружено вопросов — 1/)).toBeTruthy();
     const rows = (api.importQuestions as ReturnType<typeof vi.fn>).mock.calls[0][2] as { topic: string }[];
     expect(rows.map((r) => r.topic)).toEqual(["Дроби"]);
+  });
+
+  it("загрузка из Word (№91): класс и предмет наверху, тема программы по названию, правка в таблице", async () => {
+    const user = userEvent.setup();
+    history.replaceState(null, "", "/admin/questions/math/5/excel");
+    const { api } = fakeApi({ id: "teacher", email: "t@x.kz", role: "teacher" });
+    render(<AdminApp api={api} />);
+    expect(await screen.findByText("5 класс · π Математика")).toBeTruthy();
+
+    const para = (t: string, b = false) => `<w:p><w:r>${b ? "<w:rPr><w:b/></w:rPr>" : ""}<w:t>${t}</w:t></w:r></w:p>`;
+    const xml = `<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>${[
+      para("§1. Дроби"), para("1. Сколько будет 1/2 + 1/2?", true), para("1"), para("2"), para("1/4"),
+      para("2. Сколько будет 2 + 2?", true), para("3"), para("4"), para("5"), para("6"), para("7"), para("$1 1A 2В"),
+    ].join("")}</w:body></w:document>`;
+    const { zipSync, strToU8 } = await import("fflate");
+    const file = new File([new Uint8Array(zipSync({ "word/document.xml": new Uint8Array(strToU8(xml)) }))], "test.docx");
+    await user.upload(screen.getByLabelText(/Или выберите файл Word/), file);
+
+    const topic = await screen.findByRole("combobox", { name: "Тема программы: §1. Дроби" });
+    expect((topic as HTMLSelectElement).value).toBe("t1"); // подобрана по названию
+    expect(screen.getByText(/5 вариантов — уберите один/)).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Загрузить 1 в черновики" })).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: "Вопрос §1 · 2: удалить вариант 5" }));
+    await user.click(screen.getByRole("button", { name: "Загрузить 2 в черновики" }));
+    expect(await screen.findByText(/загружено вопросов — 2/)).toBeTruthy();
+    const [subject, grade, rows] = (api.importQuestions as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect([subject, grade]).toEqual(["s1", 5]);
+    expect(rows[1]).toEqual({ topic_id: "t1", difficulty: 2, text_ru: "Сколько будет 2 + 2?", explanation_ru: "",
+      options: [{ text_ru: "3", is_correct: false }, { text_ru: "4", is_correct: true }, { text_ru: "5", is_correct: false },
+        { text_ru: "6", is_correct: false }] });
+  });
+
+  it("Excel со своими столбцами: окно «какой столбец что значит», затем та же таблица", async () => {
+    const user = userEvent.setup();
+    history.replaceState(null, "", "/admin/questions/math/5/excel");
+    const { api } = fakeApi({ id: "admin", email: "a@x.kz", role: "admin" });
+    render(<AdminApp api={api} />);
+    const XLSX = await import("xlsx");
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([["№", "Вопрос", "A", "B", "C", "Ответ"], [1, "2+2?", "3", "4", "5", "B"]]), "Лист1");
+    await user.upload(await screen.findByLabelText(/Выберите заполненный файл/),
+      new File([XLSX.write(wb, { type: "array", bookType: "xlsx" })], "свой.xlsx"));
+    const box = await screen.findByRole("group", { name: "Какой столбец что значит?" });
+    await user.click(within(box).getByRole("button", { name: "Дальше" }));
+    await user.selectOptions(await screen.findByRole("combobox", { name: "Тема программы: Без темы" }), "Сложение");
+    await user.click(screen.getByRole("button", { name: "Загрузить 1 в черновики" }));
+    await vi.waitFor(() => expect(api.importQuestions).toHaveBeenCalled());
+    const rows = (api.importQuestions as ReturnType<typeof vi.fn>).mock.calls[0][2];
+    expect(rows[0]).toMatchObject({ topic_id: "t2", text_ru: "2+2?",
+      options: [{ text_ru: "3", is_correct: false }, { text_ru: "4", is_correct: true }, { text_ru: "5", is_correct: false }] });
   });
 
   it("«Опубликовать готовые черновики»: спрашивает подтверждение и публикует только вопросы без ошибок", async () => {
