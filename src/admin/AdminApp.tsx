@@ -127,7 +127,7 @@ export function AdminApp({ api, go = (p) => location.replace(p) }: {
         <a className="logo" href="/">
           {/* Шапка как на сайте, пометка «әкімші» — маленьким бейджем (№85) */}
           <LogoMark />
-          Білімтест <span className="adm-badge">{t.badge}</span>
+          Білімтест <span className="adm-badge">{me?.role === "teacher" ? t.badgeTeacher : t.badge}</span>
         </a>
         {me && me.role !== "student" && (
           <nav className="adm-nav" aria-label={t.nav.label}>

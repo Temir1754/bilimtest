@@ -272,7 +272,7 @@ describe("админка", () => {
     const user = userEvent.setup();
     const { api } = fakeApi({ id: "teacher", email: "t@x.kz", role: "teacher" });
     render(<AdminApp api={api} />);
-    await user.click(await screen.findByRole("button", { name: "Загрузить из Excel" }));
+    await user.click(await screen.findByRole("button", { name: "Загрузить из файла (Excel, Word)" }));
 
     const sheet = [headers(ADMIN.ru),
       row("Дроби", "Сколько будет 1/2 + 1/2?", "1", "2", "1/4"),
@@ -364,11 +364,11 @@ describe("админка", () => {
     const user = userEvent.setup();
     render(<AdminApp api={fakeApi({ id: "admin", email: "a@x.kz", role: "admin" }).api} />);
     await user.click(await screen.findByRole("button", { name: "KK" }));
-    expect(screen.getByRole("button", { name: "Excel-ден жүктеу" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Файлдан жүктеу (Excel, Word)" })).toBeTruthy();
     expect(screen.getByRole("link", { name: "Тексеруде" })).toBeTruthy();
     expect(JSON.parse(localStorage.getItem("bt-prefs")!).lang).toBe("kk");
     await user.click(screen.getByRole("button", { name: "EN" }));
-    expect(screen.getByRole("button", { name: "Import from Excel" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Import from a file (Excel, Word)" })).toBeTruthy();
   });
 
   it("предпросмотр показывает вопрос глазами ученика", async () => {
@@ -489,6 +489,8 @@ describe("админка", () => {
     await screen.findByRole("link", { name: "Вопросы" });
     expect(screen.queryByRole("link", { name: "Школы" })).toBeNull();
     expect(screen.queryByRole("link", { name: "Пользователи" })).toBeNull();
+    expect(within(screen.getByRole("banner")).getByText("учитель")).toBeTruthy(); // метка в шапке — по роли
+    expect(within(screen.getByRole("banner")).queryByText("админка")).toBeNull();
   });
 
   it("«Пользователи»: создать учителя (предметы — по классам), временный пароль показан один раз", async () => {
@@ -652,7 +654,7 @@ describe("админка", () => {
     expect(await screen.findByRole("heading", { name: "Выберите тему" })).toBeTruthy();
     expect(location.pathname).toBe("/admin/questions/math/5");
     expect(screen.queryByRole("button", { name: /действия/ })).toBeNull();
-    expect(screen.getByRole("button", { name: "Excel ▾" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Файл ▾" })).toBeTruthy();
 
     await user.click(within(screen.getByRole("link", { name: "Сложение" }).closest("li")!).getByRole("link", { name: "+ Добавить вопрос" }));
     expect(await screen.findByRole("button", { name: "Отправить на проверку" })).toBeTruthy();
