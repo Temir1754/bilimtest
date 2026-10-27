@@ -5,7 +5,7 @@ import { AdminApp } from "../src/admin/AdminApp";
 import type {
   AdminApi, Me, QuestionItem, RegionRow, SchoolRow, SectionRow, SignupSettings, SubjectRow, TopicRow, UserRow,
 } from "../src/admin/api";
-import type { QuestionRow, toPayload } from "../src/admin/form";
+import { fromRow, readyIn, type QuestionRow, type toPayload } from "../src/admin/form";
 import { headers } from "../src/admin/excel";
 import { ADMIN } from "../src/i18n/admin";
 
@@ -53,8 +53,9 @@ function fakeApi(me: Me | null) {
     person("admin", "a@x.kz", "admin"),
     person("kid", "kid07@students.bilimtest.local", "student", { nickname: "kid07", grade: 6 }),
   ];
-  let settings: SignupSettings = { teacher: false, student: false, teacher_drafts_per_day: 50, student_signups_per_hour: 60 };
+  let settings: SignupSettings = { teacher: false, student: false, teacher_drafts_per_day: 50, student_signups_per_hour: 60, topic_min_questions: 5 };
   let user = me;
+  let scope: { subjects: string[]; grades: number[] } | null = null;
   const saved: ReturnType<typeof toPayload>[] = [];
   const api: AdminApi = {
     async me() { return user; },
@@ -80,6 +81,12 @@ function fakeApi(me: Me | null) {
     async topics(s, g) { return topics.filter((t) => t.subject_id === s && t.grade === g).map((t) => ({ ...t })); },
     async topic(id) { return topics.find((t) => t.id === id)!; },
     async counts() { return { t1: { draft: 0, review: 1, published: 0 } }; },
+    async topicCounts(g, lang) {
+      return topics.filter((t) => t.grade === g).map((t) => ({ topic_id: t.id, subject_id: t.subject_id,
+        ready: questions.filter((q) => q.topic_id === t.id && q.status === "published" && readyIn(fromRow(q), lang)).length }));
+    },
+    async topicMin() { return settings.topic_min_questions; },
+    teacherScope: vi.fn(async () => scope),
     saveTopic: vi.fn(async ({ id, ...x }: Omit<TopicRow, "id"> & { id?: string }) => {
       const old = topics.find((r) => r.id === id);
       if (old) Object.assign(old, x); else topics.push({ ...x, id: `t${topics.length + 1}` });
@@ -87,6 +94,7 @@ function fakeApi(me: Me | null) {
     async deleteTopic() {},
     async questions(f) {
       return questions.filter((q) => (!f.topicId || q.topic_id === f.topicId) && (!f.status || q.status === f.status) &&
+        (!f.authorId || q.author_id === f.authorId) && (!f.needsTranslation || !q.text_ru || !q.text_en) &&
         (!f.teacherCheck || q.teacher_check) &&
         (!f.sectionId || topics.find((t) => t.id === q.topic_id)?.section_id === f.sectionId))
         .map((q) => ({ ...q, updated_at: "", topics: topics[0] })) as QuestionItem[];
@@ -94,11 +102,17 @@ function fakeApi(me: Me | null) {
     async question(id) { return questions.find((q) => q.id === id)!; },
     saveQuestion: vi.fn(async (p: ReturnType<typeof toPayload>) => {
       saved.push(p);
-      const q = questions.find((x) => x.id === p.p_id)!;
+      let q = questions.find((x) => x.id === p.p_id);
+      if (!q) {
+        q = { id: `q${questions.length + 1}`, author_id: user?.id ?? null, review_comment: null, image_url: null, difficulty: 2,
+          explanation_kk: null, explanation_ru: null, explanation_en: null, text_kk: null, text_ru: null, text_en: null,
+          topic_id: "", status: "draft", options: [] };
+        questions.push(q);
+      }
       Object.assign(q, p.p_q, { options: p.p_options.map((o, i) => ({ ...o, sort_order: i })) });
       return q.id;
     }),
-    async deleteQuestion() {},
+    deleteQuestion: vi.fn(async (id: string) => { questions.splice(questions.findIndex((q) => q.id === id), 1); }),
     clearTeacherCheck: vi.fn(async (id: string) => { questions.find((q) => q.id === id)!.teacher_check = null; }),
     async exportChecks() {
       return questions.filter((q) => q.teacher_check).map((q) => ({ grade: 5, subject: subjects[0], topic: "Дроби", q }));
@@ -136,7 +150,8 @@ function fakeApi(me: Me | null) {
     async exportQuestions() { return questions.map((q) => ({ topic: "Дроби", q })); },
     publish: vi.fn(async (ids: string[]) => { for (const q of questions) if (ids.includes(q.id)) q.status = "published"; }),
   };
-  return { api, saved, sections, topics, regions, schools, users, getSettings: () => settings };
+  return { api, saved, sections, topics, questions, regions, schools, users, getSettings: () => settings,
+    setScope: (x: typeof scope) => { scope = x; } };
 }
 
 beforeEach(() => {
@@ -144,6 +159,7 @@ beforeEach(() => {
   localStorage.clear();
   localStorage.setItem("bt-prefs", JSON.stringify({ lang: "ru", grade: 5 }));
   sessionStorage.setItem("bt-admin", JSON.stringify({ grade: 5, subjectId: "s1", topicId: "t1" }));
+  history.replaceState(null, "", "/admin/questions/search");
 });
 afterEach(cleanup);
 
@@ -199,17 +215,18 @@ describe("админка", () => {
     await user.click(await screen.findByRole("button", { name: /2\+2\?/ }));
     await screen.findByRole("button", { name: "Сохранить" });
     expect(screen.queryByRole("button", { name: "Опубликовать" })).toBeNull();
-    expect(screen.queryByRole("button", { name: "На проверке" })).toBeNull();
+    expect(screen.queryByRole("link", { name: "На проверке" })).toBeNull();
+    expect(screen.getByRole("link", { name: "Мои вопросы" })).toBeTruthy();
   });
 
   it("админ публикует вопрос из очереди проверки, сменив правильный ответ", async () => {
     const user = userEvent.setup();
     const { api, saved } = fakeApi({ id: "admin", email: "a@x.kz", role: "admin" });
     render(<AdminApp api={api} />);
-    await user.click(await screen.findByRole("button", { name: "На проверке" }));
-    await user.click(await screen.findByRole("button", { name: /2\+2\?/ }));
+    await user.click(await screen.findByRole("link", { name: "На проверке" }));
+    await user.click(await screen.findByRole("link", { name: /2\+2\?/ }));
     await user.click(await screen.findByLabelText("Вариант B правильный"));
-    await user.click(screen.getByRole("button", { name: "Опубликовать" }));
+    await user.click(screen.getByRole("button", { name: "Сохранить" })); // админ публикует сразу (№87)
     expect(await screen.findByText("Опубликовано.")).toBeTruthy();
     expect(saved[0].p_q.status).toBe("published");
     expect(saved[0].p_options.map((o) => o.is_correct)).toEqual([false, true, false]);
@@ -220,11 +237,11 @@ describe("админка", () => {
     const { api } = fakeApi({ id: "admin", email: "a@x.kz", role: "admin" });
     render(<AdminApp api={api} />);
     await user.click(await screen.findByRole("button", { name: /2\+2\?/ }));
-    for (const l of ["KK", "RU", "EN"]) {
-      await user.click(await screen.findByRole("tab", { name: new RegExp(l) }));
+    for (const [l, tab] of [["KK", "Казахский"], ["RU", "Русский"], ["EN", "Английский"]]) {
+      await user.click(await screen.findByRole("tab", { name: new RegExp(tab) }));
       await user.clear(screen.getByLabelText(`Вариант C (${l})`));
     }
-    await user.click(screen.getByRole("button", { name: "Опубликовать" }));
+    await user.click(screen.getByRole("button", { name: "Сохранить" }));
     const alert = await screen.findByRole("alert");
     expect(within(alert).getByText("Нужно 3 или 4 варианта ответа, сейчас 2.")).toBeTruthy();
     expect(api.saveQuestion).not.toHaveBeenCalled();
@@ -290,7 +307,7 @@ describe("админка", () => {
     render(<AdminApp api={fakeApi({ id: "admin", email: "a@x.kz", role: "admin" }).api} />);
     await user.click(await screen.findByRole("button", { name: "KK" }));
     expect(screen.getByRole("button", { name: "Excel-ден жүктеу" })).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Тексеруде" })).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Тексеруде" })).toBeTruthy();
     expect(JSON.parse(localStorage.getItem("bt-prefs")!).lang).toBe("kk");
     await user.click(screen.getByRole("button", { name: "EN" }));
     expect(screen.getByRole("button", { name: "Import from Excel" })).toBeTruthy();
@@ -391,7 +408,7 @@ describe("админка", () => {
     const user = userEvent.setup();
     const { api, regions, schools } = fakeApi({ id: "admin", email: "a@x.kz", role: "admin" });
     render(<AdminApp api={api} />);
-    await user.click(await screen.findByRole("button", { name: "Школы" }));
+    await user.click(await screen.findByRole("link", { name: "Школы" }));
     await user.selectOptions(await screen.findByLabelText("Область / город"), "Абайская область");
     await user.click(screen.getByRole("button", { name: "+ район / город" }));
     await user.type(screen.getByLabelText("Название RU"), "Семей");
@@ -411,16 +428,16 @@ describe("админка", () => {
 
   it("учитель не видит экраны «Школы» и «Пользователи»", async () => {
     render(<AdminApp api={fakeApi({ id: "teacher", email: "t@x.kz", role: "teacher" }).api} />);
-    await screen.findByRole("button", { name: "Вопросы" });
-    expect(screen.queryByRole("button", { name: "Школы" })).toBeNull();
-    expect(screen.queryByRole("button", { name: "Пользователи" })).toBeNull();
+    await screen.findByRole("link", { name: "Вопросы" });
+    expect(screen.queryByRole("link", { name: "Школы" })).toBeNull();
+    expect(screen.queryByRole("link", { name: "Пользователи" })).toBeNull();
   });
 
   it("«Пользователи»: создать учителя (предметы — по классам), временный пароль показан один раз", async () => {
     const user = userEvent.setup();
     const { api } = fakeApi({ id: "admin", email: "a@x.kz", role: "admin" });
     render(<AdminApp api={api} />);
-    await user.click(await screen.findByRole("button", { name: "Пользователи" }));
+    await user.click(await screen.findByRole("link", { name: "Пользователи" }));
     expect(await screen.findByText("kid07")).toBeTruthy();
     expect(screen.getByText("входит по нику")).toBeTruthy(); // технический адрес ученика не показываем
 
@@ -458,7 +475,7 @@ describe("админка", () => {
     const { api, users, getSettings } = fakeApi({ id: "admin", email: "a@x.kz", role: "admin" });
     vi.spyOn(window, "confirm").mockReturnValue(true);
     render(<AdminApp api={api} />);
-    await user.click(await screen.findByRole("button", { name: "Пользователи" }));
+    await user.click(await screen.findByRole("link", { name: "Пользователи" }));
     const kid = (await screen.findByText("kid07")).closest("li")!;
     const me = screen.getByText("(вы)").closest("li")!;
     expect(within(me).queryByRole("button", { name: "Заблокировать" })).toBeNull();
@@ -472,5 +489,116 @@ describe("админка", () => {
     await user.click(screen.getAllByRole("button", { name: "Сохранить" }).at(-1)!);
     expect(await screen.findByText("Сохранено.")).toBeTruthy();
     expect(getSettings()).toMatchObject({ student: true, teacher: false });
+  });
+
+  it("3 шага: класс и предмет → тема → новый вопрос; «Назад» браузера возвращает на шаг", async () => {
+    const user = userEvent.setup();
+    history.replaceState(null, "", "/admin/questions");
+    const { api, saved } = fakeApi({ id: "admin", email: "a@x.kz", role: "admin" });
+    render(<AdminApp api={api} />);
+    expect(await screen.findByRole("heading", { name: "В какой класс добавляем вопросы?" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "5" }).getAttribute("aria-pressed")).toBe("true");
+    await user.click(await screen.findByRole("link", { name: /Математика/ }));
+    expect(location.pathname).toBe("/admin/questions/math/5");
+    expect(await screen.findByRole("heading", { name: "Выберите тему" })).toBeTruthy();
+    expect(screen.getByText("В каждой теме нужно не меньше 5 вопросов.")).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Обыкновенные дроби" })).toBeTruthy(); // раздел
+    const topic = screen.getByRole("link", { name: "Дроби" }).closest("li")!;
+    expect(within(topic).getByText("0 / 5")).toBeTruthy(); // опубликованных пока нет
+    await user.click(within(topic).getByRole("link", { name: "+ Добавить вопрос" }));
+    expect(location.pathname).toBe("/admin/questions/topic/t1/new");
+
+    expect(await screen.findByRole("heading", { name: "Новый вопрос" })).toBeTruthy();
+    expect(screen.getByRole("tab", { name: /Казахский/ }).getAttribute("aria-selected")).toBe("true");
+    await user.click(screen.getByRole("button", { name: "Сохранить и следующий вопрос" }));
+    const alert = await screen.findByRole("alert");
+    expect(within(alert).getByText("Напишите вопрос.")).toBeTruthy();
+    expect(within(alert).getByText("Отметьте правильный ответ.")).toBeTruthy();
+
+    await user.type(screen.getByLabelText("Текст вопроса (KK)"), "3 + 4 = ?");
+    for (const [i, v] of ["7", "6", "8"].entries()) await user.type(screen.getByLabelText(`Вариант ${"ABC"[i]} (KK)`), v);
+    await user.click(screen.getByLabelText("Вариант A правильный"));
+    expect(screen.getByText("верно")).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: "Сохранить и следующий вопрос" }));
+    expect(await screen.findByText("Сохранено. Пишите следующий вопрос.")).toBeTruthy();
+    // только на казахском, 4-й ответ пустой — публикуется (№88), пустая строка не сохраняется
+    expect(saved[0].p_q).toMatchObject({ status: "published", text_kk: "3 + 4 = ?", text_ru: null });
+    expect(saved[0].p_options).toHaveLength(3);
+    expect((screen.getByLabelText("Текст вопроса (KK)") as HTMLTextAreaElement).value).toBe(""); // форма пустая
+    // счётчик — по языку админки (№88): админка на русском, вопрос только на казахском
+    expect(await screen.findByText("В этой теме: 0 / 5")).toBeTruthy();
+
+    history.back();
+    expect(await screen.findByRole("heading", { name: "Выберите тему" })).toBeTruthy();
+  });
+
+  it("учитель: один класс и один предмет — сразу шаг 2; меню «⋯» нет; вопрос — черновик и «Отправить на проверку»", async () => {
+    const user = userEvent.setup();
+    history.replaceState(null, "", "/admin/questions");
+    const { api, saved, setScope } = fakeApi({ id: "teacher", email: "t@x.kz", role: "teacher" });
+    setScope({ subjects: ["s1"], grades: [5] });
+    render(<AdminApp api={api} />);
+    expect(await screen.findByRole("heading", { name: "Выберите тему" })).toBeTruthy();
+    expect(location.pathname).toBe("/admin/questions/math/5");
+    expect(screen.queryByRole("button", { name: /действия/ })).toBeNull();
+    expect(screen.getByRole("button", { name: "Excel ▾" })).toBeTruthy();
+
+    await user.click(within(screen.getByRole("link", { name: "Сложение" }).closest("li")!).getByRole("link", { name: "+ Добавить вопрос" }));
+    expect(await screen.findByRole("button", { name: "Отправить на проверку" })).toBeTruthy();
+    await user.type(screen.getByLabelText("Текст вопроса (KK)"), "2 · 3 = ?");
+    for (const [i, v] of ["6", "5", "9"].entries()) await user.type(screen.getByLabelText(`Вариант ${"ABC"[i]} (KK)`), v);
+    await user.click(screen.getByLabelText("Вариант A правильный"));
+    await user.click(screen.getByRole("button", { name: "Сохранить и следующий вопрос" }));
+    await vi.waitFor(() => expect(saved[0]?.p_q.status).toBe("draft"));
+  });
+
+  it("учитель удаляет свой черновик (с подтверждением); админ — меню «⋯» у темы", async () => {
+    const user = userEvent.setup();
+    const ask = vi.spyOn(window, "confirm").mockReturnValue(true);
+    history.replaceState(null, "", "/admin/questions/q/q2");
+    const { api } = fakeApi({ id: "teacher", email: "t@x.kz", role: "teacher" });
+    render(<AdminApp api={api} />);
+    await user.click(await screen.findByRole("button", { name: "Удалить" }));
+    expect(api.deleteQuestion).toHaveBeenCalledWith("q2");
+    expect(location.pathname).toBe("/admin/questions/topic/t1");
+    ask.mockRestore();
+    cleanup();
+
+    history.replaceState(null, "", "/admin/questions/math/5");
+    render(<AdminApp api={fakeApi({ id: "admin", email: "a@x.kz", role: "admin" }).api} />);
+    await user.click(await screen.findByRole("button", { name: "«Дроби»: действия" }));
+    expect(screen.getByRole("menuitem", { name: "переименовать" })).toBeTruthy();
+    expect(screen.getByRole("menuitem", { name: "удалить" })).toBeTruthy();
+  });
+
+  it("«На проверке»: «Опубликовать» сразу; «Вернуть» — только с причиной", async () => {
+    const user = userEvent.setup();
+    history.replaceState(null, "", "/admin/review");
+    const { api, saved } = fakeApi({ id: "admin", email: "a@x.kz", role: "admin" });
+    render(<AdminApp api={api} />);
+    await user.click(await screen.findByRole("button", { name: "Вернуть" }));
+    await user.click(screen.getByRole("button", { name: "Вернуть учителю" }));
+    expect(screen.getByRole("alert").textContent).toBe("Напишите причину.");
+    await user.type(screen.getByLabelText(/Причина возврата/), "Добавьте пояснение");
+    await user.click(screen.getByRole("button", { name: "Вернуть учителю" }));
+    expect(await screen.findByText("Возвращено учителю.")).toBeTruthy();
+    expect(saved[0].p_q).toMatchObject({ status: "draft", review_comment: "Добавьте пояснение" });
+  });
+
+  it("«Мои вопросы»: сначала возвращённые с причиной; «Нужен перевод» — вопросы без RU или EN", async () => {
+    history.replaceState(null, "", "/admin/my");
+    const { api, questions } = fakeApi({ id: "teacher", email: "t@x.kz", role: "teacher" });
+    questions[1].review_comment = "Нет правильного ответа";
+    questions[1].text_en = null;
+    render(<AdminApp api={api} />);
+    const items = await screen.findAllByRole("listitem");
+    expect(within(items[0]).getByText("Возвращён")).toBeTruthy();
+    expect(within(items[0]).getByText(/Нет правильного ответа/)).toBeTruthy();
+    cleanup();
+
+    history.replaceState(null, "", "/admin/questions/translate");
+    render(<AdminApp api={api} />);
+    expect(await screen.findByRole("link", { name: /Неполный/ })).toBeTruthy();
+    expect(screen.queryByRole("link", { name: /2\+2\?/ })).toBeNull();
   });
 });

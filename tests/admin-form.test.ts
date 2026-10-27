@@ -114,3 +114,18 @@ describe("дерево тем: разделы и порядок", () => {
     expect(renumber(flatTopics(up)).map((x) => [x.id, x.sort_order])).toEqual([["b1", 0], ["a1", 1], ["a2", 2]]);
   });
 });
+
+describe("адреса экранов админки (№87)", () => {
+  it("каждый экран открывается по своему адресу и обратно", async () => {
+    const { parsePath, toPath } = await import("../src/admin/route");
+    const views = [
+      { name: "grade" }, { name: "topics", slug: "math", grade: 5 }, { name: "excel", slug: "math", grade: 5 },
+      { name: "topic", topicId: "t1" }, { name: "new", topicId: "t1" }, { name: "edit", id: "q1" },
+      { name: "search" }, { name: "translate" }, { name: "my" }, { name: "review" }, { name: "schools" }, { name: "users" },
+    ] as const;
+    for (const v of views) expect(parsePath(toPath(v))).toEqual(v);
+    expect(toPath({ name: "new", topicId: "t1" })).toBe("/admin/questions/topic/t1/new");
+    expect(parsePath("/admin")).toEqual({ name: "grade" });
+    expect(parsePath("/admin/questions/math/12")).toEqual({ name: "grade" }); // класса 12 нет
+  });
+});

@@ -68,6 +68,7 @@ export interface SignupSettings {
   student: boolean;
   teacher_drafts_per_day: number;
   student_signups_per_hour: number;
+  topic_min_questions: number; // сколько опубликованных вопросов нужно теме (№87)
 }
 
 /** Раздел — группа тем внутри предмета и класса (DECISIONS.md №48). */
@@ -101,6 +102,7 @@ export interface QuestionItem {
   text_ru: string | null;
   text_en: string | null;
   review_comment: string | null;
+  author_id?: string | null;
   updated_at: string;
   teacher_check?: string | null;
   topics: Pick<TopicRow, "grade" | "subject_id" | "title_kk" | "title_ru" | "title_en">;
@@ -124,6 +126,15 @@ export interface QuestionFilter {
   missingLang?: Lang; // вопросы без текста на этом языке
   search?: string;
   teacherCheck?: boolean; // только «требует проверки учителем»
+  authorId?: string; // вопросы этого автора («Менің сұрақтарым»)
+  needsTranslation?: boolean; // нет текста RU или EN («Аударма керек», №88)
+}
+
+/** Готовые вопросы темы: опубликованные и полные на языке (функция базы topic_counts). */
+export interface TopicCount {
+  topic_id: string;
+  subject_id: string;
+  ready: number;
 }
 
 export type Counts = Record<Status, number>;
@@ -159,6 +170,12 @@ export interface AdminApi {
   topic(id: string): Promise<TopicRow>;
   /** Число вопросов в темах по статусам (учитель видит опубликованные и свои). */
   counts(topicIds: string[]): Promise<Record<string, Counts>>;
+  /** Все темы класса с числом готовых вопросов на языке (шаги 1–2). */
+  topicCounts(grade: number, lang: Lang): Promise<TopicCount[]>;
+  /** Сколько опубликованных вопросов нужно теме (настройка, №87). */
+  topicMin(): Promise<number>;
+  /** Классы и предметы из анкеты учителя; null — без ограничений (админ или анкеты нет). */
+  teacherScope(): Promise<{ subjects: string[]; grades: number[] } | null>;
   saveTopic(t: Omit<TopicRow, "id"> & { id?: string }): Promise<void>;
   deleteTopic(id: string): Promise<void>;
 
@@ -331,6 +348,20 @@ export function supabaseApi(sb: SupabaseClient): AdminApi {
       for (const r of rows) (out[r.topic_id] ??= { draft: 0, review: 0, published: 0 })[r.status]++;
       return out;
     },
+    async topicCounts(grade, lang) {
+      return check(await sb.rpc("topic_counts", { p_grade: grade, p_lang: lang })) as TopicCount[];
+    },
+    async topicMin() {
+      return Number(check(await sb.rpc("topic_min_questions")) ?? 5);
+    },
+    async teacherScope() {
+      const { data } = await sb.auth.getSession();
+      const id = data.session?.user.id;
+      if (!id) return null;
+      const r = check(await sb.from("teacher_info").select("subjects, grades").eq("user_id", id).maybeSingle()) as
+        { subjects: string[]; grades: number[] } | null;
+      return r && r.subjects.length && r.grades.length ? r : null;
+    },
     async saveTopic({ id, ...t }) {
       check(id ? await sb.from("topics").update(t).eq("id", id) : await sb.from("topics").insert(t));
     },
@@ -340,7 +371,7 @@ export function supabaseApi(sb: SupabaseClient): AdminApi {
 
     async questions(f) {
       let q = sb.from("questions")
-        .select("id, topic_id, status, text_kk, text_ru, text_en, review_comment, teacher_check, updated_at, " +
+        .select("id, topic_id, status, text_kk, text_ru, text_en, review_comment, teacher_check, author_id, updated_at, " +
           "topics!inner(grade, subject_id, title_kk, title_ru, title_en)")
         .order("sort_order").limit(300);
       if (f.topicId) q = q.eq("topic_id", f.topicId);
@@ -349,6 +380,8 @@ export function supabaseApi(sb: SupabaseClient): AdminApi {
       if (f.grade) q = q.eq("topics.grade", f.grade);
       if (f.status) q = q.eq("status", f.status);
       if (f.teacherCheck) q = q.not("teacher_check", "is", null);
+      if (f.authorId) q = q.eq("author_id", f.authorId);
+      if (f.needsTranslation) q = q.or("text_ru.is.null,text_ru.eq.,text_en.is.null,text_en.eq.");
       if (f.missingLang) q = q.or(`text_${f.missingLang}.is.null,text_${f.missingLang}.eq.`);
       const s = cleanSearch(f.search ?? "");
       if (s) q = q.or(["kk", "ru", "en"].map((l) => `text_${l}.ilike."*${s}*"`).join(","));
@@ -421,13 +454,14 @@ export function supabaseApi(sb: SupabaseClient): AdminApi {
         teacher: v("signup").teacher === true, student: v("signup").student === true,
         teacher_drafts_per_day: Number(v("limits").teacher_drafts_per_day ?? 50),
         student_signups_per_hour: Number(v("limits").student_signups_per_hour ?? 60),
+        topic_min_questions: Number(v("limits").topic_min_questions ?? 5),
       };
     },
     async saveSettings(s) {
       // limits дополняется, а не заменяется: в нём есть и другие лимиты (попытки, жалобы).
       const rows = check(await sb.from("app_settings").select("value").eq("key", "limits")) as { value: object }[];
       const limits = { ...(rows[0]?.value ?? {}), teacher_drafts_per_day: s.teacher_drafts_per_day,
-        student_signups_per_hour: s.student_signups_per_hour };
+        student_signups_per_hour: s.student_signups_per_hour, topic_min_questions: s.topic_min_questions };
       check(await sb.from("app_settings").upsert([
         { key: "signup", value: { teacher: s.teacher, student: s.student } },
         { key: "limits", value: limits },

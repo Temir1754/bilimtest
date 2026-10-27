@@ -125,6 +125,22 @@ describe.skipIf(!configured)("Supabase: правила доступа", () => {
     expect(error?.code).toBe("42501");
   });
 
+  it("«Сұрақтар» в 3 шага (№87–89): вопрос только на казахском публикуется; подсчёт по языку; учитель удаляет свой черновик", async () => {
+    const kkOnly = [0, 1, 2].map((i) => ({ text_kk: `ж${i}`, is_correct: i === 0 }));
+    const { data: id, error } = await clients.admin.rpc("save_question", {
+      p_id: null, p_q: { topic_id: topicId, text_kk: "Тек қазақша", status: "published" }, p_options: kkOnly });
+    expect(error).toBeNull();
+    const count = async (lang: string) => ((await clients.teacherA.rpc("topic_counts", { p_grade: 5, p_lang: lang })).data as
+      { topic_id: string; ready: number }[]).find((x) => x.topic_id === topicId)!.ready;
+    expect(await count("kk")).toBeGreaterThan(await count("en"));
+    expect((await clients.teacherA.rpc("topic_min_questions")).data).toBe(5);
+    await sql`delete from public.questions where id = ${id as string}`;
+
+    const { data: mine } = await clients.teacherA.from("questions").insert({ topic_id: topicId, text_kk: "Өшіремін" }).select("id").single();
+    expect((await clients.teacherB.from("questions").delete().eq("id", mine!.id).select("id")).data).toEqual([]);
+    expect((await clients.teacherA.from("questions").delete().eq("id", mine!.id).select("id")).data).toHaveLength(1);
+  });
+
   it("аноним отправляет попытку и жалобу, но не читает их", async () => {
     const qs = await sql`select q.id, (select id from public.options where question_id = q.id and is_correct) as right
       from public.questions q where q.legacy_key like 'math|5|1|%' order by q.sort_order`;

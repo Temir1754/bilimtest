@@ -478,7 +478,7 @@ function SubjectForm({ api, subject, nextSort, onDone }: {
 }
 
 // Название на трёх языках — для раздела и темы. У темы ещё выбор раздела: тема с новым разделом встаёт в его конец.
-function TitleForm({ api, kind, row, base, sections = [], nextSort = 0, onDone }: {
+export function TitleForm({ api, kind, row, base, sections = [], nextSort = 0, onDone }: {
   api: AdminApi;
   kind: "section" | "topic";
   row: SectionRow | TopicRow | null;

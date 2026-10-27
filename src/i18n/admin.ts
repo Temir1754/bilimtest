@@ -13,8 +13,26 @@ const kk = {
   logout: "Шығу",
   menu: { label: "Аккаунт мәзірі", site: "Сайтқа өту", cabinet: "Кабинет" },
   noAccess: (email: string) => `${email} аккаунтының әкімші панеліне рұқсаты жоқ. Әкімшіден мұғалім рөлін беруді сұраңыз.`,
-  nav: { label: "Бөлімдер", questions: "Сұрақтар", review: "Тексеруде", schools: "Мектептер", users: "Пайдаланушылар" },
+  nav: { label: "Бөлімдер", questions: "Сұрақтар", review: "Тексеруде", schools: "Мектептер", users: "Пайдаланушылар", my: "Менің сұрақтарым" },
 
+  steps: {
+    label: "Қадамдар", bar: ["1. Сынып пен пән", "2. Тақырып", "3. Сұрақ"],
+    gradeTitle: "Қай сыныпқа сұрақ қосамыз?", subjectTitle: "Пәнді таңдаңыз", noSubjects: "Бұл сыныпта әзірге пән жоқ.",
+    count: (n: number) => `${n} сұрақ бар`, fill: (done: number, all: number) => `${all} тақырыптың ${done} толық`,
+    search: "Барлық сұрақтарды іздеу", translate: "Аударма керек",
+    back: (g: number, subject: string) => `← ${g}-сынып · ${subject}`,
+    topicsTitle: "Тақырыпты таңдаңыз", hint: (n: number) => `Әр тақырыпқа кемінде ${n} сұрақ керек.`,
+    noTopics: "Бұл пәнде әзірге тақырып жоқ.", add: "+ Сұрақ қосу", open: "Ашу",
+    done: (n: number) => `✓ ${n} сұрақ`, of: (n: number, min: number) => `${n} / ${min}`,
+    ofTitle: (n: number, min: number) => `Жарияланған: ${n}, керек: ${min}`,
+    excel: "Excel", more: (name: string) => `«${name}»: әрекеттер`,
+    topicBack: (title: string) => `← ${title}`, inTopic: (n: number, min: number) => `Бұл тақырыпта: ${n} / ${min}`,
+    noQuestions: "Бұл тақырыпта әзірге сұрақ жоқ.",
+    returned: "Қайтарылды", reason: "себебі:",
+    myTitle: "Менің сұрақтарым", myEmpty: "Сізде әзірге сұрақ жоқ. «Сұрақтар» бөлімінде тақырыпты таңдап, сұрақ қосыңыз.",
+    translateLede: "RU немесе EN мәтіні жоқ сұрақтар. Аударманы қосып, сақтаңыз. Мұғалім өз сұрақтарын аудара алады, жарияланған сұрақтарды — әкімші.",
+    translateEmpty: "Аударма керек сұрақ жоқ.", foreign: "оқуға ғана",
+  },
   login: {
     newTitle: "Жаңа құпиясөз", newLede: "Кемінде 6 таңба. Оны есте сақтаңыз немесе жазып қойыңыз.",
     newPassword: "Жаңа құпиясөз", repeat: "Құпиясөзді қайталаңыз", mismatch: "Құпиясөздер сәйкес емес.",
@@ -82,6 +100,13 @@ const kk = {
     deleteBtn: "Жою", confirmLeave: "Сақталмаған өзгерістер бар. Сақтамай жабу керек пе?",
     confirmDelete: "Сұрақты біржола жою керек пе? Мұны қайтару мүмкін емес.",
     previewShow: "▸ Оқушы көзімен алдын ала қарау", previewHide: "▾ Алдын ала қарауды жасыру", previewLang: "Алдын ала қарау тілі",
+    langTab: { kk: "Қазақша", ru: "Орысша (міндетті емес)", en: "Ағылшынша (міндетті емес)" } as Record<Lang, string>,
+    langOnly: { kk: "Қазақша", ru: "Орысша", en: "Ағылшынша" } as Record<Lang, string>,
+    questionLabel: "Сұрақ", answers: "Жауаптар", answersHint: "— дұрысын белгілеңіз", correctTag: "дұрыс",
+    answerN: (n: number) => `${n}-жауап`, optionalAnswer: "міндетті емес",
+    explanationLabel: "Түсіндірме", explanationHint: "міндетті емес — оқушы қате жауап бергенде көреді",
+    saveNext: "Сақтау және келесі сұрақ", savedNext: "Сақталды. Келесі сұрақты жазыңыз.",
+    more: "Қосымша", saveDraft: "Жоба ретінде сақтау", returned: "Қайтарылды — себебі:",
   },
 
   problems: {
@@ -95,8 +120,10 @@ const kk = {
 
   review: {
     title: "Тексеруде",
-    lede: "Сұрақты ашып, алдын ала қарауда тексеріңіз де, «Жариялау» немесе мұғалімге пікірмен «Пысықтауға қайтару» батырмасын басыңыз.",
+    lede: "Мұғалімдер тексеруге жіберген сұрақтар. «Жариялау» — сұрақ оқушыларға көрінеді; «Қайтару» — себебін жазыңыз, мұғалім оны көреді. Сұрақтың өзін ашып, түзетуге де болады.",
     empty: "Тексеруді күтіп тұрған ештеңе жоқ.",
+    publish: "Жариялау", ret: "Қайтару", reason: "Қайтару себебі (мұғалім көреді)", send: "Мұғалімге қайтару",
+    needReason: "Себебін жазыңыз.", published: "Жарияланды.", returnedMsg: "Мұғалімге қайтарылды.",
   },
 
   users: {
@@ -119,7 +146,7 @@ const kk = {
     settings: {
       title: "Тіркелу баптаулары", student: "Оқушыларды тіркеу (пилот: лақап ат, құпиясөз, сынып)",
       teacher: "Мұғалімдердің өздері тіркелуі", teacherWarn: "Домен мен пошта қосылғанша қоспаңыз (№79)",
-      drafts: "Мұғалімге күніне жобалар", signups: "Бір мекенжайдан сағатына оқушы тіркеу", saved: "Сақталды.",
+      drafts: "Мұғалімге күніне жобалар", topicMin: "Тақырыпқа керек сұрақ саны", signups: "Бір мекенжайдан сағатына оқушы тіркеу", saved: "Сақталды.",
     },
     err: {
       emailTaken: "Бұл email-мен аккаунт бар.", nickTaken: "Бұл лақап ат бос емес.", badEmail: "Email дұрыс емес.",
@@ -213,8 +240,26 @@ const ru: AdminText = {
   logout: "Выйти",
   menu: { label: "Меню аккаунта", site: "На сайт", cabinet: "Кабинет" },
   noAccess: (email) => `У аккаунта ${email} нет доступа к админке. Попросите админа выдать роль учителя.`,
-  nav: { label: "Разделы", questions: "Вопросы", review: "На проверке", schools: "Школы", users: "Пользователи" },
+  nav: { label: "Разделы", questions: "Вопросы", review: "На проверке", schools: "Школы", users: "Пользователи", my: "Мои вопросы" },
 
+  steps: {
+    label: "Шаги", bar: ["1. Класс и предмет", "2. Тема", "3. Вопрос"],
+    gradeTitle: "В какой класс добавляем вопросы?", subjectTitle: "Выберите предмет", noSubjects: "В этом классе пока нет предметов.",
+    count: (n) => `${n} вопросов`, fill: (done, all) => `заполнено тем: ${done} из ${all}`,
+    search: "Поиск по всем вопросам", translate: "Нужен перевод",
+    back: (g, subject) => `← ${g} класс · ${subject}`,
+    topicsTitle: "Выберите тему", hint: (n) => `В каждой теме нужно не меньше ${n} вопросов.`,
+    noTopics: "В этом предмете пока нет тем.", add: "+ Добавить вопрос", open: "Открыть",
+    done: (n) => `✓ ${n} вопр.`, of: (n, min) => `${n} / ${min}`,
+    ofTitle: (n, min) => `Опубликовано: ${n}, нужно: ${min}`,
+    excel: "Excel", more: (name) => `«${name}»: действия`,
+    topicBack: (title) => `← ${title}`, inTopic: (n, min) => `В этой теме: ${n} / ${min}`,
+    noQuestions: "В этой теме пока нет вопросов.",
+    returned: "Возвращён", reason: "причина:",
+    myTitle: "Мои вопросы", myEmpty: "У вас пока нет вопросов. Выберите тему в «Вопросах» и добавьте вопрос.",
+    translateLede: "Вопросы без текста RU или EN. Добавьте перевод и сохраните. Учитель переводит свои вопросы, опубликованные — админ.",
+    translateEmpty: "Вопросов без перевода нет.", foreign: "только просмотр",
+  },
   login: {
     newTitle: "Новый пароль", newLede: "Не меньше 6 символов. Запомните его или запишите.",
     newPassword: "Новый пароль", repeat: "Повторите пароль", mismatch: "Пароли не совпадают.",
@@ -282,6 +327,13 @@ const ru: AdminText = {
     deleteBtn: "Удалить", confirmLeave: "Есть несохранённые изменения. Закрыть без сохранения?",
     confirmDelete: "Удалить вопрос навсегда? Это нельзя отменить.",
     previewShow: "▸ Предпросмотр глазами ученика", previewHide: "▾ Скрыть предпросмотр", previewLang: "Язык предпросмотра",
+    langTab: { kk: "Казахский", ru: "Русский (необязательно)", en: "Английский (необязательно)" },
+    langOnly: { kk: "Казахский", ru: "Русский", en: "Английский" },
+    questionLabel: "Вопрос", answers: "Ответы", answersHint: "— отметьте правильный", correctTag: "верно",
+    answerN: (n) => `Ответ ${n}`, optionalAnswer: "необязательно",
+    explanationLabel: "Пояснение", explanationHint: "необязательно — ученик видит, если ответил неверно",
+    saveNext: "Сохранить и следующий вопрос", savedNext: "Сохранено. Пишите следующий вопрос.",
+    more: "Дополнительно", saveDraft: "Сохранить черновиком", returned: "Возвращён — причина:",
   },
 
   problems: {
@@ -295,8 +347,10 @@ const ru: AdminText = {
 
   review: {
     title: "На проверке",
-    lede: "Откройте вопрос, проверьте его в предпросмотре и нажмите «Опубликовать» или «Вернуть на доработку» с комментарием для учителя.",
+    lede: "Вопросы, которые учителя отправили на проверку. «Опубликовать» — вопрос увидят ученики; «Вернуть» — напишите причину, учитель её увидит. Вопрос можно и открыть, чтобы исправить.",
     empty: "Ничего не ждёт проверки.",
+    publish: "Опубликовать", ret: "Вернуть", reason: "Причина возврата (её увидит учитель)", send: "Вернуть учителю",
+    needReason: "Напишите причину.", published: "Опубликовано.", returnedMsg: "Возвращено учителю.",
   },
 
   users: {
@@ -319,7 +373,7 @@ const ru: AdminText = {
     settings: {
       title: "Настройки регистрации", student: "Регистрация учеников (пилот: ник, пароль, класс)",
       teacher: "Самостоятельная регистрация учителей", teacherWarn: "Не включайте до домена и почты (№79)",
-      drafts: "Черновиков в день у учителя", signups: "Регистраций учеников в час с одного адреса", saved: "Сохранено.",
+      drafts: "Черновиков в день у учителя", topicMin: "Сколько вопросов нужно теме", signups: "Регистраций учеников в час с одного адреса", saved: "Сохранено.",
     },
     err: {
       emailTaken: "Аккаунт с таким email уже есть.", nickTaken: "Этот ник уже занят.", badEmail: "Неверный email.",
@@ -411,8 +465,26 @@ const en: AdminText = {
   logout: "Log out",
   menu: { label: "Account menu", site: "Go to site", cabinet: "Dashboard" },
   noAccess: (email) => `The account ${email} has no access to the admin panel. Ask an admin to give you the teacher role.`,
-  nav: { label: "Sections", questions: "Questions", review: "In review", schools: "Schools", users: "Users" },
+  nav: { label: "Sections", questions: "Questions", review: "In review", schools: "Schools", users: "Users", my: "My questions" },
 
+  steps: {
+    label: "Steps", bar: ["1. Grade and subject", "2. Topic", "3. Question"],
+    gradeTitle: "Which grade are we adding questions to?", subjectTitle: "Choose a subject", noSubjects: "No subjects in this grade yet.",
+    count: (n) => `${n} questions`, fill: (done, all) => `${done} of ${all} topics complete`,
+    search: "Search all questions", translate: "Needs translation",
+    back: (g, subject) => `← Grade ${g} · ${subject}`,
+    topicsTitle: "Choose a topic", hint: (n) => `Each topic needs at least ${n} questions.`,
+    noTopics: "No topics in this subject yet.", add: "+ Add question", open: "Open",
+    done: (n) => `✓ ${n} questions`, of: (n, min) => `${n} / ${min}`,
+    ofTitle: (n, min) => `Published: ${n}, needed: ${min}`,
+    excel: "Excel", more: (name) => `“${name}”: actions`,
+    topicBack: (title) => `← ${title}`, inTopic: (n, min) => `In this topic: ${n} / ${min}`,
+    noQuestions: "No questions in this topic yet.",
+    returned: "Returned", reason: "reason:",
+    myTitle: "My questions", myEmpty: "You have no questions yet. Pick a topic in “Questions” and add one.",
+    translateLede: "Questions without RU or EN text. Add the translation and save. Teachers translate their own questions; published ones are translated by the admin.",
+    translateEmpty: "No questions need translation.", foreign: "view only",
+  },
   login: {
     newTitle: "New password", newLede: "At least 6 characters. Remember it or write it down.",
     newPassword: "New password", repeat: "Repeat password", mismatch: "The passwords don't match.",
@@ -480,6 +552,13 @@ const en: AdminText = {
     deleteBtn: "Delete", confirmLeave: "You have unsaved changes. Close without saving?",
     confirmDelete: "Delete this question forever? This can't be undone.",
     previewShow: "▸ Preview as a student", previewHide: "▾ Hide preview", previewLang: "Preview language",
+    langTab: { kk: "Kazakh", ru: "Russian (optional)", en: "English (optional)" },
+    langOnly: { kk: "Kazakh", ru: "Russian", en: "English" },
+    questionLabel: "Question", answers: "Answers", answersHint: "— mark the correct one", correctTag: "correct",
+    answerN: (n) => `Answer ${n}`, optionalAnswer: "optional",
+    explanationLabel: "Explanation", explanationHint: "optional — the student sees it after a wrong answer",
+    saveNext: "Save and next question", savedNext: "Saved. Write the next question.",
+    more: "More", saveDraft: "Save as draft", returned: "Returned — reason:",
   },
 
   problems: {
@@ -493,8 +572,10 @@ const en: AdminText = {
 
   review: {
     title: "In review",
-    lede: "Open a question, check it in the preview and click “Publish” or “Send back for changes” with a comment for the teacher.",
+    lede: "Questions teachers sent for review. “Publish” — students will see it; “Return” — write the reason, the teacher will see it. You can also open a question to fix it.",
     empty: "Nothing is waiting for review.",
+    publish: "Publish", ret: "Return", reason: "Reason for return (the teacher will see it)", send: "Return to teacher",
+    needReason: "Write the reason.", published: "Published.", returnedMsg: "Returned to the teacher.",
   },
 
   users: {
@@ -517,7 +598,7 @@ const en: AdminText = {
     settings: {
       title: "Sign-up settings", student: "Student sign-up (pilot: nickname, password, grade)",
       teacher: "Teacher self sign-up", teacherWarn: "Don't enable before the domain and email (№79)",
-      drafts: "Teacher drafts per day", signups: "Student sign-ups per hour from one address", saved: "Saved.",
+      drafts: "Teacher drafts per day", topicMin: "Questions needed per topic", signups: "Student sign-ups per hour from one address", saved: "Saved.",
     },
     err: {
       emailTaken: "An account with this email already exists.", nickTaken: "This nickname is taken.", badEmail: "Invalid email.",

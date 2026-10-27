@@ -9,16 +9,12 @@ import { Browser } from "./Browser";
 import { ImportView } from "./ImportView";
 import { AdminLang } from "./lang";
 import { ReviewQueue } from "./ReviewQueue";
+import { navTab, parsePath, toPath, type AdminView } from "./route";
 import { SchoolsView } from "./SchoolsView";
 import { QuestionEditor } from "./QuestionEditor";
+import { Go, GradeStep, MyQuestions, TopicQuestions, TopicsStep, TranslateList, type Nav } from "./Steps";
 import { UsersView } from "./UsersView";
 import "./admin.css";
-
-/** Что открыто: список вопросов, очередь проверки, конкретный вопрос или загрузка из Excel. */
-export type AdminView =
-  | { name: "browse" | "review" | "schools" | "users" }
-  | { name: "edit"; id: string | null; topicId: string; back: "browse" | "review" }
-  | { name: "import"; subjectId: string; grade: number };
 
 export function AdminApp({ api, go = (p) => location.replace(p) }: {
   api: AdminApi;
@@ -27,7 +23,8 @@ export function AdminApp({ api, go = (p) => location.replace(p) }: {
 }) {
   const [me, setMe] = useState<Me | null | undefined>(undefined); // undefined — ещё проверяем
   const [failure, setFailure] = useState<unknown>(null);
-  const [view, setView] = useState<AdminView>({ name: "browse" });
+  // Экран — по адресу (№87): работает кнопка «Назад» браузера.
+  const [view, setView] = useState<AdminView>(() => parsePath(location.pathname));
   // Язык общий с сайтом ученика (bt-prefs): выбрал казахский на сайте — админка тоже на казахском.
   const [prefs, setPrefs] = useState(loadPrefs);
   const lang = prefs.lang;
@@ -64,6 +61,22 @@ export function AdminApp({ api, go = (p) => location.replace(p) }: {
 
   const signOut = () => api.signOut().then(refresh);
 
+  const nav: Nav = useCallback((v, replace = false) => {
+    const path = toPath(v);
+    if (path !== location.pathname) history[replace ? "replaceState" : "pushState"](null, "", path);
+    setView(v);
+    window.scrollTo?.(0, 0);
+  }, []);
+  useEffect(() => {
+    const back = () => setView(parsePath(location.pathname));
+    window.addEventListener("popstate", back);
+    return () => window.removeEventListener("popstate", back);
+  }, []);
+  // В «Барлық сұрақтарды іздеу» вопрос и загрузка открываются по id предмета — адрес строится по его коду.
+  const openExcel = (subjectId: string, grade: number) =>
+    api.subjects().then((list) => { const x = list.find((y) => y.id === subjectId); if (x) nav({ name: "excel", slug: x.slug, grade }); });
+  const tab = navTab(view);
+
   let body;
   if (me === undefined) body = <p className="loading">{t.loading}</p>;
   else if (me === null) body = failure ? <p className="error" role="alert">{humanError(failure, t)}</p> : <p className="loading">{t.loading}</p>;
@@ -77,21 +90,32 @@ export function AdminApp({ api, go = (p) => location.replace(p) }: {
         <button type="button" className="btn ghost" onClick={signOut}>{t.logout}</button>
       </div>
     );
-  } else if (view.name === "edit") {
-    body = <QuestionEditor api={api} me={me} id={view.id} topicId={view.topicId}
-      onClose={() => setView({ name: view.back })} />;
-  } else if (view.name === "import") {
-    body = <ImportView api={api} subjectId={view.subjectId} grade={view.grade} onClose={() => setView({ name: "browse" })} />;
+  } else if (view.name === "edit" || view.name === "new") {
+    body = view.name === "edit"
+      ? <QuestionEditor key={view.id} api={api} me={me} id={view.id} topicId="" nav={nav} />
+      : <QuestionEditor key={`new-${view.topicId}`} api={api} me={me} id={null} topicId={view.topicId} nav={nav} />;
+  } else if (view.name === "excel") {
+    body = <ExcelRoute api={api} slug={view.slug} grade={view.grade} onClose={() => nav({ name: "topics", slug: view.slug, grade: view.grade })} />;
+  } else if (view.name === "topics") {
+    body = <TopicsStep key={`${view.slug}-${view.grade}`} api={api} me={me} slug={view.slug} grade={view.grade} nav={nav} />;
+  } else if (view.name === "topic") {
+    body = <TopicQuestions key={view.topicId} api={api} me={me} topicId={view.topicId} nav={nav} />;
+  } else if (view.name === "my") {
+    body = <MyQuestions api={api} me={me} nav={nav} />;
+  } else if (view.name === "translate") {
+    body = <TranslateList api={api} me={me} nav={nav} />;
   } else if (view.name === "schools" && me.role === "admin") {
     body = <SchoolsView api={api} />;
   } else if (view.name === "users" && me.role === "admin") {
     body = <UsersView api={api} me={me} />;
-  } else if (view.name === "review") {
-    body = <ReviewQueue api={api} onOpen={(id, topicId) => setView({ name: "edit", id, topicId, back: "review" })} />;
-  } else {
+  } else if (view.name === "review" && me.role === "admin") {
+    body = <ReviewQueue api={api} me={me} nav={nav} />;
+  } else if (view.name === "search") {
     body = <Browser api={api} me={me}
-      onOpen={(id, topicId) => setView({ name: "edit", id, topicId, back: "browse" })}
-      onImport={(subjectId, grade) => setView({ name: "import", subjectId, grade })} />;
+      onOpen={(id, topicId) => nav(id ? { name: "edit", id } : { name: "new", topicId })}
+      onImport={openExcel} />;
+  } else {
+    body = <GradeStep api={api} me={me} nav={nav} />;
   }
 
   return (
@@ -105,25 +129,11 @@ export function AdminApp({ api, go = (p) => location.replace(p) }: {
         </a>
         {me && me.role !== "student" && (
           <nav className="adm-nav" aria-label={t.nav.label}>
-            <button type="button" aria-pressed={!["review", "schools", "users"].includes(view.name)}
-              onClick={() => setView({ name: "browse" })}>
-              {t.nav.questions}
-            </button>
-            {me.role === "admin" && (
-              <button type="button" aria-pressed={view.name === "review"} onClick={() => setView({ name: "review" })}>
-                {t.nav.review}
-              </button>
-            )}
-            {me.role === "admin" && (
-              <button type="button" aria-pressed={view.name === "schools"} onClick={() => setView({ name: "schools" })}>
-                {t.nav.schools}
-              </button>
-            )}
-            {me.role === "admin" && (
-              <button type="button" aria-pressed={view.name === "users"} onClick={() => setView({ name: "users" })}>
-                {t.nav.users}
-              </button>
-            )}
+            {/* Учитель: «Сұрақтар» и «Менің сұрақтарым»; админ: ещё «Тексеруде», «Мектептер», «Пайдаланушылар» */}
+            {(me.role === "admin" ? ["questions", "review", "schools", "users"] as const : ["questions", "my"] as const).map((k) => (
+              <Go key={k} to={k === "questions" ? { name: "grade" } : { name: k }} nav={nav}
+                className={tab === k ? "on" : undefined}>{t.nav[k]}</Go>
+            ))}
           </nav>
         )}
         <div className="adm-user">
@@ -144,6 +154,13 @@ export function AdminApp({ api, go = (p) => location.replace(p) }: {
       <main id="main"><div className="wrap">{body}</div></main>
     </AdminLang.Provider>
   );
+}
+
+/** Загрузка из Excel: в адресе код предмета, экрану загрузки нужен его id. */
+function ExcelRoute({ api, slug, grade, onClose }: { api: AdminApi; slug: string; grade: number; onClose: () => void }) {
+  const [id, setId] = useState<string | null>(null);
+  useEffect(() => { api.subjects().then((list) => setId(list.find((x) => x.slug === slug)?.id ?? null)); }, [api, slug]);
+  return id ? <ImportView api={api} subjectId={id} grade={grade} onClose={onClose} /> : null;
 }
 
 /** Новый пароль вместо временного. */

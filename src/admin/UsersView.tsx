@@ -275,6 +275,8 @@ function SettingsPanel({ api }: { api: AdminApi }) {
           onChange={(e) => set({ teacher_drafts_per_day: Number(e.target.value) })} /></label>
         <label>{s.signups}<input type="number" min={1} max={1000} value={v.student_signups_per_hour}
           onChange={(e) => set({ student_signups_per_hour: Number(e.target.value) })} /></label>
+        <label>{s.topicMin}<input type="number" min={1} max={100} value={v.topic_min_questions}
+          onChange={(e) => set({ topic_min_questions: Number(e.target.value) })} /></label>
       </div>
       {error !== null && <p className="error" role="alert">{humanError(error, t)}</p>}
       {saved && <p className="note" role="status">{s.saved}</p>}
