@@ -16,10 +16,22 @@ export interface SubjectRow {
   sort_order: number;
 }
 
+/** Раздел — группа тем внутри предмета и класса (DECISIONS.md №48). */
+export interface SectionRow {
+  id: string;
+  subject_id: string;
+  grade: number;
+  title_kk: string;
+  title_ru: string;
+  title_en: string;
+  sort_order: number;
+}
+
 export interface TopicRow {
   id: string;
   subject_id: string;
   grade: number;
+  section_id: string | null; // null — старая тема без раздела
   title_kk: string;
   title_ru: string;
   title_en: string;
@@ -48,6 +60,7 @@ export interface Me {
 
 export interface QuestionFilter {
   topicId?: string;
+  sectionId?: string;
   subjectId?: string;
   grade?: number;
   status?: Status;
@@ -80,6 +93,11 @@ export interface AdminApi {
   subjects(): Promise<SubjectRow[]>;
   saveSubject(s: Omit<SubjectRow, "id"> & { id?: string }): Promise<void>;
   deleteSubject(id: string): Promise<void>;
+
+  sections(subjectId: string, grade: number): Promise<SectionRow[]>;
+  saveSection(s: Omit<SectionRow, "id"> & { id?: string }): Promise<void>;
+  /** Удаляет раздел (админ); его темы остаются без раздела. */
+  deleteSection(id: string): Promise<void>;
 
   topics(subjectId: string, grade: number): Promise<TopicRow[]>;
   topic(id: string): Promise<TopicRow>;
@@ -132,6 +150,8 @@ export function humanError(e: unknown, t: AdminText): string {
 const QUESTION_COLS = "id, topic_id, text_kk, text_ru, text_en, explanation_kk, explanation_ru, explanation_en, " +
   "image_url, difficulty, status, review_comment, teacher_check, author_id, options(id, sort_order, is_correct, text_kk, text_ru, text_en)";
 
+const TOPIC_COLS = "id, subject_id, grade, section_id, title_kk, title_ru, title_en, sort_order";
+
 /** Убирает из строки поиска символы, которые ломают фильтр PostgREST. */
 const cleanSearch = (s: string) => s.replace(/[%*,()"\\]/g, " ").trim();
 
@@ -182,12 +202,23 @@ export function supabaseApi(sb: SupabaseClient): AdminApi {
       check(await sb.from("subjects").delete().eq("id", id));
     },
 
+    async sections(subjectId, grade) {
+      return check(await sb.from("sections").select("id, subject_id, grade, title_kk, title_ru, title_en, sort_order")
+        .eq("subject_id", subjectId).eq("grade", grade).order("sort_order")) as SectionRow[];
+    },
+    async saveSection({ id, ...s }) {
+      check(id ? await sb.from("sections").update(s).eq("id", id) : await sb.from("sections").insert(s));
+    },
+    async deleteSection(id) {
+      check(await sb.from("sections").delete().eq("id", id));
+    },
+
     async topics(subjectId, grade) {
-      return check(await sb.from("topics").select("id, subject_id, grade, title_kk, title_ru, title_en, sort_order")
+      return check(await sb.from("topics").select(TOPIC_COLS)
         .eq("subject_id", subjectId).eq("grade", grade).eq("archived", false).order("sort_order")) as TopicRow[];
     },
     async topic(id) {
-      return check(await sb.from("topics").select("id, subject_id, grade, title_kk, title_ru, title_en, sort_order")
+      return check(await sb.from("topics").select(TOPIC_COLS)
         .eq("id", id).single()) as TopicRow;
     },
     async counts(topicIds) {
@@ -211,6 +242,7 @@ export function supabaseApi(sb: SupabaseClient): AdminApi {
           "topics!inner(grade, subject_id, title_kk, title_ru, title_en)")
         .order("sort_order").limit(300);
       if (f.topicId) q = q.eq("topic_id", f.topicId);
+      if (f.sectionId) q = q.eq("topics.section_id", f.sectionId);
       if (f.subjectId) q = q.eq("topics.subject_id", f.subjectId);
       if (f.grade) q = q.eq("topics.grade", f.grade);
       if (f.status) q = q.eq("status", f.status);

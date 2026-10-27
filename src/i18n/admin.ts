@@ -35,6 +35,8 @@ const kk = {
     editSubject: "пәнді өзгерту", topicsOf: (g: number) => `Тақырыптар · ${g}-сынып`, addTopic: "+ тақырып",
     noTopics: "Әзірге тақырып жоқ.", allTopics: "Барлық тақырыптар", rename: "атын өзгерту", up: "Жоғары", down: "Төмен",
     drafts: "Жобалар",
+    addSection: "+ бөлім", noSection: "Бөлімсіз", sectionUp: "Бөлім жоғары", sectionDown: "Бөлім төмен",
+    confirmDelSection: (n: string) => `«${n}» бөлімін жою керек пе? Оның тақырыптары мен сұрақтары бөлімсіз қалады.`,
     search: "Сұрақ мәтіні бойынша іздеу", searchLabel: "Іздеу", statusLabel: "Мәртебе", anyStatus: "Кез келген мәртебе",
     langFilter: "Тіл", allLangs: "Барлық тілдер", missing: (l: string) => `${l} мәтіні жоқ`,
     subjGrade: (name: string, g: number) => `${name} · ${g}-сынып`, questions: "Сұрақтар",
@@ -58,7 +60,7 @@ const kk = {
     slug: "Код (латынша, мекенжай үшін)", icon: "Белгі (1–2 таңба)", name: (l: string) => `Атауы ${l}`,
     onlyLang: "Сұрақтар тек бір тілде", threeLangs: "жоқ, үш тілде",
   },
-  topicForm: { title: (l: string) => `Атауы ${l}`, needTitle: "Атауын кемінде бір тілде жазыңыз." },
+  topicForm: { title: (l: string) => `Атауы ${l}`, needTitle: "Атауын кемінде бір тілде жазыңыз.", section: "Бөлім" },
 
   edit: {
     back: "← Тізімге", grade: (g: number) => `${g}-сынып`, question: "Сұрақ", newQuestion: "Жаңа сұрақ",
@@ -199,6 +201,8 @@ const ru: AdminText = {
     editSubject: "изменить предмет", topicsOf: (g) => `Темы · ${g} класс`, addTopic: "+ тема",
     noTopics: "Тем пока нет.", allTopics: "Все темы", rename: "переименовать", up: "Выше", down: "Ниже",
     drafts: "Черновики",
+    addSection: "+ раздел", noSection: "Без раздела", sectionUp: "Раздел выше", sectionDown: "Раздел ниже",
+    confirmDelSection: (n) => `Удалить раздел «${n}»? Его темы и вопросы останутся — без раздела.`,
     search: "Поиск по тексту вопроса", searchLabel: "Поиск", statusLabel: "Статус", anyStatus: "Любой статус",
     langFilter: "Язык", allLangs: "Все языки", missing: (l) => `Нет текста на ${l}`,
     subjGrade: (name, g) => `${name} · ${g} класс`, questions: "Вопросы",
@@ -222,7 +226,7 @@ const ru: AdminText = {
     slug: "Код (латиница, для адресов)", icon: "Значок (1–2 символа)", name: (l) => `Название ${l}`,
     onlyLang: "Вопросы только на одном языке", threeLangs: "нет, на трёх языках",
   },
-  topicForm: { title: (l) => `Название ${l}`, needTitle: "Напишите название хотя бы на одном языке." },
+  topicForm: { title: (l) => `Название ${l}`, needTitle: "Напишите название хотя бы на одном языке.", section: "Раздел" },
 
   edit: {
     back: "← К списку", grade: (g) => `${g} класс`, question: "Вопрос", newQuestion: "Новый вопрос",
@@ -361,6 +365,8 @@ const en: AdminText = {
     editSubject: "edit subject", topicsOf: (g) => `Topics · grade ${g}`, addTopic: "+ topic",
     noTopics: "No topics yet.", allTopics: "All topics", rename: "rename", up: "Up", down: "Down",
     drafts: "Drafts",
+    addSection: "+ section", noSection: "No section", sectionUp: "Section up", sectionDown: "Section down",
+    confirmDelSection: (n) => `Delete the section «${n}»? Its topics and questions stay, without a section.`,
     search: "Search question text", searchLabel: "Search", statusLabel: "Status", anyStatus: "Any status",
     langFilter: "Language", allLangs: "All languages", missing: (l) => `No ${l} text`,
     subjGrade: (name, g) => `${name} · grade ${g}`, questions: "Questions",
@@ -384,7 +390,7 @@ const en: AdminText = {
     slug: "Code (Latin letters, for links)", icon: "Icon (1–2 characters)", name: (l) => `Name ${l}`,
     onlyLang: "Questions in one language only", threeLangs: "no, in three languages",
   },
-  topicForm: { title: (l) => `Name ${l}`, needTitle: "Enter a name in at least one language." },
+  topicForm: { title: (l) => `Name ${l}`, needTitle: "Enter a name in at least one language.", section: "Section" },
 
   edit: {
     back: "← Back to list", grade: (g) => `Grade ${g}`, question: "Question", newQuestion: "New question",

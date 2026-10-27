@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   canEdit, copyFromRu, fromRow, newForm, publishProblems, saveProblems, toPayload, toQuestion, type QuestionRow,
 } from "../src/admin/form";
+import { flatTopics, groupTopics, renumber, swap } from "../src/admin/tree";
+import type { SectionRow, TopicRow } from "../src/admin/api";
 import { ADMIN } from "../src/i18n/admin";
 
 const T = ADMIN.ru;
@@ -68,5 +70,36 @@ describe("форма вопроса", () => {
     expect(canEdit({ ...f, status: "published" }, "admin", "x")).toBe(true);
     expect(canEdit(newForm("t1"), "teacher", "x")).toBe(true);
     expect(canEdit(f, "student", "teacher")).toBe(false);
+  });
+});
+
+describe("дерево тем: разделы и порядок", () => {
+  const sec = (id: string, sort_order: number): SectionRow =>
+    ({ id, subject_id: "s", grade: 5, title_kk: id, title_ru: id, title_en: id, sort_order });
+  const top = (id: string, section_id: string | null, sort_order: number): TopicRow =>
+    ({ id, subject_id: "s", grade: 5, section_id, title_kk: id, title_ru: id, title_en: id, sort_order });
+  const ids = (xs: { id: string }[]) => xs.map((x) => x.id);
+
+  it("разделы по порядку, темы внутри — по номеру; без раздела и с чужим разделом — в конце", () => {
+    const g = groupTopics([sec("B", 1), sec("A", 0)],
+      [top("b1", "B", 3), top("old", null, 0), top("a2", "A", 2), top("a1", "A", 1), top("lost", "X", 5)]);
+    expect(g.map((x) => x.section?.id ?? null)).toEqual(["A", "B", null]);
+    expect(ids(flatTopics(g))).toEqual(["a1", "a2", "b1", "old", "lost"]);
+  });
+
+  it("пустой раздел тоже виден; группы «Без раздела» нет, если все темы в разделах", () => {
+    const g = groupTopics([sec("A", 0), sec("B", 1)], [top("a1", "A", 0)]);
+    expect(g.map((x) => [x.section?.id, x.topics.length])).toEqual([["A", 1], ["B", 0]]);
+  });
+
+  it("сквозные номера: сохраняются только изменившиеся", () => {
+    const g = groupTopics([sec("A", 0), sec("B", 1)], [top("a1", "A", 0), top("a2", "A", 1), top("b1", "B", 2)]);
+    expect(renumber(flatTopics(g))).toEqual([]);
+    const moved = g.map((x, k) => (k === 0 ? { ...x, topics: swap(x.topics, 0, 1) } : x));
+    expect(renumber(flatTopics(moved)).map((x) => [x.id, x.sort_order])).toEqual([["a2", 0], ["a1", 1]]);
+    // раздел B выше раздела A: его тема получает номер 0
+    const up = swap(g, 1, -1);
+    expect(renumber(up.map((x) => x.section!)).map((x) => [x.id, x.sort_order])).toEqual([["B", 0], ["A", 1]]);
+    expect(renumber(flatTopics(up)).map((x) => [x.id, x.sort_order])).toEqual([["b1", 0], ["a1", 1], ["a2", 2]]);
   });
 });

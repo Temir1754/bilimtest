@@ -1,15 +1,19 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { GRADES, LANGS, type Lang } from "../lib/types";
-import { humanError, type AdminApi, type Counts, type Me, type QuestionItem, type SubjectRow, type TopicRow } from "./api";
+import {
+  humanError, type AdminApi, type Counts, type Me, type QuestionItem, type SectionRow, type SubjectRow, type TopicRow,
+} from "./api";
 import { checkSheet, download, exportSheet } from "./excel";
 import { fromRow, publishProblems, type Status } from "./form";
 import { nm, useT } from "./lang";
+import { flatTopics, groupTopics, renumber, swap, type Group } from "./tree";
 
 // Выбор класса, предмета, темы и фильтров переживает переход в форму вопроса и обратно.
 const KEY = "bt-admin";
 interface Sel {
   grade: number;
   subjectId: string | null;
+  sectionId: string | null; // выбран раздел — вопросы всех его тем
   topicId: string | null;
   status: Status | "";
   missingLang: Lang | "";
@@ -17,7 +21,7 @@ interface Sel {
   teacherCheck: boolean; // «требует проверки учителем» — по всем классам и предметам
 }
 function loadSel(): Sel {
-  const d: Sel = { grade: 5, subjectId: null, topicId: null, status: "", missingLang: "", search: "", teacherCheck: false };
+  const d: Sel = { grade: 5, subjectId: null, sectionId: null, topicId: null, status: "", missingLang: "", search: "", teacherCheck: false };
   try {
     return { ...d, ...JSON.parse(sessionStorage.getItem(KEY) ?? "{}") };
   } catch {
@@ -39,12 +43,13 @@ export function Browser({ api, me, onOpen, onImport }: Props) {
   const b = t.browse;
   const [sel, setSel] = useState<Sel>(loadSel);
   const [subjects, setSubjects] = useState<SubjectRow[]>([]);
+  const [sections, setSections] = useState<SectionRow[]>([]);
   const [topics, setTopics] = useState<TopicRow[]>([]);
   const [counts, setCounts] = useState<Record<string, Counts>>({});
   const [questions, setQuestions] = useState<QuestionItem[] | null>(null);
   const [error, setError] = useState<unknown>(null);
   const [notice, setNotice] = useState("");
-  const [editing, setEditing] = useState<"subject-new" | "subject" | "topic-new" | "topic" | null>(null);
+  const [editing, setEditing] = useState<"subject-new" | "subject" | "section-new" | "section" | "topic-new" | "topic" | null>(null);
   const [busy, setBusy] = useState<"export" | "publish" | null>(null);
   const [reload, setReload] = useState(0); // меняется — список вопросов загружается заново
   const mainRef = useRef<HTMLElement>(null);
@@ -56,10 +61,11 @@ export function Browser({ api, me, onOpen, onImport }: Props) {
     return next;
   });
 
-  // На узком экране список вопросов стоит под темами — после выбора темы прокручиваем к нему.
-  const pickTopic = (topicId: string | null) => {
-    update({ topicId });
+  // На узком экране список вопросов стоит под темами — после выбора темы или раздела прокручиваем к нему.
+  const pick = (p: Pick<Sel, "sectionId" | "topicId">) => {
+    update(p);
     setNotice("");
+    setEditing(null);
     if (window.matchMedia?.("(max-width: 820px)").matches) {
       setTimeout(() => mainRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 0);
     }
@@ -69,23 +75,25 @@ export function Browser({ api, me, onOpen, onImport }: Props) {
   useEffect(() => { loadSubjects(); }, [loadSubjects]);
 
   const loadTopics = useCallback(async () => {
-    if (!sel.subjectId) { setTopics([]); setCounts({}); return; }
+    if (!sel.subjectId) { setSections([]); setTopics([]); setCounts({}); return; }
     try {
-      const list = await api.topics(sel.subjectId, sel.grade);
+      const [secs, list] = await Promise.all([api.sections(sel.subjectId, sel.grade), api.topics(sel.subjectId, sel.grade)]);
+      setSections(secs);
       setTopics(list);
       setCounts(await api.counts(list.map((x) => x.id)));
     } catch (e) { setError(e); }
   }, [api, sel.subjectId, sel.grade]);
   useEffect(() => { loadTopics(); }, [loadTopics]);
 
-  // Вопросы: в выбранной теме, иначе в предмете и классе; без предмета — только по фильтрам.
+  // Вопросы: в выбранной теме или разделе, иначе в предмете и классе; без предмета — только по фильтрам.
   // «Требует проверки учителем» — по всем классам и предметам: таких вопросов немного, их отдают учителю списком.
   const hasFilter = Boolean(sel.status || sel.missingLang || sel.search.trim() || sel.teacherCheck);
   useEffect(() => {
     if (!sel.topicId && !sel.subjectId && !hasFilter) { setQuestions(null); return; }
     let alive = true;
     const where = sel.teacherCheck ? { teacherCheck: true }
-      : { topicId: sel.topicId ?? undefined, subjectId: sel.subjectId ?? undefined, grade: sel.grade };
+      : { topicId: sel.topicId ?? undefined, sectionId: (!sel.topicId && sel.sectionId) || undefined,
+          subjectId: sel.subjectId ?? undefined, grade: sel.grade };
     const timer = setTimeout(() => {
       api.questions({
         ...where, status: sel.status || undefined, missingLang: sel.missingLang || undefined, search: sel.search,
@@ -96,14 +104,32 @@ export function Browser({ api, me, onOpen, onImport }: Props) {
 
   const subject = subjects.find((s) => s.id === sel.subjectId) ?? null;
   const topic = topics.find((x) => x.id === sel.topicId) ?? null;
+  const section = topic ? null : sections.find((x) => x.id === sel.sectionId) ?? null;
+  const groups = groupTopics(sections, topics);
+  const nextSort = topics.reduce((m, x) => Math.max(m, x.sort_order + 1), 0);
 
-  async function move(i: number, dir: -1 | 1) {
-    const list = topics.slice();
-    [list[i], list[i + dir]] = [list[i + dir], list[i]];
+  // Порядок: разделы по номерам, темы — сквозными номерами в порядке групп. Сохраняем только изменившиеся.
+  async function saveOrder(gs: Group[]) {
     try {
-      // Номера по порядку; сохраняем только изменившиеся темы.
-      await Promise.all(list.map((x, k) => (x.sort_order === k ? null : api.saveTopic({ ...x, sort_order: k }))));
+      const secs = gs.flatMap((g) => (g.section ? [g.section] : []));
+      await Promise.all([...renumber(secs).map((x) => api.saveSection(x)),
+        ...renumber(flatTopics(gs)).map((x) => api.saveTopic(x))]);
       await loadTopics();
+    } catch (e) { setError(e); }
+  }
+  const moveTopic = (gi: number, i: number, dir: -1 | 1) =>
+    saveOrder(groups.map((g, k) => (k === gi ? { ...g, topics: swap(g.topics, i, dir) } : g)));
+  // Темы без раздела всегда в конце; двигаются только разделы.
+  const moveSection = (i: number, dir: -1 | 1) =>
+    saveOrder([...swap(groups.filter((g) => g.section), i, dir), ...groups.filter((g) => !g.section)]);
+
+  // После сохранения темы или раздела номера снова идут подряд (тема с новым разделом встаёт в его конец).
+  async function afterSave(saved = true) {
+    setEditing(null);
+    if (!saved || !sel.subjectId) return;
+    try {
+      const [secs, list] = await Promise.all([api.sections(sel.subjectId, sel.grade), api.topics(sel.subjectId, sel.grade)]);
+      await saveOrder(groupTopics(secs, list));
     } catch (e) { setError(e); }
   }
 
@@ -158,11 +184,21 @@ export function Browser({ api, me, onOpen, onImport }: Props) {
     } catch (e) { setError(e); }
   }
 
+  // Темы удалённого раздела остаются — в группе «Без раздела».
+  async function removeSection(x: SectionRow) {
+    if (!confirm(b.confirmDelSection(nm(x, "title", lang)))) return;
+    try {
+      await api.deleteSection(x.id);
+      update({ sectionId: null });
+      await afterSave();
+    } catch (e) { setError(e); }
+  }
+
   async function removeSubject(s: SubjectRow) {
     if (!confirm(b.confirmDelSubject(nm(s, "name", lang)))) return;
     try {
       await api.deleteSubject(s.id);
-      update({ subjectId: null, topicId: null });
+      update({ subjectId: null, sectionId: null, topicId: null });
       await loadSubjects();
     } catch (e) { setError(e); }
   }
@@ -173,7 +209,7 @@ export function Browser({ api, me, onOpen, onImport }: Props) {
         <div className="label">{b.grade}</div>
         <div className="adm-grades" role="group" aria-label={b.grade}>
           {GRADES.map((g) => (
-            <button key={g} type="button" aria-pressed={g === sel.grade} onClick={() => update({ grade: g, topicId: null })}>
+            <button key={g} type="button" aria-pressed={g === sel.grade} onClick={() => update({ grade: g, sectionId: null, topicId: null })}>
               {g}
             </button>
           ))}
@@ -184,7 +220,7 @@ export function Browser({ api, me, onOpen, onImport }: Props) {
           {isAdmin && <button type="button" className="link" onClick={() => setEditing("subject-new")}>{b.addSubject}</button>}
         </div>
         <select aria-label={b.subject} value={sel.subjectId ?? ""}
-          onChange={(e) => update({ subjectId: e.target.value || null, topicId: null })}>
+          onChange={(e) => update({ subjectId: e.target.value || null, sectionId: null, topicId: null })}>
           <option value="">{b.allSubjects}</option>
           {subjects.map((s) => <option key={s.id} value={s.id}>{s.icon} {nm(s, "name", lang)}</option>)}
         </select>
@@ -203,45 +239,87 @@ export function Browser({ api, me, onOpen, onImport }: Props) {
           <>
             <div className="adm-head">
               <span className="label">{b.topicsOf(sel.grade)}</span>
-              <button type="button" className="link" onClick={() => setEditing("topic-new")}>{b.addTopic}</button>
+              <div className="adm-row">
+                <button type="button" className="link" onClick={() => setEditing("section-new")}>{b.addSection}</button>
+                <button type="button" className="link" onClick={() => setEditing("topic-new")}>{b.addTopic}</button>
+              </div>
             </div>
-            {editing === "topic-new" && (
-              <TopicForm api={api} topic={null} base={{ subject_id: subject.id, grade: sel.grade, sort_order: topics.length }}
-                onDone={(saved) => { setEditing(null); if (saved) loadTopics(); }} />
+            {editing === "section-new" && (
+              <TitleForm api={api} kind="section" row={null}
+                base={{ subject_id: subject.id, grade: sel.grade, sort_order: sections.length }} onDone={afterSave} />
             )}
-            {topics.length === 0 && <p className="muted">{b.noTopics}</p>}
+            {editing === "topic-new" && (
+              <TitleForm api={api} kind="topic" row={null} sections={sections} nextSort={nextSort}
+                base={{ subject_id: subject.id, grade: sel.grade, sort_order: nextSort,
+                  section_id: section?.id ?? topic?.section_id ?? null }}
+                onDone={afterSave} />
+            )}
+            {topics.length === 0 && sections.length === 0 && <p className="muted">{b.noTopics}</p>}
             <ol className="adm-topics">
               <li>
-                <button type="button" aria-pressed={!sel.topicId} onClick={() => pickTopic(null)}>{b.allTopics}</button>
+                <button type="button" aria-pressed={!sel.topicId && !section} onClick={() => pick({ sectionId: null, topicId: null })}>
+                  {b.allTopics}
+                </button>
               </li>
-              {topics.map((x, i) => {
-                const c = counts[x.id];
-                return (
-                  <li key={x.id}>
-                    <button type="button" aria-pressed={x.id === sel.topicId} onClick={() => pickTopic(x.id)}>
-                      <span>{nm(x, "title", lang)}</span>
-                      <small>
-                        {c ? c.published : 0}
-                        {c?.review ? <span className="st review" title={t.status.review}> +{c.review}</span> : null}
-                        {c?.draft ? <span className="st draft" title={b.drafts}> +{c.draft}</span> : null}
-                      </small>
+              {groups.map((g, gi) => (
+                <li key={g.section?.id ?? "none"} className="adm-sec">
+                  {g.section ? (
+                    <button type="button" className="sec" aria-pressed={g.section.id === section?.id}
+                      onClick={() => pick({ sectionId: g.section!.id, topicId: null })}>
+                      <span>{nm(g.section, "title", lang)}</span>
+                      <small>{g.topics.reduce((n, x) => n + (counts[x.id]?.published ?? 0), 0)}</small>
                     </button>
-                    {x.id === sel.topicId && (
-                      <div className="adm-row">
-                        <button type="button" className="link" onClick={() => setEditing("topic")}>{b.rename}</button>
-                        <button type="button" className="link" disabled={i === 0} onClick={() => move(i, -1)}
-                          aria-label={b.up}>↑</button>
-                        <button type="button" className="link" disabled={i === topics.length - 1} onClick={() => move(i, 1)}
-                          aria-label={b.down}>↓</button>
-                        {isAdmin && <button type="button" className="link danger" onClick={() => removeTopic(x)}>{t.del}</button>}
-                      </div>
-                    )}
-                    {x.id === sel.topicId && editing === "topic" && (
-                      <TopicForm api={api} topic={x} base={x} onDone={(saved) => { setEditing(null); if (saved) loadTopics(); }} />
-                    )}
-                  </li>
-                );
-              })}
+                  ) : (
+                    <div className="sec">{b.noSection}</div>
+                  )}
+                  {g.section && g.section.id === section?.id && (
+                    <div className="adm-row">
+                      <button type="button" className="link" onClick={() => setEditing("section")}>{b.rename}</button>
+                      <button type="button" className="link" disabled={gi === 0} onClick={() => moveSection(gi, -1)}
+                        aria-label={b.sectionUp}>↑</button>
+                      <button type="button" className="link" disabled={!groups[gi + 1]?.section}
+                        onClick={() => moveSection(gi, 1)} aria-label={b.sectionDown}>↓</button>
+                      {isAdmin && (
+                        <button type="button" className="link danger" onClick={() => removeSection(g.section!)}>{t.del}</button>
+                      )}
+                    </div>
+                  )}
+                  {g.section && g.section.id === section?.id && editing === "section" && (
+                    <TitleForm api={api} kind="section" row={g.section} base={g.section} onDone={afterSave} />
+                  )}
+                  <ol>
+                    {g.topics.map((x, i) => {
+                      const c = counts[x.id];
+                      return (
+                        <li key={x.id}>
+                          <button type="button" aria-pressed={x.id === sel.topicId} onClick={() => pick({ sectionId: null, topicId: x.id })}>
+                            <span>{nm(x, "title", lang)}</span>
+                            <small>
+                              {c ? c.published : 0}
+                              {c?.review ? <span className="st review" title={t.status.review}> +{c.review}</span> : null}
+                              {c?.draft ? <span className="st draft" title={b.drafts}> +{c.draft}</span> : null}
+                            </small>
+                          </button>
+                          {x.id === sel.topicId && (
+                            <div className="adm-row">
+                              <button type="button" className="link" onClick={() => setEditing("topic")}>{b.rename}</button>
+                              <button type="button" className="link" disabled={i === 0} onClick={() => moveTopic(gi, i, -1)}
+                                aria-label={b.up}>↑</button>
+                              <button type="button" className="link" disabled={i === g.topics.length - 1}
+                                onClick={() => moveTopic(gi, i, 1)} aria-label={b.down}>↓</button>
+                              {isAdmin && <button type="button" className="link danger" onClick={() => removeTopic(x)}>{t.del}</button>}
+                            </div>
+                          )}
+                          {x.id === sel.topicId && editing === "topic" && (
+                            <TitleForm api={api} kind="topic" row={x} base={x} sections={sections} nextSort={nextSort}
+                              onDone={afterSave} />
+                          )}
+                        </li>
+                      );
+                    })}
+                  </ol>
+                </li>
+              ))}
             </ol>
           </>
         )}
@@ -268,7 +346,7 @@ export function Browser({ api, me, onOpen, onImport }: Props) {
 
         <div className="adm-head">
           <h2>{sel.teacherCheck ? b.needsCheck : topic ? nm(topic, "title", lang)
-            : subject ? b.subjGrade(nm(subject, "name", lang), sel.grade) : b.questions}</h2>
+            : section ? nm(section, "title", lang) : subject ? b.subjGrade(nm(subject, "name", lang), sel.grade) : b.questions}</h2>
           {sel.teacherCheck ? (
             <div className="adm-row">
               <button type="button" className="btn ghost sm" disabled={busy !== null} onClick={exportChecks}>
@@ -387,26 +465,36 @@ function SubjectForm({ api, subject, nextSort, onDone }: {
   );
 }
 
-function TopicForm({ api, topic, base, onDone }: {
+// Название на трёх языках — для раздела и темы. У темы ещё выбор раздела: тема с новым разделом встаёт в его конец.
+function TitleForm({ api, kind, row, base, sections = [], nextSort = 0, onDone }: {
   api: AdminApi;
-  topic: TopicRow | null;
-  base: Pick<TopicRow, "subject_id" | "grade" | "sort_order">;
+  kind: "section" | "topic";
+  row: SectionRow | TopicRow | null;
+  base: Pick<TopicRow, "subject_id" | "grade" | "sort_order"> & { section_id?: string | null };
+  sections?: SectionRow[];
+  nextSort?: number;
   onDone: (saved: boolean) => void;
 }) {
-  const { t } = useT();
+  const { lang, t } = useT();
   const [titles, setTitles] = useState<Record<Lang, string>>({
-    kk: topic?.title_kk ?? "", ru: topic?.title_ru ?? "", en: topic?.title_en ?? "",
+    kk: row?.title_kk ?? "", ru: row?.title_ru ?? "", en: row?.title_en ?? "",
   });
+  const [sectionId, setSectionId] = useState(base.section_id ?? "");
   const [error, setError] = useState("");
 
   async function save(e: React.FormEvent) {
     e.preventDefault();
     if (!LANGS.some((l) => titles[l].trim())) { setError(t.topicForm.needTitle); return; }
+    const common = {
+      id: row?.id, subject_id: base.subject_id, grade: base.grade, sort_order: base.sort_order,
+      title_kk: titles.kk.trim(), title_ru: titles.ru.trim(), title_en: titles.en.trim(),
+    };
     try {
-      await api.saveTopic({
-        id: topic?.id, subject_id: base.subject_id, grade: base.grade, sort_order: base.sort_order,
-        title_kk: titles.kk.trim(), title_ru: titles.ru.trim(), title_en: titles.en.trim(),
-      });
+      if (kind === "section") await api.saveSection(common);
+      else {
+        const moved = (sectionId || null) !== (base.section_id ?? null);
+        await api.saveTopic({ ...common, section_id: sectionId || null, sort_order: moved ? nextSort : base.sort_order });
+      }
       onDone(true);
     } catch (err) { setError(humanError(err, t)); }
   }
@@ -417,6 +505,14 @@ function TopicForm({ api, topic, base, onDone }: {
         <label key={l}>{t.topicForm.title(l.toUpperCase())}<input value={titles[l]} autoFocus={l === "kk"}
           onChange={(e) => setTitles({ ...titles, [l]: e.target.value })} /></label>
       ))}
+      {kind === "topic" && (
+        <label>{t.topicForm.section}
+          <select value={sectionId} onChange={(e) => setSectionId(e.target.value)}>
+            <option value="">{t.browse.noSection}</option>
+            {sections.map((x) => <option key={x.id} value={x.id}>{nm(x, "title", lang)}</option>)}
+          </select>
+        </label>
+      )}
       {error && <p className="error">{error}</p>}
       <div className="adm-row">
         <button type="submit" className="btn sm">{t.save}</button>
