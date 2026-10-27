@@ -11,6 +11,7 @@ const kk = {
   save: "Сақтау", saving: "Сақталуда…", saved: "Сақталды.", cancel: "Болдырмау", del: "жою",
   roles: { admin: "әкімші", teacher: "мұғалім", student: "оқушы" },
   logout: "Шығу",
+  menu: { label: "Аккаунт мәзірі", site: "Сайтқа өту", cabinet: "Кабинет" },
   noAccess: (email: string) => `${email} аккаунтының әкімші панеліне рұқсаты жоқ. Әкімшіден мұғалім рөлін беруді сұраңыз.`,
   nav: { label: "Бөлімдер", questions: "Сұрақтар", review: "Тексеруде", schools: "Мектептер", users: "Пайдаланушылар" },
 
@@ -210,6 +211,7 @@ const ru: AdminText = {
   save: "Сохранить", saving: "Сохранение…", saved: "Сохранено.", cancel: "Отмена", del: "удалить",
   roles: { admin: "админ", teacher: "учитель", student: "ученик" },
   logout: "Выйти",
+  menu: { label: "Меню аккаунта", site: "На сайт", cabinet: "Кабинет" },
   noAccess: (email) => `У аккаунта ${email} нет доступа к админке. Попросите админа выдать роль учителя.`,
   nav: { label: "Разделы", questions: "Вопросы", review: "На проверке", schools: "Школы", users: "Пользователи" },
 
@@ -407,6 +409,7 @@ const en: AdminText = {
   save: "Save", saving: "Saving…", saved: "Saved.", cancel: "Cancel", del: "delete",
   roles: { admin: "admin", teacher: "teacher", student: "student" },
   logout: "Log out",
+  menu: { label: "Account menu", site: "Go to site", cabinet: "Dashboard" },
   noAccess: (email) => `The account ${email} has no access to the admin panel. Ask an admin to give you the teacher role.`,
   nav: { label: "Sections", questions: "Questions", review: "In review", schools: "Schools", users: "Users" },
 

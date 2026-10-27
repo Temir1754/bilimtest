@@ -3,18 +3,15 @@
 body.adm-body{font-size:15px}
 .adm-body .wrap{max-width:1320px}
 .adm-body main{padding-block:18px 40px}
-.adm-body header.top .wrap{padding-block:8px}
-.adm-body .logo{font-size:17px}
-.adm-body .logo-mark{width:26px;height:26px}
 .adm-body h2{font-size:20px}
 .adm-body .btn{padding:7px 16px;font-size:15px}
 .adm-body .note,.adm-body .error{font-size:14px}
-.logo-mark.adm-mark{background:#B8871E} /* как иконка вкладки favicon-admin.svg */
-.adm-badge{font-family:var(--body);font-size:13px;font-weight:700;color:var(--gold);background:var(--gold-soft);border-radius:5px;padding:1px 7px;letter-spacing:.03em}
+/* Шапка — как на сайте (№85); «әкімші» — бейдж в цветах сайта */
+.adm-badge{font-family:var(--body);font-size:12px;font-weight:700;color:var(--accent);background:var(--accent-soft);border-radius:5px;padding:1px 7px;letter-spacing:.03em}
 .adm-nav{display:flex;gap:4px}
 .adm-nav button{border:0;background:none;padding:6px 12px;border-radius:999px;font-weight:700;color:var(--muted)}
 .adm-nav button[aria-pressed="true"]{background:var(--accent-soft);color:var(--accent)}
-.adm-user{display:flex;align-items:center;gap:10px;font-size:14px;color:var(--muted);min-width:0;overflow-wrap:anywhere}
+.adm-user{display:flex;align-items:center;gap:8px;min-width:0}
 .btn.sm{padding:5px 12px;font-size:14px}
 .btn.danger,.link.danger{color:var(--bad);border-color:var(--bad)}
 .link{border:0;background:none;padding:0;color:var(--accent);font-weight:700;font-size:14px}
@@ -30,7 +27,7 @@ body.adm-body{font-size:15px}
 
 /* поля ввода */
 .adm-box label,.adm-form label,.adm-mini label{display:grid;gap:4px;font-size:14px;font-weight:700;color:var(--muted)}
-.wrap input:not([type=radio]):not([type=file]),.wrap select,.wrap textarea{font:inherit;font-size:15px;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:6px 10px;width:100%;min-width:0}
+.wrap input:not([type=radio]):not([type=checkbox]):not([type=file]),.wrap select,.wrap textarea{font:inherit;font-size:15px;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:6px 10px;width:100%;min-width:0}
 .wrap textarea{resize:vertical;line-height:1.4}
 .wrap input:focus-visible,.wrap select:focus-visible,.wrap textarea:focus-visible{outline:3px solid var(--gold);outline-offset:0}
 fieldset{border:0;margin:0;padding:0;min-width:0}
@@ -55,9 +52,13 @@ fieldset:disabled{opacity:.75}
 .adm-topics small{display:flex;gap:2px;align-items:baseline;flex-shrink:0;color:var(--muted);white-space:nowrap;font-variant-numeric:tabular-nums}
 .adm-topics .adm-row{padding:2px 8px 6px}
 .adm-mini{display:grid;gap:8px;background:var(--bg);border-radius:8px;padding:10px}
-.adm-filters{display:grid;grid-template-columns:1fr auto auto;gap:8px}
+.adm-filters{display:grid;grid-template-columns:1fr auto auto auto;gap:8px;align-items:center}
+@media (max-width:900px){.adm-filters{grid-template-columns:1fr 1fr}.adm-filters input[type=search]{grid-column:1/-1}}
 @media (max-width:560px){.adm-filters{grid-template-columns:1fr}}
-.adm-check{display:flex;align-items:center;gap:6px;font-size:14px;color:var(--muted)}
+/* галочка: квадратик слева от текста; label. — чтобы не перебивало .adm-mini label */
+label.adm-check{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:400;color:var(--muted);cursor:pointer}
+.adm-filters .adm-check{white-space:nowrap}
+.adm-check input{width:18px;height:18px;margin:0;flex:none;accent-color:var(--accent)}
 
 /* список вопросов */
 .adm-qs{list-style:none;margin:0;padding:0;display:grid;gap:5px}
@@ -121,9 +122,8 @@ fieldset:disabled{opacity:.75}
 }
 @media (max-width:640px){
   header.top .wrap{gap:8px}
-  .adm-nav{order:3;width:100%}
-  .adm-nav button{flex:1;padding:8px 6px;background:var(--bg)}
-  .adm-user .email{display:none}
+  .adm-nav{order:3;width:100%;flex-wrap:wrap}
+  .adm-nav button{flex:1 1 auto;padding:8px 10px;background:var(--bg)}
   main{padding-block:16px 40px}
   .adm-head h2{font-size:19px}
   .adm-editor h2{font-size:20px}
@@ -139,7 +139,7 @@ fieldset:disabled{opacity:.75}
 /* Пальцем по мелким ссылкам попадать трудно — увеличиваем область нажатия. */
 @media (pointer:coarse){
   /* поля 16px: при меньшем шрифте iPhone увеличивает страницу во время ввода */
-  .wrap input:not([type=radio]):not([type=file]),.wrap select,.wrap textarea{font-size:16px;padding:8px 10px}
+  .wrap input:not([type=radio]):not([type=checkbox]):not([type=file]),.wrap select,.wrap textarea{font-size:16px;padding:8px 10px}
   .link{padding:8px 6px;min-height:36px}
   .adm-topics li > button{padding:10px 8px}
   .adm-grades button{padding:10px 0}

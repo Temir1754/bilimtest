@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
+import { LogoMark, NickMenu } from "../components/NickMenu";
 import { ADMIN, type AdminText } from "../i18n/admin";
-import { clearAccount, saveAccount } from "../lib/account";
+import { cabinetPath, clearAccount, saveAccount } from "../lib/account";
 import { loadPrefs, savePrefs } from "../lib/storage";
 import { LANGS } from "../lib/types";
 import { humanError, type AdminApi, type Me } from "./api";
@@ -32,11 +33,12 @@ export function AdminApp({ api, go = (p) => location.replace(p) }: {
   const lang = prefs.lang;
   const t = ADMIN[lang];
 
-  // Вошедший в админку виден и в шапке сайта (ник с меню «Кабинет / Шығу»).
+  // Вошедший в админку виден и в шапке сайта (ник с меню).
+  const nick = (m: Me) => m.nickname || m.email.split("@")[0];
   const refresh = useCallback(() => {
     api.me().then((m) => {
       setMe(m);
-      if (m) saveAccount({ name: m.nickname || m.email.split("@")[0], role: m.role });
+      if (m) saveAccount({ name: nick(m), role: m.role });
       else clearAccount();
     }, (e) => { setFailure(e); setMe(null); });
   }, [api]);
@@ -97,13 +99,8 @@ export function AdminApp({ api, go = (p) => location.replace(p) }: {
       <a className="skip" href="#main">{t.skip}</a>
       <header className="top"><div className="wrap">
         <a className="logo" href="/">
-          <span className="logo-mark adm-mark">
-            <svg width="18" height="18" viewBox="0 0 30 30" aria-hidden="true">
-              <path d="M8.5 21.5l1-4.2 9.6-9.6a2.2 2.2 0 0 1 3.1 3.1l-9.6 9.6z" fill="none" stroke="#fff"
-                strokeWidth="2.6" strokeLinejoin="round" />
-              <path d="M17.2 9.6l3.2 3.2" stroke="#fff" strokeWidth="2.6" />
-            </svg>
-          </span>
+          {/* Шапка как на сайте, пометка «әкімші» — маленьким бейджем (№85) */}
+          <LogoMark />
           Білімтест <span className="adm-badge">{t.badge}</span>
         </a>
         {me && me.role !== "student" && (
@@ -139,10 +136,8 @@ export function AdminApp({ api, go = (p) => location.replace(p) }: {
             ))}
           </div>
           {me && (
-            <>
-              <span><span className="email">{me.email} · </span>{t.roles[me.role]}</span>
-              <button type="button" className="btn ghost sm" onClick={signOut}>{t.logout}</button>
-            </>
+            <NickMenu name={nick(me)} label={t.menu.label} logout={t.logout} onLogout={signOut}
+              items={[{ label: t.menu.site, href: "/" }, { label: t.menu.cabinet, href: cabinetPath(me.role) }]} />
           )}
         </div>
       </div></header>

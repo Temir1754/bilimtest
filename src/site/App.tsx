@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { LogoMark } from "../components/NickMenu";
 import { UI } from "../i18n/ui";
 import { answer, mixedQuiz, percent, score, topicQuiz, type Quiz } from "../lib/quiz";
 import { loadBest, loadPrefs, recordBest, savePrefs, type Best } from "../lib/storage";
@@ -110,12 +111,7 @@ export function App({ source }: { source: DataSource }) {
       <a className="skip" href="#main">{t.skip}</a>
       <header className="top"><div className="wrap">
         <button className="logo" type="button" onClick={() => go({ name: "home" })}>
-          <span className="logo-mark">
-            <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">
-              <path d="M3 9.5l3.6 3.6L15 4.7" fill="none" stroke="var(--accent-ink)" strokeWidth="2.6"
-                strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          </span>
+          <LogoMark />
           Білімтест
         </button>
         <div className="top-right">

@@ -1,6 +1,7 @@
 // Страница /privacy — политика конфиденциальности (черновик, требует проверки юристом).
 // Отдельный файл сборки: главная страница не становится тяжелее.
 import { useEffect, useState } from "react";
+import { LogoMark } from "../components/NickMenu";
 import { PRIVACY } from "../i18n/privacy";
 import { loadPrefs, savePrefs } from "../lib/storage";
 import { LANGS } from "../lib/types";
@@ -18,12 +19,7 @@ export default function PrivacyPage() {
     <>
       <header className="top"><div className="wrap">
         <a className="logo" href="/">
-          <span className="logo-mark">
-            <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">
-              <path d="M3 9.5l3.6 3.6L15 4.7" fill="none" stroke="var(--accent-ink)" strokeWidth="2.6"
-                strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          </span>
+          <LogoMark />
           Білімтест
         </a>
         <div className="langs" role="group" aria-label="Language">

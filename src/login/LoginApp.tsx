@@ -3,6 +3,7 @@
 // Макет — docs/design/mascot/login.png. Вкладка «Тіркелу» видна, только если регистрация открыта: в пилоте —
 // упрощённая регистрация ученика (№83); учителям аккаунты создаёт админ (№80).
 import { useEffect, useState } from "react";
+import { LogoMark } from "../components/NickMenu";
 import { AUTH, type AuthText } from "../i18n/auth";
 import { cabinetPath, type Account } from "../lib/account";
 import { loadPrefs, savePrefs } from "../lib/storage";
@@ -85,12 +86,7 @@ export function LoginApp({ api, go = (p) => location.assign(p) }: Props) {
     <>
       <header className="top"><div className="wrap">
         <a className="logo" href="/">
-          <span className="logo-mark">
-            <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">
-              <path d="M3 9.5l3.6 3.6L15 4.7" fill="none" stroke="var(--accent-ink)" strokeWidth="2.6"
-                strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          </span>
+          <LogoMark />
           Білімтест
         </a>
         <div className="langs" role="group" aria-label="Language">

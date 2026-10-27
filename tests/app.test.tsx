@@ -80,7 +80,7 @@ describe("сайт ученика", () => {
     expect(screen.getByRole("link", { name: "Privacy policy" }).getAttribute("href")).toBe("/privacy");
   });
 
-  it("после входа в шапке — ник с меню «Кабинет / Выйти»; без входа — «Войти»", async () => {
+  it("после входа в шапке — ник с меню «Кабинет / Админка / Выйти»; без входа — «Войти»", async () => {
     const user = userEvent.setup();
     sessionStorage.setItem("bt-me", JSON.stringify({ name: "aigerim_t", role: "teacher" }));
     try {
@@ -89,8 +89,22 @@ describe("сайт ученика", () => {
       await user.click(await screen.findByRole("button", { name: "Меню аккаунта" }));
       expect(screen.getByText("aigerim_t")).toBeTruthy();
       expect(screen.getByRole("menuitem", { name: "Кабинет" }).getAttribute("href")).toBe("/admin");
+      expect(screen.getByRole("menuitem", { name: "Админка" }).getAttribute("href")).toBe("/admin");
       await user.keyboard("{Escape}");
       expect(screen.queryByRole("menu")).toBeNull();
+    } finally {
+      sessionStorage.clear();
+    }
+  });
+
+  it("у ученика в меню ника нет пункта «Админка»", async () => {
+    const user = userEvent.setup();
+    sessionStorage.setItem("bt-me", JSON.stringify({ name: "kid07", role: "student" }));
+    try {
+      render(<App source={source} />);
+      await user.click(await screen.findByRole("button", { name: "Меню аккаунта" }));
+      expect(screen.getByRole("menuitem", { name: "Кабинет" })).toBeTruthy();
+      expect(screen.queryByRole("menuitem", { name: "Админка" })).toBeNull();
     } finally {
       sessionStorage.clear();
     }

@@ -174,6 +174,20 @@ describe("админка", () => {
     expect(await screen.findByRole("button", { name: /2\+2\?/ })).toBeTruthy();
   });
 
+  it("шапка как на сайте: ник с меню «На сайт / Кабинет / Выйти», email не виден", async () => {
+    const user = userEvent.setup();
+    const { api } = fakeApi({ id: "admin", email: "a@x.kz", role: "admin", nickname: "temir" });
+    const go = vi.fn();
+    render(<AdminApp api={api} go={go} />);
+    await user.click(await screen.findByRole("button", { name: "Меню аккаунта" }));
+    expect(screen.getByText("temir")).toBeTruthy();
+    expect(screen.queryByText(/a@x.kz/)).toBeNull();
+    expect(screen.getByRole("menuitem", { name: "На сайт" }).getAttribute("href")).toBe("/");
+    expect(screen.getByRole("menuitem", { name: "Кабинет" }).getAttribute("href")).toBe("/admin");
+    await user.click(screen.getByRole("menuitem", { name: "Выйти" }));
+    await waitFor(() => expect(go).toHaveBeenCalledWith("/login"));
+  });
+
   it("ученику админка недоступна", async () => {
     render(<AdminApp api={fakeApi({ id: "s", email: "kid@x.kz", role: "student" }).api} />);
     expect(await screen.findByText(/нет доступа к админке/)).toBeTruthy();

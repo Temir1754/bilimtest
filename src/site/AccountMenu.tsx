@@ -1,6 +1,7 @@
-// Кнопка «Кіру» в шапке; после входа — ник с меню «Кабинет / Шығу».
+// Кнопка «Кіру» в шапке; после входа — ник с меню «Кабинет / Әкімші панелі / Шығу».
 // Ник и роль берутся из памяти браузера (lib/account), библиотека входа грузится только при выходе.
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
+import { NickMenu } from "../components/NickMenu";
 import type { UiText } from "../i18n/ui";
 import { cabinetPath, clearAccount, loadAccount } from "../lib/account";
 
@@ -8,21 +9,8 @@ export function AccountMenu({ ui }: { ui: UiText }) {
   const t = ui.menu;
   const loginText = ui.login;
   const [account, setAccount] = useState(loadAccount);
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const close = (e: Event) => {
-      if (e instanceof KeyboardEvent ? e.key === "Escape" : !ref.current?.contains(e.target as Node)) setOpen(false);
-    };
-    document.addEventListener("mousedown", close);
-    document.addEventListener("keydown", close);
-    return () => { document.removeEventListener("mousedown", close); document.removeEventListener("keydown", close); };
-  }, [open]);
 
   async function logout() {
-    setOpen(false);
     try {
       const { supabase, supabaseConfigured } = await import("../lib/supabase");
       if (supabaseConfigured) await supabase().auth.signOut();
@@ -45,19 +33,8 @@ export function AccountMenu({ ui }: { ui: UiText }) {
       </a>
     );
   }
-  return (
-    <div className="acct" ref={ref}>
-      <button type="button" className="acct-btn" aria-haspopup="menu" aria-expanded={open} aria-label={t.label}
-        onClick={() => setOpen(!open)}>
-        <span className="acct-name">{account.name}</span>
-        <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M2 4l4 4 4-4" fill="none" stroke="currentColor" strokeWidth="1.8" /></svg>
-      </button>
-      {open && (
-        <div className="acct-menu" role="menu">
-          <a role="menuitem" href={cabinetPath(account.role)}>{t.cabinet}</a>
-          <button type="button" role="menuitem" onClick={logout}>{t.logout}</button>
-        </div>
-      )}
-    </div>
-  );
+  const items = [{ label: t.cabinet, href: cabinetPath(account.role) }];
+  // Админ и учитель — ещё ссылка в админку (№85)
+  if (account.role !== "student") items.push({ label: t.admin, href: "/admin" });
+  return <NickMenu name={account.name} label={t.label} items={items} logout={t.logout} onLogout={logout} />;
 }

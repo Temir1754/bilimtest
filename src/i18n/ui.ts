@@ -9,7 +9,7 @@ const kk = {
   all: "← Барлық пәндер", toTopics: "← Тақырыптар", question: "Сұрақ", next: "Келесі", finish: "Нәтижені көру",
   right: "Дұрыс!", wrong: "Қате. Дұрыс жауап:", result: "Нәтиже", retry: "Қайта тапсыру", nextTopic: "Келесі тақырып",
   best: "ең жақсы", yours: "Сенің жауабың", correct: "Дұрыс жауап",
-  free: "Тегін, тіркелусіз. Нәтижелер тек осы құрылғыда сақталады.", subjCount: "пән", langCount: "тіл",
+  free: "Тегін. Тіркелмей-ақ тест тапсыруға болады, нәтижелер осы құрылғыда сақталады.", subjCount: "пән", langCount: "тіл",
   onlyLang: {
     kk: "Бұл пәннің тесттері қазақ тілінде.",
     ru: "Бұл пәннің тесттері орыс тілінде.",
@@ -21,7 +21,7 @@ const kk = {
   loading: "Жүктелуде…", loadError: "Деректерді жүктеу мүмкін болмады. Бетті жаңартып көріңіз.",
   skip: "Мазмұнға өту",
   login: "Кіру", privacy: "Құпиялылық саясаты",
-  menu: { label: "Аккаунт мәзірі", cabinet: "Кабинет", logout: "Шығу" },
+  menu: { label: "Аккаунт мәзірі", cabinet: "Кабинет", admin: "Әкімші панелі", logout: "Шығу" },
 };
 
 export type UiText = typeof kk;
@@ -34,7 +34,7 @@ const ru: UiText = {
   all: "← Все предметы", toTopics: "← К темам", question: "Вопрос", next: "Дальше", finish: "Показать результат",
   right: "Верно!", wrong: "Неверно. Правильный ответ:", result: "Результат", retry: "Пройти ещё раз", nextTopic: "Следующая тема",
   best: "лучший", yours: "Твой ответ", correct: "Правильный ответ",
-  free: "Бесплатно и без регистрации. Результаты хранятся только на этом устройстве.", subjCount: "предметов", langCount: "языка",
+  free: "Бесплатно. Проходить тесты можно без регистрации, результаты сохраняются на этом устройстве.", subjCount: "предметов", langCount: "языка",
   onlyLang: {
     kk: "Тесты по этому предмету на казахском языке.",
     ru: "Тесты по этому предмету на русском языке.",
@@ -46,7 +46,7 @@ const ru: UiText = {
   loading: "Загрузка…", loadError: "Не удалось загрузить данные. Попробуйте обновить страницу.",
   skip: "Перейти к содержимому",
   login: "Войти", privacy: "Политика конфиденциальности",
-  menu: { label: "Меню аккаунта", cabinet: "Кабинет", logout: "Выйти" },
+  menu: { label: "Меню аккаунта", cabinet: "Кабинет", admin: "Админка", logout: "Выйти" },
 };
 
 const en: UiText = {
@@ -57,7 +57,7 @@ const en: UiText = {
   all: "← All subjects", toTopics: "← Topics", question: "Question", next: "Next", finish: "See result",
   right: "Correct!", wrong: "Wrong. The correct answer:", result: "Result", retry: "Try again", nextTopic: "Next topic",
   best: "best", yours: "Your answer", correct: "Correct answer",
-  free: "Free, no sign-up. Results are saved only on this device.", subjCount: "subjects", langCount: "languages",
+  free: "Free. You can take tests without signing up; results are saved on this device.", subjCount: "subjects", langCount: "languages",
   onlyLang: {
     kk: "Tests for this subject are in Kazakh.",
     ru: "Tests for this subject are in Russian.",
@@ -69,7 +69,7 @@ const en: UiText = {
   loading: "Loading…", loadError: "Could not load data. Try refreshing the page.",
   skip: "Skip to content",
   login: "Log in", privacy: "Privacy policy",
-  menu: { label: "Account menu", cabinet: "Dashboard", logout: "Log out" },
+  menu: { label: "Account menu", cabinet: "Dashboard", admin: "Admin panel", logout: "Log out" },
 };
 
 export const UI: Record<Lang, UiText> = { kk, ru, en };
