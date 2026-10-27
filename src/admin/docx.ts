@@ -117,10 +117,13 @@ export function parseTest(paras: Para[]): DraftSet {
       : loose ? Number(loose[1]) === expected
       : p.list === "decimal" ? p.bold || !cur || cur.options.length >= 3
       : p.bold && (!cur || cur.options.length >= 2);
-    if (!isQuestion && cur && !cur.options.length && p.bold) { cur.text += ` ${t}`; continue; } // вопрос в два абзаца
+    // Вопрос в два абзаца: жирный абзац не из списка (жирный пункт списка — это вариант).
+    if (!isQuestion && cur && !cur.options.length && p.bold && !p.list) { cur.text += ` ${t}`; continue; }
     if (isQuestion) {
       if (!topic) startTopic({ key: "", label: "", title: "" });
-      const number = typed ?? loose;
+      // «8 Ноғай …» без точки: номер убираем из текста, если он следующий по порядку.
+      const bare = !typed && !loose ? LOOSE.exec(t) : null;
+      const number = typed ?? loose ?? (bare && Number(bare[1]) === expected ? bare : null);
       const d: Draft = { id: `q${drafts.length + 1}`, topic: topic!.key, num: expected, text: number ? number[2].trim() : t,
         options: [], correct: null };
       if (number) {

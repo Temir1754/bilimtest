@@ -117,6 +117,14 @@ describe("Word (.docx)", () => {
     expect(drafts).toHaveLength(2 + 2 + 8 + 9 + 3 + 1); // «… жауаптары» — не вопрос
   });
 
+  it("жирный вариант в списке — вариант, а не продолжение вопроса; жирный «8 …» без точки — номер не в тексте", () => {
+    const { drafts } = parseTest(docxParas(documentXml([
+      { t: "1. Руна жазуларының саны:", b: true }, { t: "250-ден астам", b: true, list: 2 }, ...opts("350", "400", "150"),
+      { t: "2 Ноғай Ордасы құрылды", b: true }, ...opts("Еділ", "Мауреннахр", "Маңғыстау"), "$1 1A 2A",
+    ]), NUMBERING));
+    expect(drafts.map((d) => [d.text, d.options.length])).toEqual([["Руна жазуларының саны:", 4], ["Ноғай Ордасы құрылды", 3]]);
+  });
+
   it("ключ: разные записи", () => {
     const k = parseKey("$1 1A. 2D. 3 – c $38 – 39 1С,2е $31 11A. 2D.");
     expect([...k.entries()].map(([t, m]) => [t, [...m.entries()]])).toEqual([
