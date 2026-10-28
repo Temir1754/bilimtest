@@ -956,6 +956,29 @@ describe("админка", () => {
     expect(screen.getByRole("link", { name: "Инструкция: Добавить вопрос вручную" }).getAttribute("href")).toBe("/admin/help/add");
   });
 
+  it("памятка ученикам (№116): со страницы класса; код, QR, WhatsApp; язык памятки и 6 листков", async () => {
+    localStorage.setItem("bt-start-hidden", JSON.stringify(["teacher"]));
+    const user = userEvent.setup();
+    const { api } = fakeApi({ id: "teacher", email: "t@x.kz", role: "teacher" });
+    await api.createClass("s1", 6, "Ә");
+    history.replaceState(null, "", "/admin/classes/c1");
+    render(<AdminApp api={api} />);
+    await user.click(await screen.findByRole("link", { name: "Памятка ученикам" }));
+    expect(location.pathname).toBe("/admin/classes/c1/memo");
+    const memo = within(await screen.findByRole("article"));
+    expect(memo.getByRole("heading", { name: "Математика · 6 Ә класс — Білімтест" })).toBeTruthy();
+    expect(memo.getByText("ABC234")).toBeTruthy();
+    expect(memo.getByRole("img", { name: `${location.origin}/me?join=ABC234` })).toBeTruthy(); // QR-код
+    const wa = screen.getByRole("link", { name: "Отправить в WhatsApp" }).getAttribute("href")!;
+    expect(decodeURIComponent(wa)).toContain("Код класса: *ABC234*");
+
+    await user.click(within(screen.getByRole("group", { name: "Язык памятки" })).getByRole("button", { name: "KK" }));
+    expect(screen.getByRole("heading", { name: "Математика · 6 Ә сынып — Білімтест" })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Памятка ученикам" })).toBeTruthy(); // экран учителя — на языке админки
+    await user.click(screen.getByRole("button", { name: "6 листков (разрезать)" }));
+    expect(screen.getAllByRole("article")).toHaveLength(6);
+  });
+
   it("«Первые шаги» не видны админу и учителю, у которого всё сделано", async () => {
     history.replaceState(null, "", "/admin/classes");
     const { api, questions } = fakeApi({ id: "teacher", email: "t@x.kz", role: "teacher" });

@@ -472,3 +472,32 @@ h1 .help-q{width:26px;height:26px;font-size:15px}
 .help-more{font-size:14px;color:var(--accent)}
 .help-head{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
 .help-head>h1,.help-head>h2{margin-bottom:0}
+
+/* Памятка ученикам (№116): на экране — как лист бумаги, при печати — только памятка */
+.memo{background:#fff;color:#111;border:1px solid var(--line);border-radius:var(--r);padding:28px;display:grid;gap:14px;font-size:19px;line-height:1.5}
+.memo h2{font-size:28px;margin:0}
+.memo-top{display:flex;gap:20px;align-items:center}
+.memo-qr{width:220px;height:220px;flex:none}
+.memo-code-label{margin:0;color:#555}
+.memo-code{margin:0;font:700 56px/1.1 ui-monospace,monospace;letter-spacing:6px}
+.memo .muted{color:#555;margin:0}
+.memo ol{margin:0;padding-left:22px;display:grid;gap:6px;overflow-wrap:anywhere}
+.memo-save{margin:6px 0 0;font-weight:700}
+.memo-line{margin:8px 0 0;display:flex;gap:8px}
+.memo-line span{flex:1;border-bottom:1px solid #999}
+.memo-slips{display:grid;grid-template-columns:1fr 1fr;gap:0}
+.memo.small{border:1px dashed #999;border-radius:0;padding:12px;gap:6px;font-size:11px;line-height:1.35}
+.memo.small h2{font-size:13px}
+.memo.small .memo-top{gap:10px}
+.memo.small .memo-qr{width:80px;height:80px}
+.memo.small .memo-code{font-size:22px;letter-spacing:2px}
+.memo.small ol{padding-left:16px;gap:2px}
+.memo.small .memo-line{margin:0}
+@media print{
+  @page{margin:12mm}
+  body.adm-body header.top,.skip,.memo-controls{display:none!important}
+  body.adm-body{background:#fff}
+  .memo-page{max-width:none}
+  .memo{border:0;padding:0}
+  .memo.small{border:1px dashed #999;padding:8px;break-inside:avoid}
+}

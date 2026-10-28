@@ -9,6 +9,7 @@ import { Browser } from "./Browser";
 import { ClassesView, ClassPage, StudentPage } from "./ClassesView";
 import { HelpView } from "./HelpView";
 import { ImportView } from "./ImportView";
+import { MemoView } from "./MemoView";
 import { AdminLang } from "./lang";
 import { ReviewQueue } from "./ReviewQueue";
 import { navTab, parsePath, toPath, type AdminView } from "./route";
@@ -114,6 +115,8 @@ export function AdminApp({ api, go = (p) => location.replace(p) }: {
     body = <ClassPage key={view.id} api={api} id={view.id} nav={nav} />;
   } else if (view.name === "student") {
     body = <StudentPage key={view.id} api={api} classId={view.classId} id={view.id} nav={nav} />;
+  } else if (view.name === "memo") {
+    body = <MemoView key={view.id} api={api} id={view.id} nav={nav} />;
   } else if (view.name === "help") {
     body = <HelpView api={api} id={view.id} nav={nav} />;
   } else if (view.name === "my") {

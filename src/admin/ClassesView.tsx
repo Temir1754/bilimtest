@@ -185,7 +185,7 @@ export function StudentPage({ api, classId, id, nav }: { api: AdminApi; classId:
   );
 }
 
-function Copy({ text, label }: { text: string; label: string }) {
+export function Copy({ text, label }: { text: string; label: string }) {
   const { t } = useT();
   const [done, setDone] = useState(false);
   return (
@@ -309,7 +309,8 @@ export function ClassPage({ api, id, nav }: { api: AdminApi; id: string; nav: Na
       <h1>{c.name(k.grade, k.letter)} · {subject ? `${subject.icon} ${nm(subject, "name", lang)}` : "…"}</h1>
       {error !== null && <p className="error" role="alert">{humanError(error, t)}</p>}
 
-      <p><button type="button" className="btn ghost sm" onClick={exportExcel}>{c.excel}</button></p>
+      <p className="adm-row"><button type="button" className="btn ghost sm" onClick={exportExcel}>{c.excel}</button>
+        <Go to={{ name: "memo", id }} nav={nav} className="btn ghost sm">{c.memo}</Go></p>
 
       <section className="st-card cls-join">
         <div className="help-head"><h2>{c.joinTitle}</h2><HelpLink id="class" /></div>
@@ -328,7 +329,7 @@ export function ClassPage({ api, id, nav }: { api: AdminApi; id: string; nav: Na
 
       <section>
         <h2>{c.studentsTitle(rep.students.length)}</h2>
-        {rep.students.length === 0 ? <><p className="muted">{c.noStudents}</p><p className="muted">{t.hl.noStudents}</p></> : (
+        {rep.students.length === 0 ? <><p className="muted">{c.noStudents}</p><p className="muted">{t.hl.noStudents} <Go to={{ name: "memo", id }} nav={nav}>{c.memo} →</Go></p></> : (
           <div className="us-table-wrap"><table className="us-table cls-table">
             <thead><tr><th>{c.student}</th><th>{c.runs}</th><th>{c.percent}</th><th>{c.last}</th><th /></tr></thead>
             <tbody>

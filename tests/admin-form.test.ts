@@ -124,7 +124,7 @@ describe("адреса экранов админки (№87)", () => {
       { name: "grade" }, { name: "topics", slug: "math", grade: 5 }, { name: "excel", slug: "math", grade: 5 },
       { name: "topic", topicId: "t1" }, { name: "new", topicId: "t1" }, { name: "edit", id: "q1" },
       { name: "search" }, { name: "translate" }, { name: "my" }, { name: "review" }, { name: "schools" }, { name: "users" },
-      { name: "author", id: "u1" }, { name: "help" }, { name: "help", id: "class" },
+      { name: "author", id: "u1" }, { name: "help" }, { name: "help", id: "class" }, { name: "memo", id: "c1" },
     ] as const;
     for (const v of views) expect(parsePath(toPath(v))).toEqual(v);
     expect(toPath({ name: "new", topicId: "t1" })).toBe("/admin/questions/topic/t1/new");
@@ -146,5 +146,26 @@ describe("«Нұсқаулық» (№114)", () => {
       expect(JSON.stringify(h)).toContain("7");
       expect(JSON.stringify(h)).not.toContain("undefined");
     }
+  });
+});
+
+describe("памятка ученикам (№116)", () => {
+  it("названия кнопок — как на сайте ученика; код и ссылка в тексте; WhatsApp — те же шаги", async () => {
+    const { memoText, memoMessage } = await import("../src/i18n/memo");
+    const { AUTH } = await import("../src/i18n/auth");
+    const { ME } = await import("../src/i18n/me");
+    const { UI } = await import("../src/i18n/ui");
+    const m = { subject: "Математика", grade: 6, letter: "Ә", code: "ABC234", link: "https://x.kz/me?join=ABC234" };
+    for (const lang of ["kk", "ru", "en"] as const) {
+      const all = memoText(lang, m).steps.join(" ");
+      const q = (s: string) => (lang === "en" ? `“${s}”` : `«${s}»`);
+      for (const label of [AUTH[lang].tabs.signup, AUTH[lang].tabs.login, AUTH[lang].signup.student, ME[lang].classes.join,
+        ME[lang].tasks.title, ME[lang].tasks.start, UI[lang].menu.cabinet]) expect(all).toContain(q(label));
+      expect(all).toContain(q(ME[lang].classes.name_.replace(/ \(.*$/, ""))); // поле «Атың (…)» — без пояснения
+      expect(all).toContain(m.link);
+      expect(all).toContain(m.code);
+      expect(memoMessage(lang, m)).toContain("*ABC234*");
+    }
+    expect(memoText("kk", m).title).toBe("Математика · 6 Ә сынып — Білімтест");
   });
 });
