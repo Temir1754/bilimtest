@@ -73,6 +73,14 @@ const kk = {
     savePassword: "Құпиясөзді сақтау", passwordSaved: "Жаңа құпиясөз сақталды.", toAdmin: "Әкімші панеліне өту",
   },
 
+  // Подсказки на экранах со ссылкой на «Нұсқаулық» (№115)
+  hl: {
+    label: "Нұсқаулық", fix: "Қатені қалай түзету керек — нұсқаулықта",
+    emptyTopic: "«+ Сұрақ қосу» басыңыз немесе тестті файлдан жүктеңіз (тақырыптар бетінде «Файл ▾»).",
+    noClass: "Төменде пәнді, сыныпты және әрпін таңдап, «Сынып құру» басыңыз.",
+    noStudents: "Жоғарыдағы сілтемені сыныптың WhatsApp-тобына жіберіңіз — оқушылар сол арқылы қосылады.",
+    noOpenTopic: "Тапсырма беруге болатын тақырып әлі жоқ: оқушыларға жарияланған сұрағы жеткілікті тақырыптар ғана ашық.",
+  },
   // «Алғашқы қадамдар» — учитель после входа (№113)
   start: {
     title: "Алғашқы қадамдар", lede: (done: number, all: number) => `${all} қадамның ${done} орындалды. Белгілер өздігінен қойылады.`,
@@ -406,6 +414,13 @@ const ru: AdminText = {
     savePassword: "Сохранить пароль", passwordSaved: "Новый пароль сохранён.", toAdmin: "Перейти в админку",
   },
 
+  hl: {
+    label: "Инструкция", fix: "Как исправить ошибки — в инструкции",
+    emptyTopic: "Нажмите «+ Добавить вопрос» или загрузите тест из файла (на странице тем — «Файл ▾»).",
+    noClass: "Ниже выберите предмет, класс и букву и нажмите «Создать класс».",
+    noStudents: "Отправьте ссылку выше в WhatsApp-группу класса — ученики войдут по ней.",
+    noOpenTopic: "Пока нет тем, по которым можно дать задание: ученикам открыты только темы, где достаточно опубликованных вопросов.",
+  },
   start: {
     title: "Первые шаги", lede: (done, all) => `Сделано ${done} из ${all}. Галочки ставятся сами.`,
     how: "Как?", go: "Перейти", more: "Подробнее", hide: "Скрыть", reopen: "Первые шаги",
@@ -736,6 +751,13 @@ const en: AdminText = {
     savePassword: "Save password", passwordSaved: "Your new password is saved.", toAdmin: "Go to the admin panel",
   },
 
+  hl: {
+    label: "Guide", fix: "How to fix the errors — see the guide",
+    emptyTopic: "Press “+ Add question” or upload a test from a file (“File ▾” on the topics page).",
+    noClass: "Below, choose the subject, grade and letter and press “Create class”.",
+    noStudents: "Send the link above to the class WhatsApp group — students join with it.",
+    noOpenTopic: "No topics to give a task on yet: students only see topics with enough published questions.",
+  },
   start: {
     title: "First steps", lede: (done, all) => `${done} of ${all} done. Ticks appear by themselves.`,
     how: "How?", go: "Go", more: "More", hide: "Hide", reopen: "First steps",

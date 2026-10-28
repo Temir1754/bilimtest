@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { LANGS, type Lang } from "../lib/types";
 import type { SectionRow, TopicRow } from "./api";
 import { issues, suggestTopic, type ColumnMap, type Draft, type DraftSet, type Issue, type TopicChoice } from "./drafts";
+import { HelpMore } from "./HelpLink";
 import { nm, useT } from "./lang";
 
 /** Таблица-предпросмотр вопросов из Word или Excel со своими столбцами (№91): тема из файла → тема программы,
@@ -69,6 +70,7 @@ export function DraftPreview({ set, topics, sections, lang, fixedLang, onLang, b
         </label>
         <span className="st published">{m.ready(good)}</span>
         {bad.length > 0 && <span className="st bad">{m.errors(bad.length)}</span>}
+        {bad.length > 0 && <HelpMore id="file" text={t.hl.fix} />}
         <label className="adm-check"><input type="checkbox" checked={onlyErrors} onChange={(e) => setOnlyErrors(e.target.checked)} />
           {m.onlyErrors}</label>
       </div>

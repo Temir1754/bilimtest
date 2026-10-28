@@ -5,6 +5,7 @@ import { readDocx, parseTest } from "./docx";
 import { ColumnMapper, DraftPreview } from "./DraftPreview";
 import { detectLang, draftRows, guessColumns, sheetToDrafts, type Draft, type DraftSet } from "./drafts";
 import { download, parseSheet, readFile, templateSheets, toImportRows } from "./excel";
+import { HelpLink, HelpMore } from "./HelpLink";
 import { nm, useT } from "./lang";
 
 interface Props {
@@ -124,7 +125,7 @@ export function ImportView({ api, subjectId: startSubject, grade: startGrade, ca
     <div className="adm-editor im-page">
       <button type="button" className="back" onClick={onClose}>{m.back}</button>
       <div>
-        <h2>{m.title}</h2>
+        <div className="help-head"><h2>{m.title}</h2><HelpLink id="file" /></div>
         <p className="im-where">
           <b>{m.where(grade, subject ? `${subject.icon} ${nm(subject, "name", lang)}` : "…")}</b>{" "}
           <button type="button" className="link" aria-expanded={changing} onClick={() => setChanging(!changing)}>
@@ -173,7 +174,7 @@ export function ImportView({ api, subjectId: startSubject, grade: startGrade, ca
         </li>
       </ol>
 
-      {readFailed && <p className="error" role="alert">{readFailed}</p>}
+      {readFailed && <p className="error" role="alert">{readFailed} <HelpMore id="faq" text={t.hl.fix} /></p>}
       {error !== null && <p className="error" role="alert">{humanError(error, t)}</p>}
       {done && (
         <div className="adm-ready ok" role="status">
@@ -206,6 +207,7 @@ export function ImportView({ api, subjectId: startSubject, grade: startGrade, ca
             <span className="st published">{m.ready(good - warn.length)}</span>
             {warn.length > 0 && <span className="st review">{m.notes(warn.length)}</span>}
             {bad.length > 0 && <span className="st bad">{m.errors(bad.length)}</span>}
+            {bad.length > 0 && <HelpMore id="file" text={t.hl.fix} />}
           </div>
           {newTopics.length > 0 && <p className="note">{m.newTopics(newTopics.map((x) => `«${x}»`).join(", "))}</p>}
 

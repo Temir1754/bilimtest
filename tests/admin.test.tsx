@@ -939,6 +939,23 @@ describe("админка", () => {
     expect(screen.queryByRole("region", { name: "Первые шаги" })).toBeNull(); // на странице инструкции блока нет
   });
 
+  it("подсказки на экранах (№115): «?» открывает статью в новой вкладке; пустые экраны подсказывают, что делать", async () => {
+    localStorage.setItem("bt-start-hidden", JSON.stringify(["teacher"]));
+    history.replaceState(null, "", "/admin/classes");
+    const { api } = fakeApi({ id: "teacher", email: "t@x.kz", role: "teacher" });
+    render(<AdminApp api={api} />);
+    expect(await screen.findByText("Ниже выберите предмет, класс и букву и нажмите «Создать класс».")).toBeTruthy();
+    const q = screen.getByRole("link", { name: "Инструкция: Класс и ученики" });
+    expect([q.getAttribute("href"), q.getAttribute("target")]).toEqual(["/admin/help/class", "_blank"]);
+    expect(screen.getByRole("heading", { name: "Мои классы" })).toBeTruthy(); // значок — рядом с заголовком, не внутри
+    cleanup();
+
+    history.replaceState(null, "", "/admin/questions/topic/t2"); // в теме «Сложение» вопросов нет
+    render(<AdminApp api={api} />);
+    expect(await screen.findByText(/Нажмите «\+ Добавить вопрос» или загрузите тест из файла/)).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Инструкция: Добавить вопрос вручную" }).getAttribute("href")).toBe("/admin/help/add");
+  });
+
   it("«Первые шаги» не видны админу и учителю, у которого всё сделано", async () => {
     history.replaceState(null, "", "/admin/classes");
     const { api, questions } = fakeApi({ id: "teacher", email: "t@x.kz", role: "teacher" });

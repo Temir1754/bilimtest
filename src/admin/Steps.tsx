@@ -9,6 +9,7 @@ import {
 import { publishReadyIn, TitleForm } from "./Browser";
 import { download, exportSheet } from "./excel";
 import type { Status } from "./form";
+import { HelpLink } from "./HelpLink";
 import { nm, useT } from "./lang";
 import { toPath, type AdminView } from "./route";
 import { flatTopics, groupTopics, renumber, swap, type Group } from "./tree";
@@ -282,7 +283,7 @@ export function TopicsStep({ api, me, slug, grade, nav }: { api: AdminApi; me: M
           ]} />
         </span>
       </div>
-      <p className="muted">{s.hint(min)}</p>
+      <p className="muted">{s.hint(min)} <HelpLink id="status" /></p>
       <Failure error={error} onClose={() => setError(null)} />
       {notice && <p className="note" role="status">{notice}</p>}
       {topics.length === 0 && <p className="muted">{s.noTopics}</p>}
@@ -430,7 +431,7 @@ export function TopicQuestions({ api, me, topicId, nav }: { api: AdminApi; me: M
             <Go to={{ name: "new", topicId }} nav={nav} className="btn st-act">{s.add}</Go>
           </div>
           <p className="st-counter"><Badge ready={ready} min={min} /> {s.inTopic(ready, min)}</p>
-          {items.length === 0 ? <p className="muted">{s.noQuestions}</p> : <QuestionCards items={items} me={me} nav={nav} />}
+          {items.length === 0 ? <p className="muted">{s.noQuestions} {t.hl.emptyTopic} <HelpLink id="add" /></p> : <QuestionCards items={items} me={me} nav={nav} />}
         </>
       ) : error === null && <p className="loading">{t.loading}</p>}
     </div>
@@ -460,7 +461,7 @@ export function MyQuestions({ api, me, nav, authorId }: { api: AdminApi; me: Me;
   return (
     <div className="st-page">
       {authorId && <Go to={{ name: "users" }} nav={nav} className="st-back">← {t.nav.users}</Go>}
-      <h1>{authorId ? t.steps.authorTitle : t.steps.myTitle}</h1>
+      <div className="help-head"><h1>{authorId ? t.steps.authorTitle : t.steps.myTitle}</h1>{!authorId && <HelpLink id="status" />}</div>
       <Failure error={error} />
       {!authorId && me.role === "teacher" && <AuthorCard api={api} />}
       {total !== 0 && (
@@ -501,7 +502,7 @@ function AuthorCard({ api }: { api: AdminApi }) {
   }
   return (
     <section className="st-card cert-card">
-      <h2>{c.title}</h2>
+      <div className="help-head"><h2>{c.title}</h2><HelpLink id="cert" /></div>
       <p>{p.can_issue ? c.ready(p.published, p.can_issue) : p.next ? c.progress(p.published, p.next) : c.all(p.published)}</p>
       {p.next && <i className="mastery" aria-hidden="true"><i style={{ width: `${Math.min(100, (p.published / p.next) * 100)}%` }} /></i>}
       {p.can_issue && <button type="button" className="btn" disabled={busy} onClick={issue}>{c.get(p.can_issue)}</button>}
@@ -530,7 +531,7 @@ export function TranslateList({ api, me, nav }: { api: AdminApi; me: Me; nav: Na
     <div className="st-page">
       <StepBar step={1} nav={nav} />
       <Go to={{ name: "grade" }} nav={nav} className="st-back">← {t.steps.bar[0].replace(/^1\. /, "")}</Go>
-      <h1>{t.steps.translate}</h1>
+      <div className="help-head"><h1>{t.steps.translate}</h1><HelpLink id="translate" /></div>
       <p className="muted">{t.steps.translateLede}</p>
       <Failure error={error} />
       {items === null ? error === null && <p className="loading">{t.loading}</p>

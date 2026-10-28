@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import { GRADES } from "../lib/types";
 import { humanError, type AdminApi, type Assignment, type ClassMatrix, type ClassReport, type ClassRow, type StudentReport, type SubjectRow } from "./api";
 import { classSheets, download } from "./excel";
+import { HelpLink } from "./HelpLink";
 import { nm, useT } from "./lang";
 import { Go, type Nav } from "./Steps";
 
@@ -57,7 +58,8 @@ function Assignments({ api, classId, subjectId, grade }: { api: AdminApi; classI
 
   return (
     <section className="st-card">
-      <h2>{c.tasksTitle}</h2>
+      <div className="help-head"><h2>{c.tasksTitle}</h2><HelpLink id="task" /></div>
+      {topics.length > 0 && !topics.some((x) => x.open) && <p className="muted">{t.hl.noOpenTopic} <HelpLink id="status" /></p>}
       <form className="adm-row grow" onSubmit={give}>
         <label>{c.taskTopic}
           <select value={topicId} onChange={(e) => setTopicId(e.target.value)}>
@@ -108,7 +110,7 @@ function Matrix({ api, id, grade, nav }: { api: AdminApi; id: string; grade: num
   const cell = (s: string, tp: string) => m.cells.find((x) => x.s === s && x.t === tp);
   return (
     <section>
-      <h2>{c.matrixTitle}</h2>
+      <div className="help-head"><h2>{c.matrixTitle}</h2><HelpLink id="task" /></div>
       <p className="muted">{c.matrixHint(m.min_answers)}</p>
       <div className="mx-wrap"><table className="mx">
         <thead><tr><th />{m.topics.map((tp) => (
@@ -229,10 +231,10 @@ export function ClassesView({ api, nav }: { api: AdminApi; nav: Nav }) {
 
   return (
     <div className="st-page">
-      <h1>{c.title}</h1>
+      <div className="help-head"><h1>{c.title}</h1><HelpLink id="class" /></div>
       <p className="muted">{c.lede}</p>
       {error !== null && <p className="error" role="alert">{humanError(error, t)}</p>}
-      {rows === null ? error === null && <p className="loading">{t.loading}</p> : rows.length === 0 ? <p className="muted">{c.none}</p> : (
+      {rows === null ? error === null && <p className="loading">{t.loading}</p> : rows.length === 0 ? <><p className="muted">{c.none}</p><p className="muted">{t.hl.noClass}</p></> : (
         <ul className="cls-list">
           {rows.map((r) => (
             <li key={r.id}>
@@ -310,7 +312,7 @@ export function ClassPage({ api, id, nav }: { api: AdminApi; id: string; nav: Na
       <p><button type="button" className="btn ghost sm" onClick={exportExcel}>{c.excel}</button></p>
 
       <section className="st-card cls-join">
-        <h2>{c.joinTitle}</h2>
+        <div className="help-head"><h2>{c.joinTitle}</h2><HelpLink id="class" /></div>
         <p className="cls-code" aria-label={c.code}>{k.join_code}</p>
         <p className="muted">{c.joinHint}</p>
         <p className="cls-link"><code>{link}</code> <Copy text={link} label={c.copyLink} /></p>
@@ -326,7 +328,7 @@ export function ClassPage({ api, id, nav }: { api: AdminApi; id: string; nav: Na
 
       <section>
         <h2>{c.studentsTitle(rep.students.length)}</h2>
-        {rep.students.length === 0 ? <p className="muted">{c.noStudents}</p> : (
+        {rep.students.length === 0 ? <><p className="muted">{c.noStudents}</p><p className="muted">{t.hl.noStudents}</p></> : (
           <div className="us-table-wrap"><table className="us-table cls-table">
             <thead><tr><th>{c.student}</th><th>{c.runs}</th><th>{c.percent}</th><th>{c.last}</th><th /></tr></thead>
             <tbody>
