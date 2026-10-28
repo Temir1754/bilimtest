@@ -432,3 +432,10 @@ label.adm-check{display:flex;align-items:center;gap:8px;font-size:14px;font-weig
 .wk i{display:block;height:10px;border-radius:5px;background:var(--accent);min-width:4px}
 .wk i.lvl-ok{background:var(--good, #1a8f4e)} .wk i.lvl-mid{background:var(--gold, #b7791f)} .wk i.lvl-low{background:var(--bad, #c0392b)}
 .wrong-list{display:grid;gap:8px;padding-left:20px}
+
+/* Задания (№110) */
+.tasks{list-style:none;padding:0;margin:12px 0 0;display:grid;gap:8px}
+.tasks > li{border-top:1px solid var(--line);padding-top:8px}
+.task-head{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.task-students{list-style:none;padding:6px 0 0 12px;display:grid;gap:4px}
+.task-students li{display:flex;justify-content:space-between;gap:10px;max-width:420px}

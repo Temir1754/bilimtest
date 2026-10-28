@@ -37,6 +37,15 @@ export function App({ source }: { source: DataSource }) {
   useEffect(() => {
     source.catalog().then((c) => {
       setCatalog(c);
+      // Ссылка из задания учителя /t/id темы (№110): открыть предмет и класс этой темы.
+      const byId = /^\/t\/([0-9a-f-]{36})\/?$/i.exec(location.pathname);
+      const tp = byId ? c.topics.find((x) => x.id === byId[1]) : undefined;
+      if (tp) {
+        setPrefs((p) => ({ ...p, grade: tp.grade }));
+        setView({ name: "subject", sid: tp.subjectId });
+        setFocus(tp.id);
+        return;
+      }
       const place = parsePath(location.pathname);
       const { subject, topicId } = place ? resolvePlace(c, place) : { subject: null, topicId: null };
       if (subject) { setView({ name: "subject", sid: subject.id }); setFocus(topicId); }

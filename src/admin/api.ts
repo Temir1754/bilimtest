@@ -167,6 +167,19 @@ export interface ClassMatrix {
   cells: { s: string; t: string; n: number; pct: number }[];
 }
 
+/** Задание со сроком (№110): тема, срок, кто выполнил (лучший процент) и кто нет. */
+export interface Assignment {
+  id: string;
+  topic_id: string;
+  grade: number | null;
+  title_kk: string | null;
+  title_ru: string | null;
+  title_en: string | null;
+  due_at: string;
+  created_at: string;
+  students: { id: string; name: string; percent: number | null; done_at: string | null }[];
+}
+
 /** Страница ученика (№107). */
 export interface StudentReport {
   name: string;
@@ -264,6 +277,10 @@ export interface AdminApi {
   classReport(id: string): Promise<ClassReport>;
   removeMember(classId: string, studentId: string): Promise<void>;
   classMatrix(id: string): Promise<ClassMatrix>;
+  assignments(classId: string): Promise<Assignment[]>;
+  /** due — день срока «ГГГГ-ММ-ДД»: задание открыто до конца этого дня по Алматы. */
+  createAssignment(classId: string, topicId: string, due: string): Promise<string>;
+  deleteAssignment(id: string): Promise<void>;
   studentReport(classId: string, studentId: string): Promise<StudentReport>;
   saveTopic(t: Omit<TopicRow, "id"> & { id?: string }): Promise<void>;
   deleteTopic(id: string): Promise<void>;
@@ -331,6 +348,7 @@ export function humanError(e: unknown, t: AdminText): string {
   if (/не указана тема/i.test(m)) return t.xl.rowErr.noTopic;
   if (/от 1 до 2000/i.test(m)) return r.tooMany;
   if (/нового рубежа/i.test(m)) return t.cert.notYet;
+  if (/Срок уже прошёл/i.test(m)) return t.cls.pastDue;
   if (/имя и фамилию в профиле/i.test(m)) return t.cert.noName;
   if (/3–4 варианта|ровно один правильный|нет текста на языке|у варианта ответа нет текста/i.test(m)) return r.incomplete;
   if (/Could not find the function|PGRST202/i.test(m)) return r.noDbFunction;
@@ -473,6 +491,15 @@ export function supabaseApi(sb: SupabaseClient): AdminApi {
     },
     async classReport(id) {
       return check(await sb.rpc("class_report", { p_class_id: id })) as ClassReport;
+    },
+    async assignments(classId) {
+      return check(await sb.rpc("class_assignments", { p_class_id: classId })) as Assignment[];
+    },
+    async createAssignment(classId, topicId, due) {
+      return check(await sb.rpc("create_assignment", { p_class_id: classId, p_topic_id: topicId, p_due: due })) as string;
+    },
+    async deleteAssignment(id) {
+      check(await sb.rpc("delete_assignment", { p_id: id }));
     },
     async classMatrix(id) {
       return check(await sb.rpc("class_matrix", { p_class_id: id })) as ClassMatrix;

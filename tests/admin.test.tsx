@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AdminApp } from "../src/admin/AdminApp";
 import type {
   AdminApi, Me, QuestionItem, RegionRow, SchoolRow, SectionRow, SignupSettings, SubjectRow, TopicRow, UserRow,
-  ClassReport, ClassRow,
+  Assignment, ClassReport, ClassRow,
 } from "../src/admin/api";
 import { fromRow, readyIn, type QuestionRow, type toPayload } from "../src/admin/form";
 import { headers } from "../src/admin/excel";
@@ -59,6 +59,7 @@ function fakeApi(me: Me | null) {
   let scope: { subjects: string[]; grades: number[] } | null = null;
   const saved: ReturnType<typeof toPayload>[] = [];
   const classes: ClassRow[] = [];
+  const tasks: Assignment[] = [];
   const report: Omit<ClassReport, "class"> = {
     students: [{ id: "st1", display_name: "Айдос К.", nickname: "aidos07", runs: 3, percent: 45, last_at: "2026-10-27T10:00:00Z" }],
     topics: [{ topic_id: "t1", grade: 5, title_kk: "Бөлшек", title_ru: "Дроби", title_en: "Fractions", answers: 20, students: 1, percent: 45 }],
@@ -100,6 +101,13 @@ function fakeApi(me: Me | null) {
       return { id: "c1", join_code: "ABC234" };
     }),
     deleteClass: vi.fn(async () => { classes.length = 0; }),
+    async assignments() { return tasks.slice(); },
+    createAssignment: vi.fn(async (_c: string, topicId: string, due: string) => {
+      tasks.unshift({ id: "a1", topic_id: topicId, grade: 5, title_kk: "Бөлшек", title_ru: "Дроби", title_en: "Fractions",
+        due_at: due + "T18:59:59Z", created_at: "", students: [{ id: "st1", name: "Айдос К.", percent: 80, done_at: "" }] });
+      return "a1";
+    }),
+    deleteAssignment: vi.fn(async () => { tasks.length = 0; }),
     async classMatrix() {
       return { min_answers: 5, students: report.students.map((x) => ({ id: x.id, name: x.display_name, last_at: x.last_at, inactive: true })),
         topics: [{ id: "t1", grade: 5, title_kk: "Бөлшек", title_ru: "Дроби", title_en: "Fractions" },
@@ -846,6 +854,7 @@ describe("админка", () => {
     history.replaceState(null, "", "/admin/classes");
     const user = userEvent.setup();
     const { api } = fakeApi({ id: "teacher", email: "t@x.kz", role: "teacher" });
+    vi.spyOn(api, "topicMin").mockResolvedValue(0); // все темы открыты — можно дать задание
     const ask = vi.spyOn(window, "confirm").mockReturnValue(true);
     render(<AdminApp api={api} />);
     expect(await screen.findByText("Классов пока нет.")).toBeTruthy();
@@ -861,6 +870,13 @@ describe("админка", () => {
     expect(screen.getAllByText("Айдос К.").length).toBeGreaterThan(0);
     expect(screen.getAllByText("45%").map((x) => x.className)).toEqual(["lvl-low", "lvl-low"]); // ученик и тема
     expect(screen.getAllByText("Дроби").length).toBeGreaterThan(0);
+    // Задание со сроком (№110): тема, по умолчанию — ближайшая пятница; «выполнили 1 из 1», раскрыть — кто
+    const due = screen.getByLabelText("Срок") as HTMLInputElement;
+    expect(new Date(due.value).getDay()).toBe(5);
+    await user.click(screen.getByRole("button", { name: "Дать задание" }));
+    expect(api.createAssignment).toHaveBeenCalledWith("c1", expect.any(String), due.value);
+    await user.click(await screen.findByRole("button", { name: "выполнили: 1 из 1" }));
+    expect(screen.getByText("✓ 80%")).toBeTruthy();
     // «Ученики × темы»: зелёная клетка 85, мало данных — «·», тема 4 класса помечена, неактивный ученик
     expect(await screen.findByRole("heading", { name: "Ученики × темы" })).toBeTruthy();
     expect(screen.getByText("85").className).toBe("lvl-ok");

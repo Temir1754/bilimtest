@@ -167,6 +167,19 @@ describe("сайт ученика", () => {
     expect(await screen.findByText(/Повторить слабые темы/, { selector: ".qmeta span" })).toBeTruthy();
   });
 
+  it("ссылка из задания /t/id темы открывает её предмет и класс (№110)", async () => {
+    history.replaceState(null, "", "/t/00000000-0000-4000-8000-000000000002");
+    const db: DataSource = { ...source, async catalog() {
+      const cat = await source.catalog();
+      return { ...cat, topics: [...cat.topics, { id: "00000000-0000-4000-8000-000000000002", subjectId: "physics", grade: 8,
+        title: { kk: "Қысым", ru: "Давление", en: "Pressure" }, sort: 0, questionCount: 5 }] };
+    } };
+    render(<App source={db} />);
+    expect(await screen.findByRole("heading", { name: "Физика" })).toBeTruthy();
+    expect(screen.getByText("Давление")).toBeTruthy();
+    expect(document.querySelector(".topics li.focus")?.textContent).toContain("Давление");
+  });
+
   it("переключает язык интерфейса", async () => {
     const user = userEvent.setup();
     render(<App source={source} />);

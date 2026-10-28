@@ -3,7 +3,7 @@
 // а все тесты ученика по предмету класса попадают в отчёт (№57).
 import { useCallback, useEffect, useState } from "react";
 import { GRADES } from "../lib/types";
-import { humanError, type AdminApi, type ClassMatrix, type ClassReport, type ClassRow, type StudentReport, type SubjectRow } from "./api";
+import { humanError, type AdminApi, type Assignment, type ClassMatrix, type ClassReport, type ClassRow, type StudentReport, type SubjectRow } from "./api";
 import { classSheets, download } from "./excel";
 import { nm, useT } from "./lang";
 import { Go, type Nav } from "./Steps";
@@ -13,6 +13,90 @@ export const joinLink = (code: string) => `${location.origin}/me?join=${code}`;
 /** Цвет уровня (№58, №62): 80+ — знает, 50–79 — частично, меньше — не знает; мало ответов — серый. */
 export const lvl = (pct: number | null, n = Infinity, min = 5) =>
   pct === null || n < min ? "lvl-none" : pct >= 80 ? "lvl-ok" : pct >= 50 ? "lvl-mid" : "lvl-low";
+
+/** Ближайшая пятница (если сегодня пятница — через неделю), «ГГГГ-ММ-ДД» по местному времени. */
+export function nextFriday(now = new Date()): string {
+  const d = new Date(now);
+  d.setDate(d.getDate() + (((5 - d.getDay() + 7) % 7) || 7));
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
+
+/** «Тапсырмалар» (№110): дать тему со сроком, кто выполнил. Ссылка для учеников — /t/id темы. */
+function Assignments({ api, classId, subjectId, grade }: { api: AdminApi; classId: string; subjectId: string; grade: number }) {
+  const { lang, t } = useT();
+  const c = t.cls;
+  const [list, setList] = useState<Assignment[] | null>(null);
+  const [topics, setTopics] = useState<{ id: string; title: string; open: boolean }[]>([]);
+  const [topicId, setTopicId] = useState("");
+  const [due, setDue] = useState(nextFriday);
+  const [open, setOpen] = useState<string | null>(null);
+  const [error, setError] = useState<unknown>(null);
+  const load = useCallback(() => api.assignments(classId).then(setList, setError), [api, classId]);
+  useEffect(() => {
+    load();
+    Promise.all([api.topics(subjectId, grade), api.topicCounts(grade, lang), api.topicMin()]).then(([tps, counts, min]) => {
+      const ready = new Map(counts.map((x) => [x.topic_id, x.ready]));
+      const rows = tps.slice().sort((a, b) => a.sort_order - b.sort_order)
+        .map((x) => ({ id: x.id, title: nm(x, "title", lang), open: (ready.get(x.id) ?? 0) >= min }));
+      setTopics(rows);
+      setTopicId((cur) => cur || rows.find((x) => x.open)?.id || "");
+    }, setError);
+  }, [api, classId, subjectId, grade, lang, load]);
+
+  async function give(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    try { await api.createAssignment(classId, topicId, due); await load(); } catch (err) { setError(err); }
+  }
+  async function remove(id: string) {
+    if (!confirm(c.confirmDelTask)) return;
+    try { await api.deleteAssignment(id); await load(); } catch (err) { setError(err); }
+  }
+  const date = (s: string) => new Date(s).toLocaleDateString();
+
+  return (
+    <section className="st-card">
+      <h2>{c.tasksTitle}</h2>
+      <form className="adm-row grow" onSubmit={give}>
+        <label>{c.taskTopic}
+          <select value={topicId} onChange={(e) => setTopicId(e.target.value)}>
+            {topics.map((x) => <option key={x.id} value={x.id} disabled={!x.open}>{x.title}{x.open ? "" : ` — ${c.closed}`}</option>)}
+          </select>
+        </label>
+        <label>{c.taskDue}<input type="date" value={due} required onChange={(e) => setDue(e.target.value)} /></label>
+        <button type="submit" className="btn" disabled={!topicId}>{c.give}</button>
+      </form>
+      {error !== null && <p className="error" role="alert">{humanError(error, t)}</p>}
+      {list && list.length > 0 && (
+        <ul className="tasks">
+          {list.map((a) => {
+            const done = a.students.filter((s) => s.percent !== null).length;
+            const link = `${location.origin}/t/${a.topic_id}`;
+            return (
+              <li key={a.id}>
+                <div className="task-head">
+                  <b>{nm(a, "title", lang)}</b>
+                  <span className={new Date(a.due_at) < new Date() ? "lvl-low" : "muted"}>{c.until(date(a.due_at))}</span>
+                  <button type="button" className="link" aria-expanded={open === a.id} onClick={() => setOpen(open === a.id ? null : a.id)}>
+                    {c.doneOf(done, a.students.length)}</button>
+                  <Copy text={link} label={c.copyLink} />
+                  <button type="button" className="link danger" onClick={() => remove(a.id)}>{t.del}</button>
+                </div>
+                {open === a.id && (
+                  <ul className="task-students">{a.students.map((s) => (
+                    <li key={s.id}><span>{s.name}</span>
+                      <span className={s.percent === null ? "muted" : lvl(s.percent)}>{s.percent === null ? c.notDone : `✓ ${s.percent}%`}</span></li>
+                  ))}</ul>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </section>
+  );
+}
 
 /** «Ученики × темы»: строки — ученики, столбцы — темы, в клетке — процент по последним 20 ответам. */
 function Matrix({ api, id, grade, nav }: { api: AdminApi; id: string; grade: number; nav: Nav }) {
@@ -261,6 +345,8 @@ export function ClassPage({ api, id, nav }: { api: AdminApi; id: string; nav: Na
           </table></div>
         )}
       </section>
+
+      <Assignments api={api} classId={id} subjectId={k.subject_id} grade={k.grade} />
 
       <Matrix api={api} id={id} grade={k.grade} nav={nav} />
 

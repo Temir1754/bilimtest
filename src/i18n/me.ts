@@ -12,6 +12,9 @@ const kk = {
   logout: "Шығу",
   loading: "Жүктелуде…",
   saved: "Сақталды.",
+  tasks: {
+    title: "Тапсырмаларым", until: (d: string) => `${d} дейін`, left: (n: number) => `${n} күн қалды`, late: "мерзімі өтті", start: "Бастау",
+  },
   report: {
     lede: "Аптаның есебін ата-анаңа жібер:", whatsapp: "WhatsApp-қа жіберу", telegram: "Telegram-ға жіберу",
     none: "Осы аптада тест тапсырмадың — есеп әлі жоқ.",
@@ -63,6 +66,9 @@ const ru: MeText = {
   logout: "Выйти",
   loading: "Загрузка…",
   saved: "Сохранено.",
+  tasks: {
+    title: "Мои задания", until: (d) => `до ${d}`, left: (n) => `осталось дней: ${n}`, late: "срок прошёл", start: "Начать",
+  },
   report: {
     lede: "Отправь отчёт за неделю родителям:", whatsapp: "Отправить в WhatsApp", telegram: "Отправить в Telegram",
     none: "На этой неделе тестов не было — отчёта пока нет.",
@@ -112,6 +118,9 @@ const en: MeText = {
   logout: "Log out",
   loading: "Loading…",
   saved: "Saved.",
+  tasks: {
+    title: "My tasks", until: (d) => `until ${d}`, left: (n) => `${n} days left`, late: "overdue", start: "Start",
+  },
   report: {
     lede: "Send this week's report to your parents:", whatsapp: "Send via WhatsApp", telegram: "Send via Telegram",
     none: "No tests this week — no report yet.",

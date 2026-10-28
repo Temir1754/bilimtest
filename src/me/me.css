@@ -43,3 +43,4 @@
 .me-report-text{white-space:pre-wrap;font:inherit;font-size:15px;margin:0;padding:12px 14px;border-radius:12px;background:var(--bg);border:1px solid var(--line)}
 .me-report .me-row{display:flex;flex-wrap:wrap;gap:8px}
 .me-report a.btn{text-decoration:none;display:inline-block}
+.me-runs a.btn{text-decoration:none;white-space:nowrap}

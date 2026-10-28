@@ -42,6 +42,9 @@ const kk = {
     wrongTitle: "Қате жауап берген сұрақтары", noWrong: "Қате жауап жоқ — керемет!",
     excel: "Excel-ге түсіру", file: (g: number, l: string) => `synyp-${g}${l}`, nick: "Лақап ат",
     sheetStudents: "Оқушылар", sheetTopics: "Тақырыптар",
+    tasksTitle: "Тапсырмалар", taskTopic: "Тақырып", taskDue: "Мерзімі", give: "Тапсырма беру", closed: "оқушыларға әзірге жабық",
+    until: (d: string) => `${d} дейін`, doneOf: (n: number, all: number) => `орындады: ${n} / ${all}`, notDone: "орындамады",
+    confirmDelTask: "Тапсырма жойылсын ба?", pastDue: "Мерзімі өтіп кеткен. Басқа күнді таңдаңыз.",
     deleteClass: "Сыныпты жою", confirmDelete: "Сынып жойылсын ба? Оқушылардың аккаунттары мен нәтижелері қалады.",
   },
 
@@ -353,6 +356,9 @@ const ru: AdminText = {
     wrongTitle: "Вопросы с ошибками", noWrong: "Ошибок нет — отлично!",
     excel: "Выгрузить в Excel", file: (g, l) => `klass-${g}${l}`, nick: "Ник",
     sheetStudents: "Ученики", sheetTopics: "Темы",
+    tasksTitle: "Задания", taskTopic: "Тема", taskDue: "Срок", give: "Дать задание", closed: "пока закрыта для учеников",
+    until: (d) => `до ${d}`, doneOf: (n, all) => `выполнили: ${n} из ${all}`, notDone: "не выполнил",
+    confirmDelTask: "Удалить задание?", pastDue: "Срок уже прошёл. Выберите другой день.",
     deleteClass: "Удалить класс", confirmDelete: "Удалить класс? Аккаунты и результаты учеников останутся.",
   },
 
@@ -662,6 +668,9 @@ const en: AdminText = {
     wrongTitle: "Questions answered wrong", noWrong: "No mistakes — great!",
     excel: "Export to Excel", file: (g, l) => `class-${g}${l}`, nick: "Nickname",
     sheetStudents: "Students", sheetTopics: "Topics",
+    tasksTitle: "Tasks", taskTopic: "Topic", taskDue: "Due", give: "Give a task", closed: "not open to students yet",
+    until: (d) => `until ${d}`, doneOf: (n, all) => `done: ${n} of ${all}`, notDone: "not done",
+    confirmDelTask: "Delete the task?", pastDue: "This date has passed. Pick another day.",
     deleteClass: "Delete class", confirmDelete: "Delete the class? Student accounts and results stay.",
   },
 

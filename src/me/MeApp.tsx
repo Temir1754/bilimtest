@@ -8,7 +8,7 @@ import { pendingJoin, setPendingJoin } from "../lib/account";
 import { loadPrefs, savePrefs, type Prefs } from "../lib/storage";
 import { GRADES, LANGS, type Lang } from "../lib/types";
 import { reportText, weekStats } from "./report";
-import { meError, type MeApi, type MyClass, type MyRun, type Profile } from "./api";
+import { meError, type MeApi, type MyClass, type MyRun, type MyTask, type Profile } from "./api";
 import "./me.css";
 
 interface Props {
@@ -48,6 +48,7 @@ export function MeApp({ api, go = (p) => location.assign(p) }: Props) {
       <>
         <h1>{t.heading}</h1>
         <p className="lede">{t.hello(me.nickname)}</p>
+        <TasksCard api={api} t={t} lang={prefs.lang} />
         <RunsCard api={api} t={t} lang={prefs.lang} nickname={me.nickname} />
         <ClassesCard api={api} t={t} lang={prefs.lang} />
         <GradeCard api={api} t={t} grade={me.grade}
@@ -105,6 +106,35 @@ function useAction(t: MeText) {
 }
 
 /** Класс: нажал — сразу сохранено; на главной откроется этот класс. */
+/** «Тапсырмаларым» (№110): задания учителей со сроком; «Бастау» открывает тему на сайте. */
+function TasksCard({ api, t, lang }: { api: MeApi; t: MeText; lang: Lang }) {
+  const [tasks, setTasks] = useState<MyTask[] | null>(null);
+  useEffect(() => { api.tasks(lang).then(setTasks, () => setTasks([])); }, [api, lang]);
+  if (!tasks || tasks.length === 0) return null;
+  const now = Date.now();
+  const date = (s: string) => new Date(s).toLocaleDateString(lang === "en" ? "en-GB" : lang === "ru" ? "ru-RU" : "kk-KZ");
+  return (
+    <section className="me-card" aria-labelledby="me-tasks">
+      <h2 id="me-tasks">{t.tasks.title}</h2>
+      <ul className="me-runs">
+        {tasks.map((x) => {
+          const late = new Date(x.due_at).getTime() < now;
+          const days = Math.ceil((new Date(x.due_at).getTime() - now) / 864e5);
+          return (
+            <li key={x.id}>
+              <span><b>{x.subject}</b> · {x.topic}<br />
+                <small className={x.percent === null && late ? "lvl-low" : "muted"}>{t.tasks.until(date(x.due_at))}
+                  {x.percent === null && (late ? ` · ${t.tasks.late}` : ` · ${t.tasks.left(days)}`)}</small></span>
+              {x.percent !== null ? <span className={x.percent >= 80 ? "lvl-ok" : x.percent >= 50 ? "lvl-mid" : "lvl-low"}>✓ {x.percent}%</span>
+                : !late && <a className="btn" href={`/t/${x.topic_id}`}>{t.tasks.start}</a>}
+            </li>
+          );
+        })}
+      </ul>
+    </section>
+  );
+}
+
 /** «Нәтижелерім»: последние тесты из аккаунта (№104). */
 function RunsCard({ api, t, lang, nickname }: { api: MeApi; t: MeText; lang: Lang; nickname: string }) {
   const [runs, setRuns] = useState<MyRun[] | null>(null);

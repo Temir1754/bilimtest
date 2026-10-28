@@ -29,6 +29,10 @@ function fakeApi(profile: Profile | null) {
       classes.push({ id: "c1", subject: "π Математика", grade: 7, letter: "Б", teacher: "Бекмухамед М.", display_name: name });
     }),
     leaveClass: vi.fn(async () => { classes.length = 0; }),
+    tasks: vi.fn(async () => [
+      { id: "a1", topic_id: "11111111-2222-4333-8444-555566667777", subject: "π Математика", topic: "Проценты",
+        due_at: new Date(Date.now() + 2.5 * 864e5).toISOString(), percent: null },
+      { id: "a2", topic_id: "t2", subject: "π Математика", topic: "Дроби", due_at: new Date(Date.now() + 864e5).toISOString(), percent: 80 }]),
     runs: vi.fn(async () => [{ subject: "π Математика", topic: "Дроби", grade: 7, score: 9, total: 10, finished_at: new Date(Date.now() - 864e5).toISOString() },
       { subject: "π Математика", topic: "", grade: 7, score: 4, total: 10, finished_at: new Date(Date.now() - 2 * 864e5).toISOString() }]),
   } satisfies MeApi;
@@ -195,5 +199,16 @@ describe("отчёт родителю (№106)", () => {
     expect(text).toContain("тестов: 2, вопросов: 20, в среднем 65%");
     expect(text).toContain("Хорошо: Дроби (90%)");
     expect(screen.getByRole("link", { name: "Отправить в Telegram" }).getAttribute("href")).toMatch(/^https:\/\/t\.me\/share\/url/);
+  });
+});
+
+describe("кабинет: задания (№110)", () => {
+  it("задание с «Начать» и сколько дней осталось; выполненное — с процентом", async () => {
+    history.replaceState(null, "", "/me");
+    render(<MeApp api={fakeApi(kid())} go={vi.fn()} />);
+    expect(await screen.findByRole("heading", { name: "Мои задания" })).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Начать" }).getAttribute("href")).toBe("/t/11111111-2222-4333-8444-555566667777");
+    expect(screen.getByText(/осталось дней: 3/)).toBeTruthy();
+    expect(screen.getByText("✓ 80%").className).toBe("lvl-ok");
   });
 });

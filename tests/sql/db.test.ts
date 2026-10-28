@@ -1197,3 +1197,41 @@ describe("кабинет учителя: ученики × темы и стра�
     await call("teacherA", "public.delete_class($1)", [cls.id]);
   });
 });
+
+describe("задания со сроком (№110)", () => {
+  type R = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
+  const call = async (who: keyof typeof ids | null, sql: string, p: unknown[] = []) =>
+    (await as(who, (q) => q<{ r: R }>(`select ${sql} as r`, p)))[0].r;
+
+  it("учитель даёт тему со сроком; тест ученика по теме после выдачи — выполнено; чужие не видят", async () => {
+    const t = (await one<{ id: string; subject_id: string }>(`select t.id, t.subject_id from public.topics t where t.grade = 5
+      and (select count(*) from public.questions q where q.topic_id = t.id and q.status = 'published') >= 1 limit 1`))!;
+    const other = (await one<{ id: string }>("select id from public.topics where subject_id <> $1 limit 1", [t.subject_id]))!.id;
+    const q = (await one<{ id: string; ok: string }>(`select q.id, (select id from public.options where question_id = q.id and is_correct limit 1) as ok
+      from public.questions q where q.topic_id = $1 and q.status = 'published' limit 1`, [t.id]))!;
+    const cls = await call("teacherA", "public.create_class($1, 5, 'З')", [t.subject_id]);
+    await call("student", "public.join_class($1, 'Айдос')", [cls.join_code]);
+    const tomorrow = new Date(Date.now() + 864e5).toISOString().slice(0, 10);
+    await expect(call("teacherA", "public.create_assignment($1, $2, $3)", [cls.id, other, tomorrow])).rejects.toThrow(/не из предмета/);
+    await expect(call("teacherA", "public.create_assignment($1, $2, '2020-01-01')", [cls.id, t.id])).rejects.toThrow(/прошёл/);
+    await expect(call("teacherB", "public.create_assignment($1, $2, $3)", [cls.id, t.id, tomorrow])).rejects.toThrow(/не найден/);
+    const aid = await call("teacherA", "public.create_assignment($1, $2, $3)", [cls.id, t.id, tomorrow]) as unknown as string;
+
+    expect(await call("student", "public.my_assignments()")).toEqual([expect.objectContaining({ id: aid, topic_id: t.id, percent: null })]);
+    let list = await call("teacherA", "public.class_assignments($1)", [cls.id]);
+    expect(list[0].students).toEqual([expect.objectContaining({ name: "Айдос", percent: null })]);
+
+    await as("student", (x) => x("select public.submit_attempt($1, 5, $2, $3::jsonb)",
+      [t.subject_id, t.id, JSON.stringify([{ question_id: q.id, option_id: q.ok }])]));
+    expect(await call("student", "public.my_assignments()")).toEqual([expect.objectContaining({ id: aid, percent: 100 })]);
+    list = await call("teacherA", "public.class_assignments($1)", [cls.id]);
+    expect(list[0].students).toEqual([expect.objectContaining({ name: "Айдос", percent: 100 })]);
+    await expect(call("teacherB", "public.class_assignments($1)", [cls.id])).rejects.toThrow(/не найден/);
+    expect(await call("teacherB", "public.my_assignments()")).toEqual([]);
+
+    await expect(call("teacherB", "public.delete_assignment($1)", [aid])).rejects.toThrow(/не найдено/);
+    await call("teacherA", "public.delete_assignment($1)", [aid]);
+    expect(await call("student", "public.my_assignments()")).toEqual([]);
+    await call("teacherA", "public.delete_class($1)", [cls.id]);
+  });
+});
