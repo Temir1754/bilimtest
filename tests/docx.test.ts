@@ -1,6 +1,8 @@
 import { strToU8, zipSync } from "fflate";
 import { describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
 import { docxParas, parseTest, readDocx } from "../src/admin/docx";
+import { sampleDocx, samplePath } from "../scripts/sample-docx";
 import {
   detectLang, draftRows, guessColumns, issues, parseKey, sheetToDrafts, suggestTopic, type Draft,
 } from "../src/admin/drafts";
@@ -171,5 +173,20 @@ describe("проверка и сохранение строк", () => {
     expect(topics.map((t) => t.key)).toEqual(["Сложение", "Вычитание"]);
     expect(drafts.map((d) => [d.options, d.correct])).toEqual([
       [["3", "4", "5"], 1], [["6", "7", "8"], 0], [["4", "3", "2", "1"], 0]]);
+  });
+});
+
+describe("образцы Word для учителей (№114)", () => {
+  it.each(["kk", "ru", "en"] as const)("public/samples/ulgi-%s.docx читается без ошибок и совпадает со скриптом", async (lang) => {
+    const bytes = readFileSync(samplePath(lang));
+    expect(new Uint8Array(bytes)).toEqual(sampleDocx(lang)); // после правки текста — npm run samples
+    const { topics, drafts, noKey } = parseTest(await readDocx(new File([new Uint8Array(bytes)], `ulgi-${lang}.docx`)));
+    expect(noKey).toBe(false);
+    expect(topics.map((t) => t.label)).toEqual(["§1", "§2"]);
+    expect(drafts).toHaveLength(5);
+    expect(drafts.map((d) => [d.options.length, issues(d)])).toEqual([[4, []], [4, []], [4, []], [4, []], [3, []]]);
+    // правильные ответы — на разных местах, а не все «A»
+    expect(drafts.map((d) => d.correct)).toEqual([0, 2, 1, 3, 0]);
+    expect(drafts.every((d) => ["42", "100", "3/4", "1/2"].includes(d.options[d.correct!]))).toBe(true);
   });
 });

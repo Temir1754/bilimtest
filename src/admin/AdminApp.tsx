@@ -7,6 +7,7 @@ import { LANGS } from "../lib/types";
 import { humanError, type AdminApi, type Me } from "./api";
 import { Browser } from "./Browser";
 import { ClassesView, ClassPage, StudentPage } from "./ClassesView";
+import { HelpView } from "./HelpView";
 import { ImportView } from "./ImportView";
 import { AdminLang } from "./lang";
 import { ReviewQueue } from "./ReviewQueue";
@@ -113,6 +114,8 @@ export function AdminApp({ api, go = (p) => location.replace(p) }: {
     body = <ClassPage key={view.id} api={api} id={view.id} nav={nav} />;
   } else if (view.name === "student") {
     body = <StudentPage key={view.id} api={api} classId={view.classId} id={view.id} nav={nav} />;
+  } else if (view.name === "help") {
+    body = <HelpView api={api} id={view.id} nav={nav} />;
   } else if (view.name === "my") {
     body = <MyQuestions api={api} me={me} nav={nav} />;
   } else if (view.name === "translate") {
@@ -144,8 +147,8 @@ export function AdminApp({ api, go = (p) => location.replace(p) }: {
         </a>
         {me && me.role !== "student" && (
           <nav className="adm-nav" aria-label={t.nav.label}>
-            {/* Учитель: «Сұрақтар», «Менің сұрақтарым» и «Сыныптарым»; админ: ещё «Тексеруде», «Мектептер», «Пайдаланушылар» */}
-            {(me.role === "admin" ? ["questions", "review", "schools", "users"] as const : ["questions", "my", "classes"] as const).map((k) => (
+            {/* Учитель: «Сұрақтар», «Менің сұрақтарым», «Сыныптарым» и «Нұсқаулық»; админ: ещё «Тексеруде», «Мектептер», «Пайдаланушылар» */}
+            {(me.role === "admin" ? ["questions", "review", "schools", "users"] as const : ["questions", "my", "classes", "help"] as const).map((k) => (
               <Go key={k} to={k === "questions" ? { name: "grade" } : { name: k }} nav={nav}
                 className={tab === k ? "on" : undefined}>{t.nav[k]}</Go>
             ))}

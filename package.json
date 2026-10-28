@@ -21,7 +21,8 @@
     "seal": "tsx scripts/seal-backup.ts seal",
     "unseal": "tsx scripts/seal-backup.ts unseal",
     "functions": "tsx scripts/deploy-functions.ts",
-    "weekly": "tsx scripts/weekly-report.ts"
+    "weekly": "tsx scripts/weekly-report.ts",
+    "samples": "tsx scripts/sample-docx.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.118.0",

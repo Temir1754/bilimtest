@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import type { AdminApi, Me } from "./api";
 import { useT } from "./lang";
 import type { AdminView } from "./route";
-import type { Nav } from "./Steps";
+import { Go, type Nav } from "./Steps";
 
 const KEY = "bt-start-hidden";
 
@@ -38,6 +38,8 @@ const ORDER = ["add", "publish", "cls", "join", "task"] as const;
 const TARGET: Record<(typeof ORDER)[number], AdminView> = {
   add: { name: "grade" }, publish: { name: "my" }, cls: { name: "classes" }, join: { name: "classes" }, task: { name: "classes" },
 };
+/** Статья «Нұсқаулық» к шагу (№114). */
+const ARTICLE: Record<(typeof ORDER)[number], string> = { add: "add", publish: "status", cls: "class", join: "class", task: "task" };
 
 export function StartGuide({ api, me, nav, onHide }: { api: AdminApi; me: Me; nav: Nav; onHide: () => void }) {
   const { t } = useT();
@@ -79,7 +81,9 @@ export function StartGuide({ api, me, nav, onHide }: { api: AdminApi; me: Me; na
                     <button type="button" className="link" onClick={() => nav(TARGET[k])}>{s.go} →</button>
                   </span>
                 )}
-                {open === k && !state[k] && <span className="how">{how}</span>}
+                {open === k && !state[k] && (
+                  <span className="how">{how} <Go to={{ name: "help", id: ARTICLE[k] }} nav={nav}>{s.more} →</Go></span>
+                )}
               </span>
             </li>
           );

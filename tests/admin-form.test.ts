@@ -124,11 +124,27 @@ describe("адреса экранов админки (№87)", () => {
       { name: "grade" }, { name: "topics", slug: "math", grade: 5 }, { name: "excel", slug: "math", grade: 5 },
       { name: "topic", topicId: "t1" }, { name: "new", topicId: "t1" }, { name: "edit", id: "q1" },
       { name: "search" }, { name: "translate" }, { name: "my" }, { name: "review" }, { name: "schools" }, { name: "users" },
-      { name: "author", id: "u1" },
+      { name: "author", id: "u1" }, { name: "help" }, { name: "help", id: "class" },
     ] as const;
     for (const v of views) expect(parsePath(toPath(v))).toEqual(v);
     expect(toPath({ name: "new", topicId: "t1" })).toBe("/admin/questions/topic/t1/new");
     expect(parsePath("/admin")).toEqual({ name: "grade" });
     expect(parsePath("/admin/questions/math/12")).toEqual({ name: "grade" }); // класса 12 нет
+  });
+});
+
+describe("«Нұсқаулық» (№114)", () => {
+  it("на трёх языках одни и те же статьи, шаги не повторяются, порог темы подставлен", async () => {
+    const { HELP } = await import("../src/i18n/help");
+    const ids = HELP.ru(7).articles.map((a) => a.id);
+    for (const lang of ["kk", "ru", "en"] as const) {
+      const h = HELP[lang](7);
+      expect(h.articles.map((a) => a.id)).toEqual(ids);
+      for (const a of h.articles) for (const b of a.body) {
+        if (typeof b === "object" && "steps" in b) expect(new Set(b.steps).size).toBe(b.steps.length);
+      }
+      expect(JSON.stringify(h)).toContain("7");
+      expect(JSON.stringify(h)).not.toContain("undefined");
+    }
   });
 });

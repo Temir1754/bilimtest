@@ -454,3 +454,12 @@ label.adm-check{display:flex;align-items:center;gap:8px;font-size:14px;font-weig
 .adm-start .body{display:grid;gap:4px}
 .adm-start .acts{display:flex;gap:16px}
 .adm-start .how{color:var(--muted);line-height:1.5;max-width:70ch}
+
+/* «Нұсқаулық» (№114) */
+.adm-help{max-width:760px;line-height:1.55}
+.adm-help section{border-top:1px solid var(--line);padding-top:6px;display:grid;gap:10px}
+.adm-help section p{margin:0}
+.adm-help-toc{margin:0;padding-left:22px;display:grid;gap:4px}
+.adm-help-steps{margin:0;padding-left:22px;display:grid;gap:6px}
+.adm-help .btn.ghost{justify-self:start}
+.adm-start .how a{white-space:nowrap}

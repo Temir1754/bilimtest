@@ -13,7 +13,7 @@ const kk = {
   logout: "Шығу",
   menu: { label: "Аккаунт мәзірі", site: "Сайтқа өту", cabinet: "Кабинет" },
   noAccess: (email: string) => `${email} аккаунтының әкімші панеліне рұқсаты жоқ. Әкімшіден мұғалім рөлін беруді сұраңыз.`,
-  nav: { label: "Бөлімдер", questions: "Сұрақтар", review: "Тексеруде", schools: "Мектептер", users: "Пайдаланушылар", my: "Менің сұрақтарым", classes: "Сыныптарым" },
+  nav: { label: "Бөлімдер", questions: "Сұрақтар", review: "Тексеруде", schools: "Мектептер", users: "Пайдаланушылар", my: "Менің сұрақтарым", classes: "Сыныптарым", help: "Нұсқаулық" },
   cert: {
     title: "Автор сертификаты",
     progress: (n: number, next: number) => `Жарияланған сұрақтарыңыз: ${n}. Сертификатқа дейін — ${next}.`,
@@ -76,7 +76,7 @@ const kk = {
   // «Алғашқы қадамдар» — учитель после входа (№113)
   start: {
     title: "Алғашқы қадамдар", lede: (done: number, all: number) => `${all} қадамның ${done} орындалды. Белгілер өздігінен қойылады.`,
-    how: "Қалай?", go: "Өту", hide: "Жасыру", reopen: "Алғашқы қадамдар",
+    how: "Қалай?", go: "Өту", more: "Толығырақ", hide: "Жасыру", reopen: "Алғашқы қадамдар",
     add: { title: "Алғашқы сұрақты қосыңыз",
       how: "«Сұрақтар» → сынып → пән → тақырып → «+ Сұрақ қосу». Тест Word немесе Excel файлында болса — тақырыптар бетіндегі «Файл ▾» → «Файлдан жүктеу (Excel, Word)»: файлдағы барлық сұрақ бірден жүктеледі." },
     publish: { title: "Сұрақты оқушыларға көрсетіңіз",
@@ -346,7 +346,7 @@ const ru: AdminText = {
   logout: "Выйти",
   menu: { label: "Меню аккаунта", site: "На сайт", cabinet: "Кабинет" },
   noAccess: (email) => `У аккаунта ${email} нет доступа к админке. Попросите админа выдать роль учителя.`,
-  nav: { label: "Разделы", questions: "Вопросы", review: "На проверке", schools: "Школы", users: "Пользователи", my: "Мои вопросы", classes: "Мои классы" },
+  nav: { label: "Разделы", questions: "Вопросы", review: "На проверке", schools: "Школы", users: "Пользователи", my: "Мои вопросы", classes: "Мои классы", help: "Инструкция" },
   cert: {
     title: "Сертификат автора",
     progress: (n, next) => `Опубликовано ваших вопросов: ${n}. До сертификата — ${next}.`,
@@ -408,7 +408,7 @@ const ru: AdminText = {
 
   start: {
     title: "Первые шаги", lede: (done, all) => `Сделано ${done} из ${all}. Галочки ставятся сами.`,
-    how: "Как?", go: "Перейти", hide: "Скрыть", reopen: "Первые шаги",
+    how: "Как?", go: "Перейти", more: "Подробнее", hide: "Скрыть", reopen: "Первые шаги",
     add: { title: "Добавьте первый вопрос",
       how: "«Вопросы» → класс → предмет → тема → «+ Добавить вопрос». Если тест в файле Word или Excel — на странице тем «Файл ▾» → «Загрузить из файла (Excel, Word)»: все вопросы файла загрузятся сразу." },
     publish: { title: "Покажите вопрос ученикам",
@@ -676,7 +676,7 @@ const en: AdminText = {
   logout: "Log out",
   menu: { label: "Account menu", site: "Go to site", cabinet: "Dashboard" },
   noAccess: (email) => `The account ${email} has no access to the admin panel. Ask an admin to give you the teacher role.`,
-  nav: { label: "Sections", questions: "Questions", review: "In review", schools: "Schools", users: "Users", my: "My questions", classes: "My classes" },
+  nav: { label: "Sections", questions: "Questions", review: "In review", schools: "Schools", users: "Users", my: "My questions", classes: "My classes", help: "Guide" },
   cert: {
     title: "Author certificate",
     progress: (n, next) => `Your published questions: ${n}. Certificate at ${next}.`,
@@ -738,7 +738,7 @@ const en: AdminText = {
 
   start: {
     title: "First steps", lede: (done, all) => `${done} of ${all} done. Ticks appear by themselves.`,
-    how: "How?", go: "Go", hide: "Hide", reopen: "First steps",
+    how: "How?", go: "Go", more: "More", hide: "Hide", reopen: "First steps",
     add: { title: "Add your first question",
       how: "“Questions” → grade → subject → topic → “+ Add question”. If your test is in a Word or Excel file, on the topics page use “File ▾” → “Import from a file (Excel, Word)”: all questions from the file are added at once." },
     publish: { title: "Show the question to students",

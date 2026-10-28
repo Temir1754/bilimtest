@@ -918,6 +918,27 @@ describe("админка", () => {
     expect(await screen.findByRole("region", { name: "Первые шаги" })).toBeTruthy();
   });
 
+  it("«Инструкция» (№114): вкладка учителя, содержание, образец Word на языке админки; «Подробнее» из «Первых шагов»", async () => {
+    history.replaceState(null, "", "/admin/classes");
+    const user = userEvent.setup();
+    const { api } = fakeApi({ id: "teacher", email: "t@x.kz", role: "teacher" });
+    vi.spyOn(api, "topicMin").mockResolvedValue(10);
+    render(<AdminApp api={api} />);
+    const box = within(await screen.findByRole("region", { name: "Первые шаги" }));
+    await user.click(box.getAllByRole("button", { name: "Как?" })[1]); // «Создайте класс»
+    await user.click(box.getByRole("link", { name: "Подробнее →" }));
+    expect(location.pathname).toBe("/admin/help/class");
+    expect(screen.getByRole("link", { name: "Инструкция" }).className).toBe("on");
+    expect(await screen.findByRole("heading", { name: "Класс и ученики" })).toBeTruthy();
+    expect(await screen.findByText(/не меньше 10 опубликованных вопросов\. Значок «3 \/ 10»/)).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Скачать образец Word (.docx)" }).getAttribute("href")).toBe("/samples/ulgi-ru.docx");
+    const toc = within(screen.getByRole("navigation", { name: "Содержание" }));
+    expect(toc.getAllByRole("link")).toHaveLength(8);
+    await user.click(toc.getByRole("link", { name: "Частые вопросы" }));
+    expect(location.pathname).toBe("/admin/help/faq");
+    expect(screen.queryByRole("region", { name: "Первые шаги" })).toBeNull(); // на странице инструкции блока нет
+  });
+
   it("«Первые шаги» не видны админу и учителю, у которого всё сделано", async () => {
     history.replaceState(null, "", "/admin/classes");
     const { api, questions } = fakeApi({ id: "teacher", email: "t@x.kz", role: "teacher" });
