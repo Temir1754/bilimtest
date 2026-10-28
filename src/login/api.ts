@@ -2,6 +2,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { AuthText } from "../i18n/auth";
 import { loginEmail, saveAccount, setRemember, type Account } from "../lib/account";
+import { loadPrefs, savePrefs } from "../lib/storage";
 
 export interface AuthApi {
   /** Вход по email или нику (№71). Запоминает ник и роль для шапки сайта.
@@ -56,6 +57,11 @@ export function supabaseAuthApi(sb: SupabaseClient): AuthApi {
       if (e2) throw e2;
       const account: Account = { name: p.nickname || (data.user.email ?? "").split("@")[0], role: p.role };
       saveAccount(account);
+      // Ученик: главная открывается на его классе из аккаунта (№111), а не на том, что смотрели в этом браузере.
+      if (p.role === "student") {
+        const { data: grade } = await sb.rpc("my_grade");
+        if (typeof grade === "number") savePrefs({ ...loadPrefs(), grade });
+      }
       return { account, mustChange: p.must_change_password === true };
     },
     async changePassword(password) {

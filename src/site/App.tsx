@@ -3,6 +3,7 @@ import { LogoMark } from "../components/NickMenu";
 import { UI } from "../i18n/ui";
 import { answer, isCorrect, mistakesQuiz, mixedQuiz, percent, score, topicLevel, topicProgress, topicQuiz, weakQuiz, type Quiz } from "../lib/quiz";
 import { loadBest, loadHistory, loadPrefs, mergeHistory, recordAnswer, recordBest, savePrefs, type Best } from "../lib/storage";
+import { loadAccount } from "../lib/account";
 import { parsePath, resolvePlace, sitePath, subjectSlug } from "../lib/slug";
 import { tx } from "../lib/text";
 import { LANGS, visibleTopics, type Catalog, type DataSource, type Lang } from "../lib/types";
@@ -163,7 +164,7 @@ export function App({ source }: { source: DataSource }) {
   if (failed) body = <p className="error">{t.loadError}</p>;
   else if (!catalog) body = <p className="loading">{t.loading}</p>;
   else if (view.name === "home" || !subject) {
-    body = <Home catalog={catalog} lang={lang} t={t} grade={grade}
+    body = <Home catalog={catalog} lang={lang} t={t} grade={grade} ownGrade={loadAccount()?.role === "student"}
       onGrade={(g) => updatePrefs({ grade: g })}
       onSubject={(id) => go({ name: "subject", sid: id }, true)} />;
   } else if (view.name === "subject") {

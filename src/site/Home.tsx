@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { tx } from "../lib/text";
 import { GRADES, topicCount, visibleTopics, type Catalog, type Lang } from "../lib/types";
 import type { UiText } from "../i18n/ui";
@@ -9,9 +10,12 @@ interface Props {
   grade: number;
   onGrade: (g: number) => void;
   onSubject: (sid: string) => void;
+  /** Вошедший ученик (№111): сразу свой класс, остальные — по ссылке «Сыныпты ауыстыру». */
+  ownGrade?: boolean;
 }
 
-export function Home({ catalog, lang, t, grade, onGrade, onSubject }: Props) {
+export function Home({ catalog, lang, t, grade, onGrade, onSubject, ownGrade = false }: Props) {
+  const [picking, setPicking] = useState(false);
   const shown = visibleTopics(catalog, lang);
   const totalQ = shown.reduce((n, tp) => n + topicCount(tp, lang), 0);
   const cards = catalog.subjects
@@ -29,14 +33,23 @@ export function Home({ catalog, lang, t, grade, onGrade, onSubject }: Props) {
           <span><b>3</b> {t.langCount}: қазақша · русский · English</span>
         </div>
       </section>
-      <div className="label">{t.grade}</div>
-      <div className="grades" role="group" aria-label={t.grade}>
-        {GRADES.map((g) => (
-          <button key={g} type="button" aria-pressed={g === grade} onClick={() => onGrade(g)}>
-            <span className="n">{g}</span><span className="s">{t.gs}</span>
-          </button>
-        ))}
-      </div>
+      {ownGrade && !picking ? (
+        <p className="own-grade">
+          <b>{t.gl(grade)}</b>{" "}
+          <button type="button" className="link-btn" onClick={() => setPicking(true)}>{t.changeGrade}</button>
+        </p>
+      ) : (
+        <>
+          <div className="label">{t.grade}</div>
+          <div className="grades" role="group" aria-label={t.grade}>
+            {GRADES.map((g) => (
+              <button key={g} type="button" aria-pressed={g === grade} onClick={() => { onGrade(g); setPicking(false); }}>
+                <span className="n">{g}</span><span className="s">{t.gs}</span>
+              </button>
+            ))}
+          </div>
+        </>
+      )}
       <div className="label" style={{ marginBottom: 10 }}>{t.subjects} · {t.gl(grade)}</div>
       <div className="subjects">
         {cards.map(({ s, tps }) => (

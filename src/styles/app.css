@@ -181,3 +181,7 @@ a.logo{color:inherit;text-decoration:none}
 .lv-ok{background:rgba(26,143,78,.15);color:var(--good)}
 .lv-mid{background:var(--gold-soft);color:var(--gold)}
 .lv-low{background:rgba(192,57,43,.14);color:var(--bad)}
+
+/* Вошедший ученик видит свой класс (№111) */
+.own-grade{font-size:18px;margin:6px 0 18px}
+.link-btn{border:0;background:none;padding:0;color:var(--accent);font-weight:700;cursor:pointer;text-decoration:underline;text-underline-offset:3px}

@@ -180,6 +180,19 @@ describe("сайт ученика", () => {
     expect(document.querySelector(".topics li.focus")?.textContent).toContain("Давление");
   });
 
+  it("вошедший ученик видит свой класс; другие — по ссылке «Сменить класс»; гость — все классы (№111)", async () => {
+    sessionStorage.setItem("bt-me", JSON.stringify({ name: "aidos07", role: "student" }));
+    const user = userEvent.setup();
+    render(<App source={source} />);
+    expect(await screen.findByText("5 класс", { selector: "b" })).toBeTruthy();
+    expect(screen.queryByRole("group", { name: "Класс" })).toBeNull();
+    await user.click(screen.getByRole("button", { name: "Сменить класс" }));
+    await user.click(screen.getByRole("button", { name: /^7/ }));
+    expect(await screen.findByText("7 класс", { selector: "b" })).toBeTruthy(); // выбрал — снова только свой выбор
+    expect(screen.getByRole("button", { name: /Физика/ })).toBeTruthy();
+    sessionStorage.removeItem("bt-me");
+  });
+
   it("переключает язык интерфейса", async () => {
     const user = userEvent.setup();
     render(<App source={source} />);
