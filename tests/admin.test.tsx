@@ -92,6 +92,8 @@ function fakeApi(me: Me | null) {
         ready: questions.filter((q) => q.topic_id === t.id && q.status === "published" && readyIn(fromRow(q), lang)).length }));
     },
     async topicMin() { return settings.topic_min_questions; },
+    async authorProgress() { return { published: 52, next: 100, can_issue: 50, issued: [] }; },
+    issueCertificate: vi.fn(async () => "cert-1"),
     async classes() { return classes.map((c) => ({ ...c, students: report.students.length })); },
     createClass: vi.fn(async (subjectId: string, grade: number, letter: string) => {
       classes.push({ id: "c1", subject_id: subjectId, grade, letter: letter.toUpperCase(), join_code: "ABC234" });
@@ -309,6 +311,7 @@ describe("админка", () => {
 
     expect(await screen.findByText(/Ошибка: нужно минимум 2 неверных ответа/)).toBeTruthy();
     expect(screen.queryByText(/Будут созданы новые темы/)).toBeNull(); // «Новая тема» с ошибкой не создаётся
+    await user.click(screen.getByRole("checkbox", { name: /право их публиковать/ })); // «я автор» (№103)
     await user.click(screen.getByRole("button", { name: "Загрузить 1 в черновики" }));
     expect(await screen.findByText(/загружено вопросов — 1/)).toBeTruthy();
     const rows = (api.importQuestions as ReturnType<typeof vi.fn>).mock.calls[0][2] as { topic: string }[];
@@ -342,6 +345,7 @@ describe("админка", () => {
     await user.selectOptions(screen.getByLabelText("Раздел для всех новых тем"), "Натуральные числа");
     expect(screen.getByRole("button", { name: "Загрузить 2 в черновики" })).toBeTruthy();
     await user.click(screen.getByRole("button", { name: "Вопрос §1 · 2: удалить вариант 5" }));
+    await user.click(screen.getByRole("checkbox", { name: /право их публиковать/ })); // «я автор» (№103)
     await user.click(screen.getByRole("button", { name: "Загрузить 3 в черновики" }));
     expect(await screen.findByText(/загружено вопросов — 3/)).toBeTruthy();
     const [subject, grade, rows] = (api.importQuestions as ReturnType<typeof vi.fn>).mock.calls[0];
@@ -365,6 +369,7 @@ describe("админка", () => {
     const box = await screen.findByRole("group", { name: "Какой столбец что значит?" });
     await user.click(within(box).getByRole("button", { name: "Дальше" }));
     await user.selectOptions(await screen.findByRole("combobox", { name: "Тема программы: Без темы" }), "Сложение");
+    await user.click(screen.getByRole("checkbox", { name: /право их публиковать/ })); // «я автор» (№103)
     await user.click(screen.getByRole("button", { name: "Загрузить 1 и опубликовать" })); // админ: сразу публикует (№94)
     await vi.waitFor(() => expect(api.importQuestions).toHaveBeenCalled());
     expect((api.importQuestions as ReturnType<typeof vi.fn>).mock.calls[0][3]).toBe(true);
@@ -811,6 +816,19 @@ describe("админка", () => {
     await user.click(screen.getByRole("button", { name: "Вернуть учителю" }));
     expect(await screen.findByText("Возвращено учителю.")).toBeTruthy();
     expect(saved[0].p_q).toMatchObject({ status: "draft", review_comment: "Добавьте пояснение" });
+  });
+
+  it("сертификат автора (№103): у учителя в «Моих вопросах» — прогресс и кнопка, сертификат открывается в новой вкладке", async () => {
+    history.replaceState(null, "", "/admin/my");
+    const user = userEvent.setup();
+    const { api } = fakeApi({ id: "teacher", email: "t@x.kz", role: "teacher" });
+    const open = vi.spyOn(window, "open").mockReturnValue(null);
+    render(<AdminApp api={api} />);
+    expect(await screen.findByText(/Опубликовано ваших вопросов: 52/)).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: "Получить сертификат за 50 вопросов" }));
+    expect(api.issueCertificate).toHaveBeenCalled();
+    expect(open).toHaveBeenCalledWith("/cert/cert-1", "_blank", "noopener");
+    open.mockRestore();
   });
 
   it("«Мои классы» (№102): учитель создаёт класс, видит код и ссылку, отчёт и трудные темы; убирает ученика", async () => {

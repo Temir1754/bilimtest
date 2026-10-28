@@ -157,6 +157,14 @@ export interface ClassReport {
     answers: number; students: number; percent: number }[];
 }
 
+/** Сертификат автора (№103): сколько опубликовано, следующий рубеж, выданные и доступный сейчас. */
+export interface AuthorProgress {
+  published: number;
+  next: number | null;
+  can_issue: number | null;
+  issued: { id: string; number: number; milestone: number; issued_at: string }[];
+}
+
 export interface Me {
   id: string;
   email: string;
@@ -229,6 +237,8 @@ export interface AdminApi {
   teacherScope(): Promise<{ subjects: string[]; grades: number[] } | null>;
   /** «Сыныптарым» (№102): классы учителя, создание и удаление, отчёт, убрать ученика. */
   classes(): Promise<ClassRow[]>;
+  authorProgress(): Promise<AuthorProgress>;
+  issueCertificate(): Promise<string>;
   createClass(subjectId: string, grade: number, letter: string): Promise<{ id: string; join_code: string }>;
   deleteClass(id: string): Promise<void>;
   classReport(id: string): Promise<ClassReport>;
@@ -298,6 +308,8 @@ export function humanError(e: unknown, t: AdminText): string {
   if (/не больше 4 вариантов/i.test(m)) return t.problems.max4;
   if (/не указана тема/i.test(m)) return t.xl.rowErr.noTopic;
   if (/от 1 до 2000/i.test(m)) return r.tooMany;
+  if (/нового рубежа/i.test(m)) return t.cert.notYet;
+  if (/имя и фамилию в профиле/i.test(m)) return t.cert.noName;
   if (/3–4 варианта|ровно один правильный|нет текста на языке|у варианта ответа нет текста/i.test(m)) return r.incomplete;
   if (/Could not find the function|PGRST202/i.test(m)) return r.noDbFunction;
   const u = t.users.err;
@@ -421,6 +433,12 @@ export function supabaseApi(sb: SupabaseClient): AdminApi {
     },
     async topicMin() {
       return Number(check(await sb.rpc("topic_min_questions")) ?? 5);
+    },
+    async authorProgress() {
+      return check(await sb.rpc("my_author_progress")) as AuthorProgress;
+    },
+    async issueCertificate() {
+      return check(await sb.rpc("issue_certificate")) as string;
     },
     async classes() {
       return check(await sb.rpc("my_classes")) as ClassRow[];

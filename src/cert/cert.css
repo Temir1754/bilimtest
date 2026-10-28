@@ -1,0 +1,20 @@
+/* Сертификат автора (№103): на экране — карточка, при печати — лист A4 без шапки сайта */
+.cert-ok{color:var(--good);font-weight:700;margin:20px 0 12px}
+.cert{position:relative;max-width:900px;margin:0 auto;padding:48px 40px;border:3px double var(--accent);border-radius:16px;
+  background:var(--surface);text-align:center}
+.cert-logo{display:inline-flex;align-items:center;gap:8px;font-family:var(--display);font-weight:700;color:var(--accent)}
+.cert h1{font-family:var(--display);font-size:44px;letter-spacing:.08em;text-transform:uppercase;margin:18px 0 8px}
+.cert-to{color:var(--muted);margin:0}
+.cert-name{font-family:var(--display);font-size:32px;margin:10px 0 4px}
+.cert-school{color:var(--muted);margin:0 0 16px}
+.cert-text{font-size:18px;max-width:640px;margin:16px auto}
+.cert-subjects{list-style:none;padding:0;margin:8px 0 28px;font-weight:700}
+.cert-foot{display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px;font-size:13px;color:var(--muted);border-top:1px solid var(--line);padding-top:12px}
+.cert-actions{text-align:center;margin:20px 0}
+@media (max-width:600px){.cert{padding:28px 16px}.cert h1{font-size:30px}.cert-name{font-size:24px}}
+@media print{
+  @page{size:A4 landscape;margin:12mm}
+  .no-print{display:none!important}
+  body{background:#fff}
+  .cert{border-color:#1b6f8a;background:#fff;color:#000;max-width:none}
+}

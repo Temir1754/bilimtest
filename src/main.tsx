@@ -5,11 +5,12 @@ import { dbSource } from "./lib/dbSource";
 import type { DataSource } from "./lib/types";
 import "./styles/app.css";
 
-// Админка, экран входа, кабинет ученика и политика конфиденциальности — отдельные файлы: загружаются только по своим адресам.
+// Админка, экран входа, кабинет ученика, политика конфиденциальности и сертификат — отдельные файлы: загружаются только по своим адресам.
 const Admin = lazy(() => import("./admin"));
 const Login = lazy(() => import("./login"));
 const Privacy = lazy(() => import("./privacy"));
 const Me = lazy(() => import("./me"));
+const Cert = lazy(() => import("./cert"));
 const path = location.pathname;
 
 // Вопросы — из базы (этап 4); без настроек Supabase (разработка без интернета) — из data/*.json.
@@ -22,7 +23,8 @@ const source: DataSource = url && key ? dbSource(url, key) : {
   questions: (ids, lang) => local().then((s) => s.questions(ids, lang)),
 };
 const Page = /^\/admin(\/|$)/.test(path) ? Admin : /^\/login(\/|$)/.test(path) ? Login
-  : /^\/privacy(\/|$)/.test(path) ? Privacy : /^\/me(\/|$)/.test(path) ? Me : null;
+  : /^\/privacy(\/|$)/.test(path) ? Privacy : /^\/me(\/|$)/.test(path) ? Me
+  : /^\/cert\//.test(path) ? Cert : null;
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

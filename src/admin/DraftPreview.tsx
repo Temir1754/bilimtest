@@ -7,7 +7,7 @@ import { nm, useT } from "./lang";
 /** Таблица-предпросмотр вопросов из Word или Excel со своими столбцами (№91): тема из файла → тема программы,
  *  или новая тема с названием из файла в выбранном разделе (№92); правка вопроса и вариантов прямо в таблице,
  *  ошибки по строкам. Наверх отдаёт строки, готовые к загрузке. */
-export function DraftPreview({ set, topics, sections, lang, fixedLang, onLang, busy, publish = false, onUpload }: {
+export function DraftPreview({ set, topics, sections, lang, fixedLang, onLang, busy, publish = false, blocked = false, onUpload }: {
   set: DraftSet;
   topics: TopicRow[];
   sections: SectionRow[];
@@ -16,6 +16,7 @@ export function DraftPreview({ set, topics, sections, lang, fixedLang, onLang, b
   onLang: (l: Lang) => void;
   busy: boolean;
   publish?: boolean; // «сразу опубликовать вопросы без ошибок» (№94) — другой текст кнопки
+  blocked?: boolean; // нет галочки «я автор» (№103) — загрузка недоступна
   onUpload: (drafts: Draft[], topicOf: Record<string, TopicChoice>) => void;
 }) {
   const { lang: ui, t } = useT();
@@ -144,7 +145,7 @@ export function DraftPreview({ set, topics, sections, lang, fixedLang, onLang, b
       })}
 
       <div className="actions">
-        <button type="button" className="btn" disabled={busy || good === 0} onClick={() => onUpload(drafts, resolved)}>
+        <button type="button" className="btn" disabled={busy || good === 0 || blocked} onClick={() => onUpload(drafts, resolved)}>
           {busy ? m.uploading : publish ? m.uploadPublish(good) : m.upload(good)}
         </button>
       </div>

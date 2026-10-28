@@ -1097,3 +1097,26 @@ describe("кабинет учителя: классы (№102)", () => {
     expect(await call("teacherA", "public.my_classes()")).toEqual([]);
   });
 });
+
+describe("сертификат автора (№103)", () => {
+  type R = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
+  const call = async (who: keyof typeof ids | null, sql: string, p: unknown[] = []) =>
+    (await as(who, (q) => q<{ r: R }>(`select ${sql} as r`, p)))[0].r;
+
+  it("рубеж 50 опубликованных: сертификат с именем и предметами; проверка по id без входа; повторно — нельзя", async () => {
+    await db.query("update public.profiles set first_name = 'Айгерім', last_name = 'Сейітова' where id = $1", [ids.teacherB]);
+    expect(await call("teacherB", "public.my_author_progress()")).toMatchObject({ can_issue: null, next: 50 });
+    await expect(call("teacherB", "public.issue_certificate()")).rejects.toThrow(/нового рубежа/);
+    await db.query(`update public.questions set author_id = $1 where id in (
+      select id from public.questions where status = 'published' and author_id is null limit 60)`, [ids.teacherB]);
+    expect(await call("teacherB", "public.my_author_progress()")).toMatchObject({ published: 60, can_issue: 50, next: 100 });
+    const id = await call("teacherB", "public.issue_certificate()") as unknown as string;
+    const cert = await call(null, "public.certificate($1)", [id]);
+    expect(cert).toMatchObject({ full_name: "Айгерім Сейітова", questions: 60, milestone: 50 });
+    expect(cert.subjects.length).toBeGreaterThan(0);
+    await expect(call("teacherB", "public.issue_certificate()")).rejects.toThrow(/нового рубежа/);
+    await expect(call("student", "public.issue_certificate()")).rejects.toThrow(/учитель/);
+    await expect(as(null, (q) => q("select * from public.certificates"))).rejects.toThrow(/permission denied/);
+    await db.query("update public.questions set author_id = null where author_id = $1", [ids.teacherB]);
+  });
+});

@@ -25,6 +25,7 @@ export function ImportView({ api, subjectId: startSubject, grade: startGrade, ca
   const [grade, setGrade] = useState(startGrade);
   const [changing, setChanging] = useState(false);
   const [publish, setPublish] = useState(canPublish);
+  const [rights, setRights] = useState(false); // «я автор или имею право публиковать» (№103)
   const [subjects, setSubjects] = useState<SubjectRow[]>([]);
   const [inGrade, setInGrade] = useState<string[]>([]);
   const [scope, setScope] = useState<{ subjects: string[]; grades: number[] } | null>(null);
@@ -163,6 +164,8 @@ export function ImportView({ api, subjectId: startSubject, grade: startGrade, ca
           <span className="hint">{m.wordHelp}</span>
         </li>
         <li>{canPublish ? m.step3Publish : m.step3}
+          <label className="adm-check"><input type="checkbox" checked={rights} disabled={busy}
+            onChange={(e) => setRights(e.target.checked)} /> {m.rights}</label>
           {canPublish && (
             <label className="adm-check"><input type="checkbox" checked={publish} disabled={busy}
               onChange={(e) => setPublish(e.target.checked)} /> {m.publishNow}</label>
@@ -190,7 +193,7 @@ export function ImportView({ api, subjectId: startSubject, grade: startGrade, ca
         <>
           <p className="muted">{m.file(fileName, drafts.drafts.length)}</p>
           <DraftPreview key={`${fileName}/${subjectId}/${grade}`} set={drafts} topics={topics} sections={sections} lang={qLang} fixedLang={only !== null}
-            onLang={setQLang} busy={busy} publish={publish}
+            onLang={setQLang} busy={busy} publish={publish} blocked={!rights}
             onUpload={(ds: Draft[], topicOf) => upload(draftRows(ds, topicOf, qLang))} />
         </>
       )}
@@ -229,7 +232,7 @@ export function ImportView({ api, subjectId: startSubject, grade: startGrade, ca
           </button>
 
           <div className="actions">
-            <button type="button" className="btn" disabled={busy || good === 0} onClick={() => upload(toImportRows(parsed.rows))}>
+            <button type="button" className="btn" disabled={busy || good === 0 || !rights} onClick={() => upload(toImportRows(parsed.rows))}>
               {busy ? m.uploading : publish ? m.uploadPublish(good) : m.upload(good)}
             </button>
           </div>

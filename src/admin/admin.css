@@ -411,3 +411,9 @@ label.adm-check{display:flex;align-items:center;gap:8px;font-size:14px;font-weig
 .lvl-ok{color:var(--good, #1a8f4e);font-weight:700}
 .lvl-mid{color:var(--gold, #b7791f);font-weight:700}
 .lvl-low{color:var(--bad, #c0392b);font-weight:700}
+
+/* Сертификат автора (№103) */
+.cert-card{display:grid;gap:10px;margin-bottom:16px}
+.cert-card .mastery{display:block;height:6px;border-radius:3px;background:var(--line);overflow:hidden}
+.cert-card .mastery i{display:block;height:100%;background:var(--accent)}
+.cert-list{list-style:none;padding:0;margin:0;display:flex;flex-wrap:wrap;gap:12px}

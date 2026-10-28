@@ -4,7 +4,7 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { GRADES, LANGS } from "../lib/types";
 import {
-  humanError, type AdminApi, type Me, type QuestionItem, type SectionRow, type SubjectRow, type TopicCount, type TopicRow,
+  humanError, type AdminApi, type AuthorProgress, type Me, type QuestionItem, type SectionRow, type SubjectRow, type TopicCount, type TopicRow,
 } from "./api";
 import { publishReadyIn, TitleForm } from "./Browser";
 import { download, exportSheet } from "./excel";
@@ -462,6 +462,7 @@ export function MyQuestions({ api, me, nav, authorId }: { api: AdminApi; me: Me;
       {authorId && <Go to={{ name: "users" }} nav={nav} className="st-back">← {t.nav.users}</Go>}
       <h1>{authorId ? t.steps.authorTitle : t.steps.myTitle}</h1>
       <Failure error={error} />
+      {!authorId && me.role === "teacher" && <AuthorCard api={api} />}
       {total !== 0 && (
         <div className="us-tabs st-my-tabs" role="group" aria-label={t.steps.byStatus}>
           {(["all", "draft", "review", "published"] as const).filter((k) => k !== "review" || counts?.review).map((k) => (
@@ -478,6 +479,39 @@ export function MyQuestions({ api, me, nav, authorId }: { api: AdminApi; me: Me;
           {items.length >= 300 && <p className="muted">{t.browse.first300}</p>}
         </>}
     </div>
+  );
+}
+
+/** «Сертификат автора» (№103): прогресс до рубежа, кнопка «Алу», выданные сертификаты со ссылками. */
+function AuthorCard({ api }: { api: AdminApi }) {
+  const { t } = useT();
+  const c = t.cert;
+  const [p, setP] = useState<AuthorProgress | null>(null);
+  const [error, setError] = useState<unknown>(null);
+  const [busy, setBusy] = useState(false);
+  useEffect(() => { api.authorProgress().then(setP, setError); }, [api]);
+  if (!p) return error !== null ? <Failure error={error} /> : null;
+  async function issue() {
+    setBusy(true);
+    try {
+      const id = await api.issueCertificate();
+      window.open(`/cert/${id}`, "_blank", "noopener");
+      setP(await api.authorProgress());
+    } catch (e) { setError(e); } finally { setBusy(false); }
+  }
+  return (
+    <section className="st-card cert-card">
+      <h2>{c.title}</h2>
+      <p>{p.can_issue ? c.ready(p.published, p.can_issue) : p.next ? c.progress(p.published, p.next) : c.all(p.published)}</p>
+      {p.next && <i className="mastery" aria-hidden="true"><i style={{ width: `${Math.min(100, (p.published / p.next) * 100)}%` }} /></i>}
+      {p.can_issue && <button type="button" className="btn" disabled={busy} onClick={issue}>{c.get(p.can_issue)}</button>}
+      {p.issued.length > 0 && (
+        <ul className="cert-list">
+          {p.issued.map((x) => <li key={x.id}><a href={`/cert/${x.id}`} target="_blank" rel="noopener">{c.item(x.milestone)}</a></li>)}
+        </ul>
+      )}
+      <Failure error={error} />
+    </section>
   );
 }
 
