@@ -8,7 +8,8 @@ export type Lang = (typeof LANGS)[number];
 export type Text = Partial<Record<Lang, string>>;
 
 export interface Subject {
-  id: string; // slug, например "math"
+  id: string; // из JSON — slug, например "math"; из базы — uuid
+  slug?: string; // код предмета в адресе страницы (из базы)
   icon: string;
   name: Text;
   onlyLang: Lang | null; // у языковых предметов вопросы только на одном языке

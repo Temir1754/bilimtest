@@ -32,7 +32,7 @@ const hasText = (t: Text) => Boolean(t.kk || t.ru || t.en);
 export function toCatalog(raw: { min: number; subjects: Row[]; sections: Row[]; topics: Row[] }): Catalog {
   return {
     min: raw.min,
-    subjects: raw.subjects.map((s) => ({ id: s.id as string, icon: s.icon as string, name: text(s, "name"),
+    subjects: raw.subjects.map((s) => ({ id: s.id as string, slug: s.slug as string, icon: s.icon as string, name: text(s, "name"),
       onlyLang: (s.only_lang as Lang | null) ?? null, sort: s.sort_order as number })),
     sections: raw.sections.map((s) => ({ id: s.id as string, subjectId: s.subject_id as string, grade: s.grade as number,
       title: text(s, "title"), sort: s.sort_order as number })),

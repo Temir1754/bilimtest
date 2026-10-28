@@ -38,6 +38,7 @@ beforeEach(() => {
   localStorage.clear();
   localStorage.setItem("bt-prefs", JSON.stringify({ lang: "ru", grade: 5 }));
   window.scrollTo = () => {};
+  history.replaceState(null, "", "/"); // адрес меняется вместе с экраном (№101)
 });
 afterEach(cleanup);
 
@@ -130,6 +131,17 @@ describe("сайт ученика", () => {
     await screen.findByText(/Результат/);
     expect(submit).toHaveBeenCalledWith(expect.objectContaining({ subjectId: "math", grade: 5, topicId: "t1" }));
     expect((submit.mock.calls[0] as unknown as [{ answers: unknown[] }])[0].answers).toHaveLength(5);
+  });
+
+  it("ссылка из Google /kk/5/math/drobi/ открывает язык, класс, предмет и тему; «назад» — главная (№101)", async () => {
+    history.replaceState(null, "", "/");
+    history.pushState(null, "", "/kk/5/math/t/");
+    render(<App source={source} />);
+    expect(await screen.findByRole("heading", { name: "Математика" })).toBeTruthy();
+    expect(document.querySelector(".topics li.focus")).toBeTruthy(); // тема «Т» подсвечена
+    expect(screen.getByRole("button", { name: "KK" }).getAttribute("aria-pressed")).toBe("true");
+    await act(async () => { history.back(); await new Promise((r) => setTimeout(r, 50)); });
+    expect(await screen.findByText(/тегін тесттер/)).toBeTruthy();
   });
 
   it("переключает язык интерфейса", async () => {

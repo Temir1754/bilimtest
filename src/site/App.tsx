@@ -3,6 +3,7 @@ import { LogoMark } from "../components/NickMenu";
 import { UI } from "../i18n/ui";
 import { answer, isCorrect, mistakesQuiz, mixedQuiz, percent, score, topicProgress, topicQuiz, type Quiz } from "../lib/quiz";
 import { loadBest, loadHistory, loadPrefs, recordAnswer, recordBest, savePrefs, type Best } from "../lib/storage";
+import { parsePath, resolvePlace, sitePath, subjectSlug } from "../lib/slug";
 import { tx } from "../lib/text";
 import { LANGS, visibleTopics, type Catalog, type DataSource, type Lang } from "../lib/types";
 import { AccountMenu } from "./AccountMenu";
@@ -18,7 +19,12 @@ type View =
   | { name: "result"; sid: string; quiz: Quiz; mistakes?: boolean };
 
 export function App({ source }: { source: DataSource }) {
-  const [prefs, setPrefs] = useState(loadPrefs);
+  // Адрес страницы для Google (№101): /kk/6/histkz/tema/ — открыть этот язык, класс, предмет и тему.
+  const [prefs, setPrefs] = useState(() => {
+    const p = loadPrefs(), place = parsePath(location.pathname);
+    return place ? { lang: place.lang, grade: place.grade ?? p.grade } : p;
+  });
+  const [focus, setFocus] = useState<string | null>(null);
   const [best, setBest] = useState<Best>(loadBest);
   const [history, setHistory] = useState(loadHistory);
   const [catalog, setCatalog] = useState<Catalog | null>(null);
@@ -28,8 +34,36 @@ export function App({ source }: { source: DataSource }) {
   const t = UI[lang];
 
   useEffect(() => {
-    source.catalog().then(setCatalog, () => setFailed(true));
+    source.catalog().then((c) => {
+      setCatalog(c);
+      const place = parsePath(location.pathname);
+      const { subject, topicId } = place ? resolvePlace(c, place) : { subject: null, topicId: null };
+      if (subject) { setView({ name: "subject", sid: subject.id }); setFocus(topicId); }
+    }, () => setFailed(true));
   }, [source]);
+
+  // Адрес следует за экраном: предмет — /язык/класс/предмет/, главная — /. Назад в браузере — прежний экран.
+  useEffect(() => {
+    if (!catalog) return;
+    const cur = parsePath(location.pathname);
+    const subj = view.name === "home" ? null : catalog.subjects.find((s) => s.id === view.sid);
+    if (subj) {
+      if (cur?.lang === lang && cur.grade === grade && cur.subject === subjectSlug(subj)) return;
+      window.history.pushState(null, "", sitePath(lang, grade, subjectSlug(subj)));
+    } else if (location.pathname !== "/" && !(cur && cur.lang === lang && !cur.subject)) {
+      window.history.pushState(null, "", "/");
+    }
+  }, [catalog, view, lang, grade]);
+  useEffect(() => {
+    function onPop() {
+      const place = parsePath(location.pathname);
+      const subject = catalog && place ? resolvePlace(catalog, place).subject : null;
+      setFocus(null);
+      setView(subject ? { name: "subject", sid: subject.id } : { name: "home" });
+    }
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, [catalog]);
 
   useEffect(() => {
     document.documentElement.lang = lang;
@@ -106,7 +140,7 @@ export function App({ source }: { source: DataSource }) {
       onGrade={(g) => updatePrefs({ grade: g })}
       onSubject={(id) => go({ name: "subject", sid: id }, true)} />;
   } else if (view.name === "subject") {
-    body = <SubjectView subject={subject} topics={topics} sections={catalog.sections} grade={grade} lang={lang} t={t} best={best}
+    body = <SubjectView subject={subject} topics={topics} sections={catalog.sections} grade={grade} focus={focus} lang={lang} t={t} best={best}
       onBack={() => go({ name: "home" })}
       onStart={(id) => start(subject.id, id)}
       history={history} mistakes={mistakeTopics.reduce((n, tp) => n + topicProgress(history, tp.id).wrong, 0)}

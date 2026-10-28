@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import { level, QUIZ_SIZE, topicProgress, type History } from "../lib/quiz";
 import type { Best } from "../lib/storage";
 import { tx } from "../lib/text";
@@ -13,6 +14,7 @@ interface Props {
   t: UiText;
   best: Best;
   history?: History;
+  focus?: string | null; // тема из адреса страницы — подсветить и показать
   mistakes?: number; // сколько ошибок ждут работы в этом предмете
   onBack: () => void;
   onMistakes?: () => void;
@@ -34,8 +36,10 @@ function groups(topics: Topic[], sections: Section[]) {
   return out;
 }
 
-export function SubjectView({ subject, topics, sections = [], grade, lang, t, best, history = {}, mistakes = 0,
+export function SubjectView({ subject, topics, sections = [], grade, lang, t, best, history = {}, mistakes = 0, focus,
   onBack, onStart, onMixed, onMistakes }: Props) {
+  const focused = useRef<HTMLLIElement>(null);
+  useEffect(() => { focused.current?.scrollIntoView?.({ block: "center" }); }, [focus]);
   let n = 0; // сквозной номер темы
   return (
     <>
@@ -63,7 +67,7 @@ export function SubjectView({ subject, topics, sections = [], grade, lang, t, be
               const total = topicCount(tp, lang);
               const known = Math.min(topicProgress(history, tp.id).known, total);
               return (
-                <li key={tp.id}>
+                <li key={tp.id} ref={tp.id === focus ? focused : undefined} className={tp.id === focus ? "focus" : undefined}>
                   <span className="ix">{String(++n).padStart(2, "0")}</span>
                   <span className="tt">
                     <b>{tx(tp.title, lang)}</b>
