@@ -63,6 +63,17 @@ export interface Catalog {
 export interface DataSource {
   catalog(): Promise<Catalog>;
   questions(topicIds: string[], lang: Lang): Promise<Question[]>;
+  /** Жалоба на вопрос (только база). trap — поле-ловушка: человек его не заполняет. */
+  report?(questionId: string, message: string, lang: Lang, trap: string): Promise<{ ok: boolean; reason?: string }>;
+  /** Результат теста в базу: статистика вопросов и попытка (у вошедшего — в его аккаунте). */
+  submit?(attempt: Attempt): Promise<void>;
+}
+
+export interface Attempt {
+  subjectId: string;
+  grade: number;
+  topicId: string | null; // null — смешанный тест и работа над ошибками
+  answers: { question_id: string; option_id: string | null }[];
 }
 
 export const GRADES = [4, 5, 6, 7, 8, 9, 10, 11] as const;

@@ -1,6 +1,6 @@
 import { act, cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { App } from "../src/site/App";
 import type { DataSource, Question } from "../src/lib/types";
 import { UI } from "../src/i18n/ui";
@@ -105,6 +105,31 @@ describe("сайт ученика", () => {
     expect(screen.queryByText("Проценты")).toBeNull(); // на русском только 2 готовых вопроса
     await user.click(screen.getByRole("button", { name: "KK" }));
     expect(await screen.findAllByText("Т", { selector: "b" })).toHaveLength(2); // на казахском видны обе темы
+  });
+
+  it("жалоба на вопрос после ответа; результат теста уходит в базу", async () => {
+    const report = vi.fn(async () => ({ ok: true }));
+    const submit = vi.fn(async () => {});
+    const user = userEvent.setup();
+    render(<App source={{ ...source, report, submit }} />);
+    await user.click(await screen.findByRole("button", { name: /Математика/ }));
+    await user.click(screen.getByRole("button", { name: "Начать" }));
+    await screen.findByText(`${t.question} 1 / 5`);
+    expect(screen.queryByRole("button", { name: /Нашёл ошибку/ })).toBeNull(); // до ответа кнопки нет
+    await user.keyboard("1");
+    await user.click(screen.getByRole("button", { name: /Нашёл ошибку/ }));
+    await user.type(screen.getByLabelText("Что не так в вопросе?"), "Два верных ответа");
+    await user.click(screen.getByRole("button", { name: "Отправить" }));
+    expect(await screen.findByText("Спасибо! Учитель проверит.")).toBeTruthy();
+    expect(report).toHaveBeenCalledWith(expect.stringMatching(/^q\d$/), "Два верных ответа", "ru", "");
+
+    for (let i = 0; i < 5; i++) {
+      if (i) { await screen.findByText(`${t.question} ${i + 1} / 5`); await user.keyboard("1"); }
+      await user.keyboard("{Enter}");
+    }
+    await screen.findByText(/Результат/);
+    expect(submit).toHaveBeenCalledWith(expect.objectContaining({ subjectId: "math", grade: 5, topicId: "t1" }));
+    expect((submit.mock.calls[0] as unknown as [{ answers: unknown[] }])[0].answers).toHaveLength(5);
   });
 
   it("переключает язык интерфейса", async () => {

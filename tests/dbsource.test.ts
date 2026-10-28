@@ -55,4 +55,18 @@ describe("сайт на базе: dbSource", () => {
     await dbSource("https://x.supabase.co", "pk", fetchFn as unknown as typeof fetch).questions(["t1"], "ru");
     expect(JSON.parse(fetchFn.mock.calls[0][1]!.body as string)).toEqual({ p_topic_ids: ["t1"], p_lang: "ru" });
   });
+
+  it("вошедший ученик: запрос с его токеном (результат — в его аккаунт); истёкший — как гость", async () => {
+    const fetchFn = vi.fn(async (_u: string, _init?: RequestInit) => ok({ ok: true }));
+    const src = dbSource("https://x.supabase.co", "pk", fetchFn as unknown as typeof fetch);
+    const auth = () => (fetchFn.mock.calls.at(-1)![1]!.headers as Record<string, string>).Authorization;
+    sessionStorage.setItem("sb-abc-auth-token", JSON.stringify({ access_token: "tok", expires_at: Date.now() / 1000 + 3600 }));
+    await src.submit!({ subjectId: "s1", grade: 5, topicId: "t1", answers: [{ question_id: "q1", option_id: "o1" }] });
+    expect(auth()).toBe("Bearer tok");
+    expect(fetchFn.mock.calls.at(-1)![0]).toMatch(/rpc\/submit_attempt$/);
+    sessionStorage.setItem("sb-abc-auth-token", JSON.stringify({ access_token: "old", expires_at: 1 }));
+    await src.report!("q1", "Ошибка", "kk", "");
+    expect(auth()).toBeUndefined();
+    sessionStorage.clear();
+  });
 });

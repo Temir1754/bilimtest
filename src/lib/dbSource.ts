@@ -4,6 +4,22 @@
 // недоступна — сайт работает на сохранённом каталоге.
 import type { Catalog, DataSource, Lang, Question, Text } from "./types";
 
+/** Вход ученика: supabase-js хранит его в sb-…-auth-token (localStorage или sessionStorage, см. supabase.ts).
+ *  С ним запрос идёт от имени ученика — результат и жалоба привязываются к аккаунту. Истёк — запрос как гость. */
+function accessToken(): string | null {
+  try {
+    for (const store of [sessionStorage, localStorage]) {
+      for (let i = 0; i < store.length; i++) {
+        const k = store.key(i);
+        if (!k || !/^sb-.+-auth-token$/.test(k)) continue;
+        const s = JSON.parse(store.getItem(k) || "null");
+        if (s?.access_token && (s.expires_at ?? 0) * 1000 > Date.now() + 30_000) return s.access_token as string;
+      }
+    }
+  } catch { /* хранилище недоступно — как гость */ }
+  return null;
+}
+
 const CACHE_KEY = "bt-catalog";
 const FRESH_MS = 60 * 60 * 1000; // час: потом каталог обновляется в фоне
 
@@ -49,8 +65,10 @@ function writeCache(catalog: Catalog) {
 
 export function dbSource(url: string, key: string, fetchFn: typeof fetch = fetch): DataSource {
   async function rpc<T>(name: string, body: object): Promise<T> {
+    const token = accessToken();
     const res = await fetchFn(`${url}/rest/v1/rpc/${name}`, {
-      method: "POST", headers: { apikey: key, "Content-Type": "application/json" }, body: JSON.stringify(body),
+      method: "POST", body: JSON.stringify(body),
+      headers: { apikey: key, "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
     });
     if (!res.ok) throw new Error(`${name}: ${res.status}`);
     return res.json() as Promise<T>;
@@ -77,6 +95,12 @@ export function dbSource(url: string, key: string, fetchFn: typeof fetch = fetch
     },
     async questions(topicIds, lang) {
       return toQuestions(await rpc("site_questions", { p_topic_ids: topicIds, p_lang: lang }));
+    },
+    async report(questionId, message, lang, trap) {
+      return rpc("submit_report", { p_question_id: questionId, p_message: message, p_lang: lang, p_trap: trap || null });
+    },
+    async submit(a) {
+      await rpc("submit_attempt", { p_subject_id: a.subjectId, p_grade: a.grade, p_topic_id: a.topicId, p_answers: a.answers });
     },
   };
 }

@@ -87,8 +87,11 @@ export function App({ source }: { source: DataSource }) {
       return;
     }
     if (quiz.topicId) setBest((b) => recordBest(b, quiz.topicId!, percent(score(quiz), quiz.items.length)));
+    // Результат — в базу (статистика вопросов; у вошедшего — в аккаунт). Не получилось — тест всё равно засчитан в браузере.
+    source.submit?.({ subjectId: sid, grade, topicId: quiz.topicId, answers: quiz.items.map((it, k) => ({
+      question_id: it.question.id, option_id: it.options[quiz.answers[k] ?? -1]?.id ?? null })) }).catch(() => {});
     go({ name: "result", sid, quiz, mistakes: view.mistakes }, true);
-  }, [view]);
+  }, [view, source, grade]);
 
   const topicTitle = (quiz: Quiz, mistakes?: boolean) => {
     const tp = topics.find((x) => x.id === quiz.topicId);
@@ -110,7 +113,8 @@ export function App({ source }: { source: DataSource }) {
       onMistakes={() => startMistakes(subject.id)}
       onMixed={() => start(subject.id, null)} />;
   } else if (view.name === "quiz") {
-    body = <QuizView quiz={view.quiz} index={view.index} lang={lang} t={t}
+    body = <QuizView quiz={view.quiz} index={view.index} lang={lang} t={t} onlyLang={subject.onlyLang}
+      onReport={source.report ? (qid, msg, trap) => source.report!(qid, msg, lang, trap) : undefined}
       heading={`${tx(subject.name, lang)} · ${topicTitle(view.quiz, view.mistakes)}`}
       onBack={() => go({ name: "subject", sid: subject.id })}
       onPick={pick} onNext={next} />;

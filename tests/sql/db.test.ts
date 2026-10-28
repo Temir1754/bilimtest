@@ -490,6 +490,26 @@ describe("функции для учеников", () => {
     expect(await report("Третья жалоба")).toMatchObject({ ok: false, reason: "rate_limited" });
   });
 
+  it("жалобы от 3 разных людей скрывают вопрос (уходит в «Тексеруде» с текстами жалоб); один человек — не скрывает", async () => {
+    const qid = (await one<{ id: string }>("select id from public.questions where legacy_key = 'math|5|0|2'"))!.id;
+    const report = (who: "student" | "teacherA" | "teacherB" | null, msg: string) => as(who, (q) => q<{ r: object }>(
+      "select public.submit_report($1, $2, 'ru') as r", [qid, msg])).then((rows) => rows[0].r);
+    await db.query(`update public.app_settings set value = value || '{"reports_per_hour": 100}' where key = 'limits'`);
+    try {
+      for (let i = 0; i < 3; i++) expect(await report(null, `Гость ${i}`)).toEqual({ ok: true }); // один адрес — один человек
+      expect(await report("student", "Ответ неверный")).toEqual({ ok: true });
+      expect((await one<{ status: string }>("select status from public.questions where id = $1", [qid]))!.status).toBe("published");
+      expect(await report("teacherA", "Тоже вижу ошибку")).toEqual({ ok: true, hidden: true });
+      const q = await one<{ status: string; review_comment: string }>("select status, review_comment from public.questions where id = $1", [qid]);
+      expect(q!.status).toBe("review");
+      expect(q!.review_comment).toMatch(/Ученики сообщили.*Ответ неверный.*Тоже вижу ошибку/);
+      expect(await report("teacherB", "Ещё")).toMatchObject({ ok: false, reason: "not_found" }); // уже скрыт
+    } finally {
+      await db.query(`update public.app_settings set value = value || '{"reports_per_hour": 30}' where key = 'limits'`);
+      await db.query("update public.questions set status = 'published', review_comment = null where id = $1", [qid]);
+    }
+  });
+
   it("служебные функции недоступны через API", async () => {
     await expect(as(null, (q) => q("select public.hit_rate_limit('x', 1, interval '1 hour')")))
       .rejects.toThrow(/permission denied/);

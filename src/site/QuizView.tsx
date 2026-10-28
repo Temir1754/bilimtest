@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { QuestionText, Rich } from "../components/Rich";
 import { correctIndex, isCorrect, type Quiz } from "../lib/quiz";
 import { tx } from "../lib/text";
@@ -14,9 +14,44 @@ interface Props {
   onBack: () => void;
   onPick: (option: number) => void;
   onNext: () => void;
+  onlyLang?: Lang | null; // языковой предмет: вопросы на его языке — пометка рядом с заголовком
+  onReport?: (questionId: string, message: string, trap: string) => Promise<{ ok: boolean; reason?: string }>;
 }
 
-export function QuizView({ quiz, index, heading, lang, t, onBack, onPick, onNext }: Props) {
+/** «Қате бар ма?»: короткое сообщение об ошибке в вопросе. Скрытое поле-ловушка заполняют только боты. */
+function ReportBox({ questionId, t, onReport }: { questionId: string; t: UiText;
+  onReport: NonNullable<Props["onReport"]> }) {
+  const [open, setOpen] = useState(false);
+  const [msg, setMsg] = useState("");
+  const [trap, setTrap] = useState("");
+  const [state, setState] = useState<"idle" | "busy" | "sent" | "failed">("idle");
+  if (state === "sent") return <p className="rep-done" role="status">{t.reportThanks}</p>;
+  if (!open) return <button type="button" className="rep-open" onClick={() => setOpen(true)}>⚑ {t.reportOpen}</button>;
+  async function send(e: React.FormEvent) {
+    e.preventDefault();
+    setState("busy");
+    try {
+      const r = await onReport(questionId, msg, trap);
+      setState(r.ok ? "sent" : "failed");
+    } catch { setState("failed"); }
+  }
+  return (
+    <form className="rep" onSubmit={send}>
+      <label>{t.reportLabel}
+        <textarea rows={2} maxLength={1000} required minLength={3} value={msg} onChange={(e) => setMsg(e.target.value)} />
+      </label>
+      <input className="trap" tabIndex={-1} autoComplete="off" aria-hidden="true" name="website" value={trap}
+        onChange={(e) => setTrap(e.target.value)} />
+      {state === "failed" && <p className="error" role="alert">{t.reportFailed}</p>}
+      <span className="rep-acts">
+        <button type="submit" className="btn" disabled={state === "busy" || msg.trim().length < 3}>{t.reportSend}</button>
+        <button type="button" className="btn ghost" onClick={() => setOpen(false)}>{t.reportCancel}</button>
+      </span>
+    </form>
+  );
+}
+
+export function QuizView({ quiz, index, heading, lang, t, onBack, onPick, onNext, onlyLang, onReport }: Props) {
   const item = quiz.items[index];
   const n = quiz.items.length;
   const picked = quiz.answers[index];
@@ -51,7 +86,7 @@ export function QuizView({ quiz, index, heading, lang, t, onBack, onPick, onNext
   return (
     <div className="quiz">
       <button type="button" className="back" onClick={onBack}>{t.toTopics}</button>
-      <div className="qmeta"><span>{heading}</span><span>{t.question} {index + 1} / {n}</span></div>
+      <div className="qmeta"><span>{heading}{onlyLang && onlyLang !== lang && <span className="tag">{onlyLang.toUpperCase()}</span>}</span><span>{t.question} {index + 1} / {n}</span></div>
       <div className="bar" role="progressbar" aria-valuemin={0} aria-valuemax={n} aria-valuenow={index + (done ? 1 : 0)}>
         <i style={{ width: `${((index + (done ? 1 : 0)) / n) * 100}%` }} />
       </div>
@@ -74,6 +109,7 @@ export function QuizView({ quiz, index, heading, lang, t, onBack, onPick, onNext
       {done && tx(item.question.explanation, lang) && (
         <div className="expl"><b>{t.why}</b> <Rich text={tx(item.question.explanation, lang)} /></div>
       )}
+      {done && onReport && <ReportBox key={item.question.id} questionId={item.question.id} t={t} onReport={onReport} />}
       <div className="qnav">
         <span className="label" style={{ textTransform: "none", letterSpacing: 0, fontWeight: 400 }}>{t.keys}</span>
         <button ref={nextBtn} type="button" className="btn" disabled={!done} onClick={onNext}>

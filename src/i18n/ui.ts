@@ -25,6 +25,8 @@ const kk = {
   // тренажёр (№96)
   known: (k: number, n: number) => `меңгерілді ${k} / ${n}`, mistakes: "Қателермен жұмыс", mistakesHint: "қате жауап берген сұрақтарың",
   why: "Түсіндірме:", tenOf: (n: number) => `әр жолы ${n} сұрақтың 10-ы`,
+  reportOpen: "Қате бар ма? Хабарла", reportLabel: "Сұрақта не дұрыс емес?", reportSend: "Жіберу", reportCancel: "Болдырмау",
+  reportThanks: "Рақмет! Мұғалім тексереді.", reportFailed: "Жіберу мүмкін болмады. Кейінірек қайталап көр.",
 };
 
 export type UiText = typeof kk;
@@ -53,6 +55,8 @@ const ru: UiText = {
   // тренажёр (№96)
   known: (k, n) => `выучено ${k} из ${n}`, mistakes: "Работа над ошибками", mistakesHint: "вопросы, где ты ошибся",
   why: "Пояснение:", tenOf: (n) => `каждый раз 10 из ${n} вопросов`,
+  reportOpen: "Нашёл ошибку? Сообщи", reportLabel: "Что не так в вопросе?", reportSend: "Отправить", reportCancel: "Отмена",
+  reportThanks: "Спасибо! Учитель проверит.", reportFailed: "Не получилось отправить. Попробуй позже.",
 };
 
 const en: UiText = {
@@ -79,6 +83,8 @@ const en: UiText = {
   // тренажёр (№96)
   known: (k, n) => `learned ${k} of ${n}`, mistakes: "Work on mistakes", mistakesHint: "questions you got wrong",
   why: "Explanation:", tenOf: (n) => `10 of ${n} questions each time`,
+  reportOpen: "Found a mistake? Report it", reportLabel: "What is wrong with the question?", reportSend: "Send", reportCancel: "Cancel",
+  reportThanks: "Thanks! A teacher will check it.", reportFailed: "Could not send. Try again later.",
 };
 
 export const UI: Record<Lang, UiText> = { kk, ru, en };
