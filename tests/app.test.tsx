@@ -155,6 +155,18 @@ describe("сайт ученика", () => {
     expect(Object.keys(JSON.parse(localStorage.getItem("bt-history")!))).toHaveLength(3);
   });
 
+  it("уровень темы и «Повторить слабые темы» (№109)", async () => {
+    // в теме t1: 5 вопросов, верно 2 — «слабо»
+    localStorage.setItem("bt-history", JSON.stringify({ q0: { t: "t1", ok: true }, q1: { t: "t1", ok: true },
+      q2: { t: "t1", ok: false }, q3: { t: "t1", ok: false }, q4: { t: "t1", ok: false } }));
+    const user = userEvent.setup();
+    render(<App source={source} />);
+    await user.click(await screen.findByRole("button", { name: /Математика/ }));
+    expect(screen.getByText("слабо").className).toBe("lv lv-low");
+    await user.click(screen.getByRole("button", { name: "Повторить слабые темы · 1" }));
+    expect(await screen.findByText(/Повторить слабые темы/, { selector: ".qmeta span" })).toBeTruthy();
+  });
+
   it("переключает язык интерфейса", async () => {
     const user = userEvent.setup();
     render(<App source={source} />);

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   answer, correctIndex, isCorrect, level, mistakesQuiz, mixedQuiz, MIXED_SIZE, percent, pickQuestions, QUIZ_SIZE, score,
-  shuffle, topicProgress, topicQuiz, type History,
+  shuffle, topicLevel, topicProgress, topicQuiz, weakQuiz, type History,
 } from "../src/lib/quiz";
 import type { Question } from "../src/lib/types";
 
@@ -108,5 +108,27 @@ describe("проверка ответов и подсчёт", () => {
     expect(percent(2, 3)).toBe(67);
     expect(percent(0, 0)).toBe(0);
     expect([level(59), level(60), level(89), level(90)]).toEqual([0, 1, 1, 2]);
+  });
+});
+
+describe("уровни тем и «Повторить слабые темы» (№109)", () => {
+  // тема a: 5 из 5 верно (знает); b: 3 из 5 (частично); c: 1 из 5 (слабо); d: 2 ответа (мало данных)
+  const h: History = {};
+  const mk = (t: string, ok: number, n: number) => Array.from({ length: n }, (_, i) => { h[`${t}${i}`] = { t, ok: i < ok }; });
+  mk("a", 5, 5); mk("b", 3, 5); mk("c", 1, 5); mk("d", 2, 2);
+  const qs = ["a", "b", "c", "d"].flatMap((t) => Array.from({ length: 12 }, (_, i) => ({ ...q(`${t}${i}`), topicId: t })));
+
+  it("уровень: 80+ знает, 50–79 частично, ниже — слабо, меньше 5 ответов — мало данных", () => {
+    expect(["a", "b", "c", "d"].map((t) => topicLevel(h, t).level)).toEqual(["ok", "mid", "low", "none"]);
+    expect(topicLevel(h, "b")).toEqual({ answered: 5, percent: 60, level: "mid" });
+  });
+
+  it("10 вопросов только из слабых и частичных тем; из слабых — вдвое больше", () => {
+    const quiz = weakQuiz(qs, h, seeded(3));
+    const topics = quiz.items.map((x) => x.question.topicId);
+    expect(topics).toHaveLength(10);
+    expect(topics.filter((t) => t === "c")).toHaveLength(7);
+    expect(topics.filter((t) => t === "b")).toHaveLength(3);
+    expect(quiz.items.slice(0).map((x) => x.question.id)).toEqual(expect.arrayContaining(["c1", "c2", "c3", "c4"])); // ошибки — в тест
   });
 });

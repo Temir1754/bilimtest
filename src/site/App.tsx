@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { LogoMark } from "../components/NickMenu";
 import { UI } from "../i18n/ui";
-import { answer, isCorrect, mistakesQuiz, mixedQuiz, percent, score, topicProgress, topicQuiz, type Quiz } from "../lib/quiz";
+import { answer, isCorrect, mistakesQuiz, mixedQuiz, percent, score, topicLevel, topicProgress, topicQuiz, weakQuiz, type Quiz } from "../lib/quiz";
 import { loadBest, loadHistory, loadPrefs, mergeHistory, recordAnswer, recordBest, savePrefs, type Best } from "../lib/storage";
 import { parsePath, resolvePlace, sitePath, subjectSlug } from "../lib/slug";
 import { tx } from "../lib/text";
@@ -15,8 +15,8 @@ import { SubjectView } from "./SubjectView";
 type View =
   | { name: "home" }
   | { name: "subject"; sid: string }
-  | { name: "quiz"; sid: string; quiz: Quiz; index: number; mistakes?: boolean }
-  | { name: "result"; sid: string; quiz: Quiz; mistakes?: boolean };
+  | { name: "quiz"; sid: string; quiz: Quiz; index: number; mistakes?: boolean; weak?: boolean }
+  | { name: "result"; sid: string; quiz: Quiz; mistakes?: boolean; weak?: boolean };
 
 export function App({ source }: { source: DataSource }) {
   // Адрес страницы для Google (№101): /kk/6/histkz/tema/ — открыть этот язык, класс, предмет и тему.
@@ -113,6 +113,14 @@ export function App({ source }: { source: DataSource }) {
     if (quiz.items.length) go({ name: "quiz", sid: subjectId, quiz, index: 0, mistakes: true }, true);
   }
 
+  // «Әлсіз тақырыптарды қайталау» (№109): темы с уровнем «не знает» и «частично».
+  const weakTopics = topics.filter((tp) => ["low", "mid"].includes(topicLevel(history, tp.id).level));
+  async function startWeak(subjectId: string) {
+    if (!weakTopics.length) return;
+    const quiz = weakQuiz(await source.questions(weakTopics.map((tp) => tp.id), lang), history);
+    if (quiz.items.length) go({ name: "quiz", sid: subjectId, quiz, index: 0, weak: true }, true);
+  }
+
   // Ответ записывается в историю тренажёра: по ней выбираются следующие 10 вопросов темы.
   const pick = useCallback((j: number) => {
     if (view.name !== "quiz") return;
@@ -134,12 +142,12 @@ export function App({ source }: { source: DataSource }) {
     // Результат — в базу (статистика вопросов; у вошедшего — в аккаунт). Не получилось — тест всё равно засчитан в браузере.
     source.submit?.({ subjectId: sid, grade, topicId: quiz.topicId, answers: quiz.items.map((it, k) => ({
       question_id: it.question.id, option_id: it.options[quiz.answers[k] ?? -1]?.id ?? null })) }).catch(() => {});
-    go({ name: "result", sid, quiz, mistakes: view.mistakes }, true);
+    go({ name: "result", sid, quiz, mistakes: view.mistakes, weak: view.weak }, true);
   }, [view, source, grade]);
 
-  const topicTitle = (quiz: Quiz, mistakes?: boolean) => {
+  const topicTitle = (quiz: Quiz, mistakes?: boolean, weak?: boolean) => {
     const tp = topics.find((x) => x.id === quiz.topicId);
-    return tp ? tx(tp.title, lang) : mistakes ? t.mistakes : t.mixed;
+    return tp ? tx(tp.title, lang) : weak ? t.weak : mistakes ? t.mistakes : t.mixed;
   };
 
   let body;
@@ -155,19 +163,20 @@ export function App({ source }: { source: DataSource }) {
       onStart={(id) => start(subject.id, id)}
       history={history} mistakes={mistakeTopics.reduce((n, tp) => n + topicProgress(history, tp.id).wrong, 0)}
       onMistakes={() => startMistakes(subject.id)}
+      weak={weakTopics.length} onWeak={() => startWeak(subject.id)}
       onMixed={() => start(subject.id, null)} />;
   } else if (view.name === "quiz") {
     body = <QuizView quiz={view.quiz} index={view.index} lang={lang} t={t} onlyLang={subject.onlyLang}
       onReport={source.report ? (qid, msg, trap) => source.report!(qid, msg, lang, trap) : undefined}
-      heading={`${tx(subject.name, lang)} · ${topicTitle(view.quiz, view.mistakes)}`}
+      heading={`${tx(subject.name, lang)} · ${topicTitle(view.quiz, view.mistakes, view.weak)}`}
       onBack={() => go({ name: "subject", sid: subject.id })}
       onPick={pick} onNext={next} />;
   } else {
     const i = topics.findIndex((tp) => tp.id === view.quiz.topicId);
-    body = <ResultView quiz={view.quiz} title={topicTitle(view.quiz, view.mistakes)} lang={lang} t={t}
+    body = <ResultView quiz={view.quiz} title={topicTitle(view.quiz, view.mistakes, view.weak)} lang={lang} t={t}
       hasNext={i >= 0 && i < topics.length - 1}
       onBack={() => go({ name: "subject", sid: subject.id })}
-      onRetry={() => (view.mistakes ? startMistakes(subject.id) : start(subject.id, view.quiz.topicId))}
+      onRetry={() => (view.weak ? startWeak(subject.id) : view.mistakes ? startMistakes(subject.id) : start(subject.id, view.quiz.topicId))}
       onNextTopic={() => start(subject.id, topics[i + 1].id)} />;
   }
 

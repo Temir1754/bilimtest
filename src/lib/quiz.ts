@@ -47,6 +47,29 @@ export function mistakesQuiz(questions: Question[], history: History, rnd: Rng =
   return makeQuiz(null, shuffle(questions.filter((q) => history[q.id]?.ok === false), rnd).slice(0, QUIZ_SIZE), rnd);
 }
 
+/** Уровень темы для ученика (№109): по последним ответам на вопросы темы; меньше 5 решённых вопросов — «мало данных».
+ *  Пороги те же, что у учителя (№58): 80+ — знает, 50–79 — частично, меньше — не знает. */
+export type Level = "none" | "low" | "mid" | "ok";
+export function topicLevel(history: History, topicId: string, min = 5): { answered: number; percent: number; level: Level } {
+  const { known, wrong } = topicProgress(history, topicId);
+  const answered = known + wrong, percent = answered ? Math.round((known / answered) * 100) : 0;
+  return { answered, percent, level: answered < min ? "none" : percent >= 80 ? "ok" : percent >= 50 ? "mid" : "low" };
+}
+
+/** «Повторить слабые темы» (№60, №109): 10 вопросов из тем «не знает» и «частично»; из «не знает» — вдвое больше.
+ *  Внутри темы — как в тренажёре: сначала ошибки, потом новые. */
+export function weakQuiz(questions: Question[], history: History, rnd: Rng = Math.random): Quiz {
+  const lv = new Map<string, Level>();
+  const level = (t: string) => lv.get(t) ?? (lv.set(t, topicLevel(history, t).level), lv.get(t)!);
+  const low = questions.filter((q) => level(q.topicId) === "low"), mid = questions.filter((q) => level(q.topicId) === "mid");
+  const lowTopics = new Set(low.map((q) => q.topicId)).size, midTopics = new Set(mid.map((q) => q.topicId)).size;
+  const wantLow = lowTopics + midTopics ? Math.round((QUIZ_SIZE * 2 * lowTopics) / (2 * lowTopics + midTopics)) : 0;
+  const a = pickQuestions(low, history, wantLow, rnd);
+  const b = pickQuestions(mid, history, QUIZ_SIZE - a.length, rnd);
+  const extra = pickQuestions(low.filter((q) => !a.includes(q)), history, QUIZ_SIZE - a.length - b.length, rnd);
+  return makeQuiz(null, shuffle([...a, ...b, ...extra], rnd), rnd);
+}
+
 /** Сколько вопросов темы ученик знает (последний ответ верный) и сколько ошибок ждут исправления. */
 export function topicProgress(history: History, topicId: string): { known: number; wrong: number } {
   let known = 0, wrong = 0;

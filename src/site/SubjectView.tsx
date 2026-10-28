@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { level, QUIZ_SIZE, topicProgress, type History } from "../lib/quiz";
+import { level, QUIZ_SIZE, topicLevel, topicProgress, type History } from "../lib/quiz";
 import type { Best } from "../lib/storage";
 import { tx } from "../lib/text";
 import { topicCount, type Lang, type Section, type Subject, type Topic } from "../lib/types";
@@ -18,6 +18,8 @@ interface Props {
   mistakes?: number; // сколько ошибок ждут работы в этом предмете
   onBack: () => void;
   onMistakes?: () => void;
+  weak?: number; // сколько тем «не знает» и «частично» (№109)
+  onWeak?: () => void;
   onStart: (topicId: string) => void;
   onMixed: () => void;
 }
@@ -37,7 +39,7 @@ function groups(topics: Topic[], sections: Section[]) {
 }
 
 export function SubjectView({ subject, topics, sections = [], grade, lang, t, best, history = {}, mistakes = 0, focus,
-  onBack, onStart, onMixed, onMistakes }: Props) {
+  onBack, onStart, onMixed, onMistakes, weak = 0, onWeak }: Props) {
   const focused = useRef<HTMLLIElement>(null);
   useEffect(() => { focused.current?.scrollIntoView?.({ block: "center" }); }, [focus]);
   let n = 0; // сквозной номер темы
@@ -50,6 +52,9 @@ export function SubjectView({ subject, topics, sections = [], grade, lang, t, be
           <h2>{tx(subject.name, lang)}</h2>
         </div>
         <span className="sub-acts">
+          {weak > 0 && onWeak && (
+            <button type="button" className="btn" title={t.weakHint} onClick={onWeak}>{t.weak} · {weak}</button>
+          )}
           {mistakes > 0 && onMistakes && (
             <button type="button" className="btn" title={t.mistakesHint} onClick={onMistakes}>{t.mistakes} · {mistakes}</button>
           )}
@@ -66,6 +71,7 @@ export function SubjectView({ subject, topics, sections = [], grade, lang, t, be
             {g.topics.map((tp) => {
               const total = topicCount(tp, lang);
               const known = Math.min(topicProgress(history, tp.id).known, total);
+              const lv = topicLevel(history, tp.id);
               return (
                 <li key={tp.id} ref={tp.id === focus ? focused : undefined} className={tp.id === focus ? "focus" : undefined}>
                   <span className="ix">{String(++n).padStart(2, "0")}</span>
@@ -74,6 +80,7 @@ export function SubjectView({ subject, topics, sections = [], grade, lang, t, be
                     <span title={total > QUIZ_SIZE ? t.tenOf(total) : undefined}>{total} {t.qs}</span>
                     {known > 0 && <span className="known"> · {t.known(known, total)}</span>}
                     <BestBadge pct={best[tp.id]} t={t} />
+                    {lv.level !== "none" && <span className={`lv lv-${lv.level}`} title={t.levelHint(lv.answered)}>{t.levels[lv.level]}</span>}
                     {known > 0 && <i className="mastery" aria-hidden="true"><i style={{ width: `${(known / total) * 100}%` }} /></i>}
                   </span>
                   <button type="button" className="btn" onClick={() => onStart(tp.id)}>{t.start}</button>

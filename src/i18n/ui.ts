@@ -24,6 +24,8 @@ const kk = {
   menu: { label: "Аккаунт мәзірі", cabinet: "Кабинет", admin: "Әкімші панелі", logout: "Шығу" },
   // тренажёр (№96)
   known: (k: number, n: number) => `меңгерілді ${k} / ${n}`, mistakes: "Қателермен жұмыс", mistakesHint: "қате жауап берген сұрақтарың",
+  weak: "Әлсіз тақырыптарды қайталау", weakHint: "10 сұрақ: әлсіз тақырыптардан екі есе көп",
+  levels: { ok: "жақсы біледі", mid: "жартылай", low: "әлсіз" }, levelHint: (n: number) => `${n} сұрақ бойынша соңғы жауаптар`,
   why: "Түсіндірме:", tenOf: (n: number) => `әр жолы ${n} сұрақтың 10-ы`,
   reportOpen: "Қате бар ма? Хабарла", reportLabel: "Сұрақта не дұрыс емес?", reportSend: "Жіберу", reportCancel: "Болдырмау",
   reportThanks: "Рақмет! Мұғалім тексереді.", reportFailed: "Жіберу мүмкін болмады. Кейінірек қайталап көр.",
@@ -54,6 +56,8 @@ const ru: UiText = {
   menu: { label: "Меню аккаунта", cabinet: "Кабинет", admin: "Админка", logout: "Выйти" },
   // тренажёр (№96)
   known: (k, n) => `выучено ${k} из ${n}`, mistakes: "Работа над ошибками", mistakesHint: "вопросы, где ты ошибся",
+  weak: "Повторить слабые темы", weakHint: "10 вопросов: из слабых тем вдвое больше",
+  levels: { ok: "знаешь хорошо", mid: "частично", low: "слабо" }, levelHint: (n) => `по последним ответам на ${n} вопросов`,
   why: "Пояснение:", tenOf: (n) => `каждый раз 10 из ${n} вопросов`,
   reportOpen: "Нашёл ошибку? Сообщи", reportLabel: "Что не так в вопросе?", reportSend: "Отправить", reportCancel: "Отмена",
   reportThanks: "Спасибо! Учитель проверит.", reportFailed: "Не получилось отправить. Попробуй позже.",
@@ -82,6 +86,8 @@ const en: UiText = {
   menu: { label: "Account menu", cabinet: "Dashboard", admin: "Admin panel", logout: "Log out" },
   // тренажёр (№96)
   known: (k, n) => `learned ${k} of ${n}`, mistakes: "Work on mistakes", mistakesHint: "questions you got wrong",
+  weak: "Review weak topics", weakHint: "10 questions: twice as many from the weakest topics",
+  levels: { ok: "know well", mid: "partly", low: "weak" }, levelHint: (n) => `based on your last answers to ${n} questions`,
   why: "Explanation:", tenOf: (n) => `10 of ${n} questions each time`,
   reportOpen: "Found a mistake? Report it", reportLabel: "What is wrong with the question?", reportSend: "Send", reportCancel: "Cancel",
   reportThanks: "Thanks! A teacher will check it.", reportFailed: "Could not send. Try again later.",
