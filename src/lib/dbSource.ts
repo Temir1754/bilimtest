@@ -99,6 +99,11 @@ export function dbSource(url: string, key: string, fetchFn: typeof fetch = fetch
     async report(questionId, message, lang, trap) {
       return rpc("submit_report", { p_question_id: questionId, p_message: message, p_lang: lang, p_trap: trap || null });
     },
+    async progress() {
+      if (!accessToken()) return null;
+      const r = await rpc<{ answers: Record<string, [string, boolean]> }>("my_progress", {});
+      return Object.fromEntries(Object.entries(r.answers).map(([q, [t, ok]]) => [q, { t, ok }]));
+    },
     async submit(a) {
       await rpc("submit_attempt", { p_subject_id: a.subjectId, p_grade: a.grade, p_topic_id: a.topicId, p_answers: a.answers });
     },

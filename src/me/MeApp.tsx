@@ -7,7 +7,7 @@ import { ME, type MeText } from "../i18n/me";
 import { pendingJoin, setPendingJoin } from "../lib/account";
 import { loadPrefs, savePrefs, type Prefs } from "../lib/storage";
 import { GRADES, LANGS, type Lang } from "../lib/types";
-import { meError, type MeApi, type MyClass, type Profile } from "./api";
+import { meError, type MeApi, type MyClass, type MyRun, type Profile } from "./api";
 import "./me.css";
 
 interface Props {
@@ -47,6 +47,7 @@ export function MeApp({ api, go = (p) => location.assign(p) }: Props) {
       <>
         <h1>{t.heading}</h1>
         <p className="lede">{t.hello(me.nickname)}</p>
+        <RunsCard api={api} t={t} lang={prefs.lang} />
         <ClassesCard api={api} t={t} lang={prefs.lang} />
         <GradeCard api={api} t={t} grade={me.grade}
           onSaved={(grade) => { setMe({ ...me, grade }); updatePrefs({ grade }); }} />
@@ -103,6 +104,32 @@ function useAction(t: MeText) {
 }
 
 /** Класс: нажал — сразу сохранено; на главной откроется этот класс. */
+/** «Нәтижелерім»: последние тесты из аккаунта (№104). */
+function RunsCard({ api, t, lang }: { api: MeApi; t: MeText; lang: Lang }) {
+  const [runs, setRuns] = useState<MyRun[] | null>(null);
+  useEffect(() => { api.runs(lang).then(setRuns, () => setRuns([])); }, [api, lang]);
+  if (!runs) return null;
+  const date = (s: string) => new Date(s).toLocaleDateString(lang === "en" ? "en-GB" : lang === "ru" ? "ru-RU" : "kk-KZ");
+  return (
+    <section className="me-card" aria-labelledby="me-runs">
+      <h2 id="me-runs">{t.runs.title}</h2>
+      {runs.length === 0 ? <p className="muted">{t.runs.none}</p> : (
+        <ul className="me-runs">
+          {runs.slice(0, 10).map((r, i) => {
+            const pct = Math.round((r.score / r.total) * 100);
+            return (
+              <li key={i}>
+                <span><b>{r.subject}</b> · {r.topic || t.runs.mixed}<br /><small className="muted">{date(r.finished_at)}</small></span>
+                <span className={pct >= 90 ? "lvl-ok" : pct >= 60 ? "lvl-mid" : "lvl-low"}>{r.score}/{r.total} · {pct}%</span>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </section>
+  );
+}
+
 /** «Сыныптарым»: классы ученика и вход по коду учителя (№102). */
 function ClassesCard({ api, t, lang }: { api: MeApi; t: MeText; lang: Lang }) {
   const a = useAction(t);

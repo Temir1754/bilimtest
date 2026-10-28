@@ -32,3 +32,8 @@
 .me-classes li{display:flex;justify-content:space-between;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line)}
 .me-join{display:grid;gap:10px}
 .me-join input{text-transform:none}
+
+/* «Нәтижелерім» (№104) */
+.me-runs{list-style:none;padding:0;margin:0;display:grid;gap:4px}
+.me-runs li{display:flex;justify-content:space-between;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line)}
+.lvl-ok{color:var(--good);font-weight:700} .lvl-mid{color:var(--gold);font-weight:700} .lvl-low{color:var(--bad);font-weight:700}

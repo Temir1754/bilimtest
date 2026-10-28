@@ -12,6 +12,7 @@ const kk = {
   logout: "Шығу",
   loading: "Жүктелуде…",
   saved: "Сақталды.",
+  runs: { title: "Нәтижелерім", none: "Әзірге тест тапсырмадың. Кез келген тест осында сақталады.", mixed: "аралас тест" },
   classes: {
     title: "Сыныптарым", lede: "Мұғалім берген кодты жаз — мұғалім сенің осы пән бойынша нәтижелеріңді көреді.",
     code: "Сынып коды", name_: "Атың (мұғалім тануы үшін, міндетті емес)", namePh: "Айгерім С.", join: "Сыныпқа қосылу",
@@ -55,6 +56,7 @@ const ru: MeText = {
   logout: "Выйти",
   loading: "Загрузка…",
   saved: "Сохранено.",
+  runs: { title: "Мои результаты", none: "Пока нет тестов. Любой пройденный тест сохранится здесь.", mixed: "смешанный тест" },
   classes: {
     title: "Мои классы", lede: "Введи код от учителя — учитель увидит твои результаты по этому предмету.",
     code: "Код класса", name_: "Имя (чтобы учитель узнал, необязательно)", namePh: "Айгерим С.", join: "Войти в класс",
@@ -96,6 +98,7 @@ const en: MeText = {
   logout: "Log out",
   loading: "Loading…",
   saved: "Saved.",
+  runs: { title: "My results", none: "No tests yet. Every test you take is saved here.", mixed: "mixed test" },
   classes: {
     title: "My classes", lede: "Enter the code from your teacher — the teacher will see your results in this subject.",
     code: "Class code", name_: "Your name (so the teacher knows you, optional)", namePh: "Aigerim S.", join: "Join the class",

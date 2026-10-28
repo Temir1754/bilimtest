@@ -9,7 +9,7 @@ const kk = {
   all: "← Барлық пәндер", toTopics: "← Тақырыптар", question: "Сұрақ", next: "Келесі", finish: "Нәтижені көру",
   right: "Дұрыс!", wrong: "Қате. Дұрыс жауап:", result: "Нәтиже", retry: "Қайта тапсыру", nextTopic: "Келесі тақырып",
   best: "ең жақсы", yours: "Сенің жауабың", correct: "Дұрыс жауап",
-  free: "Тегін. Тіркелмей-ақ тест тапсыруға болады, нәтижелер осы құрылғыда сақталады.", subjCount: "пән", langCount: "тіл",
+  free: "Тегін. Тіркелмей-ақ тест тапсыруға болады, нәтижелер осы құрылғыда сақталады.", freeAccount: "Тегін. Нәтижелерің аккаунтыңда сақталады.", subjCount: "пән", langCount: "тіл",
   onlyLang: {
     kk: "Бұл пәннің тесттері қазақ тілінде.",
     ru: "Бұл пәннің тесттері орыс тілінде.",
@@ -39,7 +39,7 @@ const ru: UiText = {
   all: "← Все предметы", toTopics: "← К темам", question: "Вопрос", next: "Дальше", finish: "Показать результат",
   right: "Верно!", wrong: "Неверно. Правильный ответ:", result: "Результат", retry: "Пройти ещё раз", nextTopic: "Следующая тема",
   best: "лучший", yours: "Твой ответ", correct: "Правильный ответ",
-  free: "Бесплатно. Проходить тесты можно без регистрации, результаты сохраняются на этом устройстве.", subjCount: "предметов", langCount: "языка",
+  free: "Бесплатно. Проходить тесты можно без регистрации, результаты сохраняются на этом устройстве.", freeAccount: "Бесплатно. Твои результаты сохраняются в аккаунте.", subjCount: "предметов", langCount: "языка",
   onlyLang: {
     kk: "Тесты по этому предмету на казахском языке.",
     ru: "Тесты по этому предмету на русском языке.",
@@ -67,7 +67,7 @@ const en: UiText = {
   all: "← All subjects", toTopics: "← Topics", question: "Question", next: "Next", finish: "See result",
   right: "Correct!", wrong: "Wrong. The correct answer:", result: "Result", retry: "Try again", nextTopic: "Next topic",
   best: "best", yours: "Your answer", correct: "Correct answer",
-  free: "Free. You can take tests without signing up; results are saved on this device.", subjCount: "subjects", langCount: "languages",
+  free: "Free. You can take tests without signing up; results are saved on this device.", freeAccount: "Free. Your results are saved to your account.", subjCount: "subjects", langCount: "languages",
   onlyLang: {
     kk: "Tests for this subject are in Kazakh.",
     ru: "Tests for this subject are in Russian.",

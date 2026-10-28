@@ -68,6 +68,8 @@ export interface DataSource {
   report?(questionId: string, message: string, lang: Lang, trap: string): Promise<{ ok: boolean; reason?: string }>;
   /** Результат теста в базу: статистика вопросов и попытка (у вошедшего — в его аккаунте). */
   submit?(attempt: Attempt): Promise<void>;
+  /** Вошедший ученик: последний ответ на каждый вопрос из аккаунта (№104). Не вошёл — null. */
+  progress?(): Promise<Record<string, { t: string; ok: boolean }> | null>;
 }
 
 export interface Attempt {

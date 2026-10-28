@@ -40,6 +40,13 @@ export function loadHistory(): History {
   return h && typeof h === "object" ? h : {};
 }
 
+/** История из аккаунта главнее: по одному и тому же вопросу — ответ из аккаунта; вопросы, решённые до входа, остаются. */
+export function mergeHistory(local: History, account: History): History {
+  const next = { ...local, ...account };
+  write("bt-history", next);
+  return next;
+}
+
 export function recordAnswer(h: History, questionId: string, topicId: string, ok: boolean): History {
   const next = { ...h, [questionId]: { t: topicId, ok } };
   write("bt-history", next);

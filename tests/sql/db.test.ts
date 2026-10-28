@@ -1120,3 +1120,24 @@ describe("сертификат автора (№103)", () => {
     await db.query("update public.questions set author_id = null where author_id = $1", [ids.teacherB]);
   });
 });
+
+describe("результаты в аккаунте ученика (№104)", () => {
+  it("последний ответ на вопрос и история тестов — только свои; учителю и гостю — пусто", async () => {
+    const t = (await one<{ id: string; subject_id: string }>(`select t.id, t.subject_id from public.topics t where t.grade = 5
+      and (select count(*) from public.questions q where q.topic_id = t.id and q.status = 'published') >= 1 limit 1`))!;
+    const q = (await one<{ id: string; ok: string; bad: string }>(`select q.id,
+      (select id from public.options where question_id = q.id and is_correct limit 1) as ok,
+      (select id from public.options where question_id = q.id and not is_correct limit 1) as bad
+      from public.questions q where q.topic_id = $1 and q.status = 'published' limit 1`, [t.id]))!;
+    const send = (opt: string) => as("student", (x) => x("select public.submit_attempt($1, 5, $2, $3::jsonb)",
+      [t.subject_id, t.id, JSON.stringify([{ question_id: q.id, option_id: opt }])]));
+    await send(q.bad);
+    await send(q.ok);
+    type P = { answers: Record<string, [string, boolean]>; runs: { score: number; topic_id: string }[] };
+    const p = (await as("student", (x) => x<{ r: P }>("select public.my_progress() as r")))[0].r;
+    expect(p.answers[q.id]).toEqual([t.id, true]); // последний ответ — верный
+    expect(p.runs.slice(0, 2).map((r) => r.score)).toEqual([1, 0]); // новые сверху
+    expect((await as("teacherA", (x) => x<{ r: P }>("select public.my_progress() as r")))[0].r).toEqual({ answers: {}, runs: [] });
+    await expect(as(null, (x) => x("select public.my_progress()"))).rejects.toThrow(/permission denied/);
+  });
+});

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { LogoMark } from "../components/NickMenu";
 import { UI } from "../i18n/ui";
 import { answer, isCorrect, mistakesQuiz, mixedQuiz, percent, score, topicProgress, topicQuiz, type Quiz } from "../lib/quiz";
-import { loadBest, loadHistory, loadPrefs, recordAnswer, recordBest, savePrefs, type Best } from "../lib/storage";
+import { loadBest, loadHistory, loadPrefs, mergeHistory, recordAnswer, recordBest, savePrefs, type Best } from "../lib/storage";
 import { parsePath, resolvePlace, sitePath, subjectSlug } from "../lib/slug";
 import { tx } from "../lib/text";
 import { LANGS, visibleTopics, type Catalog, type DataSource, type Lang } from "../lib/types";
@@ -27,6 +27,7 @@ export function App({ source }: { source: DataSource }) {
   const [focus, setFocus] = useState<string | null>(null);
   const [best, setBest] = useState<Best>(loadBest);
   const [history, setHistory] = useState(loadHistory);
+  const [inAccount, setInAccount] = useState(false); // вошедший ученик: прогресс — из аккаунта (№104)
   const [catalog, setCatalog] = useState<Catalog | null>(null);
   const [failed, setFailed] = useState(false);
   const [view, setView] = useState<View>({ name: "home" });
@@ -68,6 +69,15 @@ export function App({ source }: { source: DataSource }) {
   useEffect(() => {
     document.documentElement.lang = lang;
   }, [lang]);
+
+  // Вошедший ученик: «выучено N из M» и работа над ошибками — одинаковые на телефоне и компьютере.
+  useEffect(() => {
+    source.progress?.().then((p) => {
+      if (!p) return;
+      setHistory((h) => mergeHistory(h, p));
+      setInAccount(true);
+    }, () => {});
+  }, [source]);
 
   const updatePrefs = (p: Partial<typeof prefs>) => {
     const next = { ...prefs, ...p };
@@ -182,7 +192,7 @@ export function App({ source }: { source: DataSource }) {
         </div>
       </div></header>
       <main id="main"><div className="wrap">{body}</div></main>
-      <footer><div className="wrap">{t.free} · <a href="/privacy">{t.privacy}</a></div></footer>
+      <footer><div className="wrap">{inAccount ? t.freeAccount : t.free} · <a href="/privacy">{t.privacy}</a></div></footer>
     </>
   );
 }

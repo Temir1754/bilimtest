@@ -29,6 +29,8 @@ function fakeApi(profile: Profile | null) {
       classes.push({ id: "c1", subject: "π Математика", grade: 7, letter: "Б", teacher: "Бекмухамед М.", display_name: name });
     }),
     leaveClass: vi.fn(async () => { classes.length = 0; }),
+    runs: vi.fn(async () => [{ subject: "π Математика", topic: "Дроби", grade: 7, score: 9, total: 10, finished_at: "2026-10-27T10:00:00Z" },
+      { subject: "π Математика", topic: "", grade: 7, score: 4, total: 10, finished_at: "2026-10-26T10:00:00Z" }]),
   } satisfies MeApi;
   return api;
 }
@@ -154,7 +156,7 @@ describe("кабинет: классы (№102)", () => {
     await user.type(screen.getByLabelText(/Имя/), "Айдос К.");
     await user.click(screen.getByRole("button", { name: "Войти в класс" }));
     expect(api.joinClass).toHaveBeenCalledWith("ABC234", "Айдос К.");
-    expect(await screen.findByText("π Математика")).toBeTruthy();
+    expect(await screen.findByText(/Бекмухамед М./)).toBeTruthy(); // класс в списке
     expect(localStorage.getItem("bt-join")).toBeNull();
 
     await user.type(code, "ZZZZZZ");
@@ -170,5 +172,15 @@ describe("кабинет: классы (№102)", () => {
     expect(localStorage.getItem("bt-join")).toBe("ABC234");
     const { afterLoginPath } = await import("../src/lib/account");
     expect(afterLoginPath("student")).toBe("/me");
+  });
+});
+
+describe("кабинет: мои результаты (№104)", () => {
+  it("последние тесты из аккаунта с процентом; смешанный тест подписан", async () => {
+    history.replaceState(null, "", "/me");
+    render(<MeApp api={fakeApi(kid())} go={vi.fn()} />);
+    expect(await screen.findByText("9/10 · 90%")).toBeTruthy();
+    expect(screen.getByText("4/10 · 40%").className).toBe("lvl-low");
+    expect(screen.getByText(/смешанный тест/)).toBeTruthy();
   });
 });

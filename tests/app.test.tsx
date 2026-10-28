@@ -144,6 +144,17 @@ describe("сайт ученика", () => {
     expect(await screen.findByText(/тегін тесттер/)).toBeTruthy();
   });
 
+  it("вошедший ученик: прогресс из аккаунта на любом устройстве; в подвале — «сохраняются в аккаунте» (№104)", async () => {
+    const progress = vi.fn(async () => ({ q0: { t: "t1", ok: true }, q1: { t: "t1", ok: true }, q2: { t: "t1", ok: false } }));
+    const user = userEvent.setup();
+    render(<App source={{ ...source, progress }} />);
+    expect(await screen.findByText(/Твои результаты сохраняются в аккаунте/)).toBeTruthy();
+    await user.click(await screen.findByRole("button", { name: /Математика/ }));
+    expect(screen.getByText(/выучено 2 из 5/)).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Работа над ошибками · 1" })).toBeTruthy();
+    expect(Object.keys(JSON.parse(localStorage.getItem("bt-history")!))).toHaveLength(3);
+  });
+
   it("переключает язык интерфейса", async () => {
     const user = userEvent.setup();
     render(<App source={source} />);

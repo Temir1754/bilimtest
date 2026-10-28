@@ -22,6 +22,16 @@ export interface MyClass {
   display_name: string;
 }
 
+/** Один пройденный тест (№104): предмет, тема (пусто — смешанный или работа над ошибками), результат. */
+export interface MyRun {
+  subject: string;
+  topic: string;
+  grade: number;
+  score: number;
+  total: number;
+  finished_at: string;
+}
+
 export interface MeApi {
   /** Кто вошёл; null — не вошёл. */
   load(): Promise<Profile | null>;
@@ -35,6 +45,8 @@ export interface MeApi {
   deleteAccount(): Promise<void>;
   /** Классы ученика; войти по коду (имя в классе — по желанию); выйти из класса. */
   classes(lang: Lang): Promise<MyClass[]>;
+  /** Последние 30 тестов ученика из аккаунта. */
+  runs(lang: Lang): Promise<MyRun[]>;
   joinClass(code: string, name: string): Promise<void>;
   leaveClass(id: string): Promise<void>;
   signOut(): Promise<void>;
@@ -112,6 +124,14 @@ export function supabaseMeApi(sb: SupabaseClient): MeApi {
         return { id: r.id, grade: r.grade, letter: r.letter, teacher: r.teacher, display_name: r.display_name,
           subject: s ? `${s.icon} ${tx({ kk: s.name_kk, ru: s.name_ru, en: s.name_en }, lang)}` : "" };
       });
+    },
+    async runs(lang) {
+      type Row = Record<string, string | number | null>;
+      const r = check(await sb.rpc("my_progress")) as { runs: Row[] };
+      const name = (row: Row, f: string) => tx({ kk: (row[`${f}_kk`] as string) ?? "", ru: (row[`${f}_ru`] as string) ?? "",
+        en: (row[`${f}_en`] as string) ?? "" }, lang);
+      return r.runs.map((x) => ({ subject: `${x.icon ?? ""} ${name(x, "subject")}`.trim(), topic: name(x, "topic"),
+        grade: x.grade as number, score: x.score as number, total: x.total as number, finished_at: x.finished_at as string }));
     },
     async joinClass(code, name) {
       check(await sb.rpc("join_class", { p_code: code, p_name: name }));
