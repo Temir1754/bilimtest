@@ -6,7 +6,7 @@ import { GRADES, LANGS } from "../lib/types";
 import {
   humanError, type AdminApi, type Me, type QuestionItem, type SectionRow, type SubjectRow, type TopicCount, type TopicRow,
 } from "./api";
-import { TitleForm } from "./Browser";
+import { publishReadyIn, TitleForm } from "./Browser";
 import { download, exportSheet } from "./excel";
 import { nm, useT } from "./lang";
 import { toPath, type AdminView } from "./route";
@@ -195,6 +195,7 @@ export function TopicsStep({ api, me, slug, grade, nav }: { api: AdminApi; me: M
   const [min, setMin] = useState(5);
   const [error, setError] = useState<unknown>(null);
   const [notice, setNotice] = useState("");
+  const [busy, setBusy] = useState(false);
   const [editing, setEditing] = useState<{ kind: "section" | "topic"; id: string } | null>(null);
 
   useEffect(() => {
@@ -246,6 +247,14 @@ export function TopicsStep({ api, me, slug, grade, nav }: { api: AdminApi; me: M
     if (!confirm(b.confirmDelSection(nm(x, "title", lang)))) return;
     try { await api.deleteSection(x.id); await afterSave(true); } catch (e) { setError(e); }
   }
+  async function publishAll() {
+    setNotice("");
+    setBusy(true);
+    try {
+      const msg = await publishReadyIn(api, me, subject!, grade, undefined, t);
+      if (msg !== null) { setNotice(msg); await load(); }
+    } catch (e) { setError(e); } finally { setBusy(false); }
+  }
   async function exportExcel() {
     setNotice("");
     try {
@@ -261,10 +270,16 @@ export function TopicsStep({ api, me, slug, grade, nav }: { api: AdminApi; me: M
       <Go to={{ name: "grade" }} nav={nav} className="st-back">{s.back(grade, nm(subject, "name", lang))}</Go>
       <div className="st-head">
         <h1>{s.topicsTitle}</h1>
-        <More label={s.excel} text={s.excel} items={[
-          { label: b.importBtn, onClick: () => nav({ name: "excel", slug, grade }) },
-          { label: b.exportBtn, onClick: exportExcel },
-        ]} />
+        <span className="adm-row">
+          {(isAdmin || me.trusted) && (
+            <button type="button" className="btn ghost" disabled={busy} onClick={publishAll}>
+              {busy ? b.publishing : b.publishAll}</button>
+          )}
+          <More label={s.excel} text={s.excel} items={[
+            { label: b.importBtn, onClick: () => nav({ name: "excel", slug, grade }) },
+            { label: b.exportBtn, onClick: exportExcel },
+          ]} />
+        </span>
       </div>
       <p className="muted">{s.hint(min)}</p>
       <Failure error={error} onClose={() => setError(null)} />

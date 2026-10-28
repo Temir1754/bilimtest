@@ -379,6 +379,18 @@ describe("админка", () => {
     ask.mockRestore();
   });
 
+  it("шаг 2 «Тақырып»: у админа кнопка «Опубликовать все готовые черновики предмета»", async () => {
+    history.replaceState(null, "", "/admin/questions/math/5");
+    const user = userEvent.setup();
+    const { api } = fakeApi({ id: "admin", email: "a@x.kz", role: "admin" });
+    const ask = vi.spyOn(window, "confirm").mockReturnValue(true);
+    render(<AdminApp api={api} />);
+    await user.click(await screen.findByRole("button", { name: "Опубликовать все готовые черновики предмета" }));
+    await vi.waitFor(() => expect(api.publish).toHaveBeenCalledWith(["q1"]));
+    expect(await screen.findByText(/Опубликовано: 1/)).toBeTruthy();
+    ask.mockRestore();
+  });
+
   it("учитель не видит массовую публикацию", async () => {
     render(<AdminApp api={fakeApi({ id: "teacher", email: "t@x.kz", role: "teacher" }).api} />);
     await screen.findByRole("button", { name: /2\+2\?/ });

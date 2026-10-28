@@ -5,6 +5,7 @@ import {
 } from "./api";
 import { checkSheet, download, exportSheet } from "./excel";
 import { fromRow, publishProblems, type Status } from "./form";
+import type { AdminText } from "../i18n/admin";
 import { nm, useT } from "./lang";
 import { flatTopics, groupTopics, renumber, swap, type Group } from "./tree";
 
@@ -36,6 +37,22 @@ interface Props {
   me: Me;
   onOpen: (questionId: string | null, topicId: string) => void;
   onImport: (subjectId: string, grade: number) => void;
+}
+
+/** «Опубликовать готовые черновики» в теме или (без темы) во всём предмете класса: только вопросы без ошибок
+ *  (те же проверки, что у кнопки «Опубликовать»; база проверяет ещё раз). Доверенный учитель — только свои (№94).
+ *  Ответ — текст для пользователя; null — отказался в окне подтверждения. */
+export async function publishReadyIn(api: AdminApi, me: Me, s: SubjectRow, grade: number, topicId: string | undefined,
+  t: AdminText): Promise<string | null> {
+  const b = t.browse;
+  const pending = (await api.exportQuestions(s.id, grade, topicId)).map((x) => x.q)
+    .filter((q) => q.status !== "published" && (me.role === "admin" || q.author_id === me.id));
+  if (!pending.length) return b.nothingToPublish;
+  const ready = pending.filter((q) => publishProblems(fromRow(q), s.only_lang, t).length === 0);
+  if (!ready.length) return b.noneReady;
+  if (!confirm(b.confirmPublish(ready.length, pending.length - ready.length))) return null;
+  const n = await api.publish(ready.map((q) => q.id));
+  return b.publishedN(n, pending.length - n);
 }
 
 export function Browser({ api, me, onOpen, onImport }: Props) {
@@ -172,15 +189,9 @@ export function Browser({ api, me, onOpen, onImport }: Props) {
     setBusy("publish");
     setNotice("");
     try {
-      const pending = (await api.exportQuestions(s.id, sel.grade, tp?.id)).map((x) => x.q)
-        .filter((q) => q.status !== "published" && (isAdmin || q.author_id === me.id));
-      if (!pending.length) { setNotice(b.nothingToPublish); return; }
-      const ready = pending.filter((q) => publishProblems(fromRow(q), s.only_lang, t).length === 0);
-      const skipped = pending.length - ready.length;
-      if (!ready.length) { setNotice(b.noneReady); return; }
-      if (!confirm(b.confirmPublish(ready.length, skipped))) return;
-      const n = await api.publish(ready.map((q) => q.id));
-      setNotice(b.publishedN(n, pending.length - n));
+      const msg = await publishReadyIn(api, me, s, sel.grade, tp?.id, t);
+      if (msg === null) return;
+      setNotice(msg);
       setReload((n) => n + 1);
       await loadTopics();
     } catch (e) { setError(e); } finally { setBusy(null); }
