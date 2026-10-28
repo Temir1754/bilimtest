@@ -1141,3 +1141,21 @@ describe("результаты в аккаунте ученика (№104)", () 
     await expect(as(null, (x) => x("select public.my_progress()"))).rejects.toThrow(/permission denied/);
   });
 });
+
+describe("резервная копия: данные учеников и сертификаты", () => {
+  it("копия включает school.* и сертификаты; восстановление возвращает их с прежними номерами", async () => {
+    const before = await dumpDb(asDb(db));
+    expect(before["school.test_runs"].length).toBeGreaterThan(0);
+    expect(before.certificates.length).toBeGreaterThan(0);
+    const order = await tablesInOrder(asDb(db));
+    expect(order.indexOf("school.test_runs")).toBeLessThan(order.indexOf("school.answers"));
+
+    await db.query("delete from school.test_runs");
+    await db.query("delete from public.certificates");
+    await db.transaction((tx) => restoreDb(asDb(tx), before));
+    const after = await dumpDb(asDb(db));
+    for (const t of ["school.test_runs", "school.answers", "certificates"]) {
+      expect(after[t].map((r) => JSON.stringify(r)).sort(), t).toEqual(before[t].map((r) => JSON.stringify(r)).sort());
+    }
+  });
+});

@@ -18,6 +18,8 @@
     "move-questions": "tsx scripts/move-questions.ts",
     "old-topics": "tsx scripts/old-topics.ts",
     "restore": "tsx scripts/restore-db.ts",
+    "seal": "tsx scripts/seal-backup.ts seal",
+    "unseal": "tsx scripts/seal-backup.ts unseal",
     "functions": "tsx scripts/deploy-functions.ts"
   },
   "dependencies": {

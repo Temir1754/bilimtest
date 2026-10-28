@@ -1,0 +1,18 @@
+# Каждую ночь пересобирает сайт на Vercel (DECISIONS.md №105): страницы для Google и sitemap получают
+# новые темы без участия владельца. Адрес пересборки — секрет VERCEL_DEPLOY_HOOK (Vercel → Settings → Git → Deploy Hooks).
+name: Страницы для Google
+on:
+  schedule:
+    - cron: "0 20 * * *" # 01:00 по Алматы
+  workflow_dispatch:
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Пересобрать сайт
+        run: |
+          if [ -z "$HOOK" ]; then echo "::warning::Нет секрета VERCEL_DEPLOY_HOOK — пересборка пропущена"; exit 0; fi
+          curl -fsS --retry 3 --retry-delay 30 -X POST "$HOOK" -o /dev/null
+        env:
+          HOOK: ${{ secrets.VERCEL_DEPLOY_HOOK }}

@@ -1,0 +1,32 @@
+# Резервная копия базы раз в неделю (DECISIONS.md №105).
+# Репозиторий публичный — копия шифруется паролем BACKUP_PASSWORD и хранится 90 дней во вкладке Actions.
+# Открыть: скачать файл bilimtest-backup → npm run unseal -- файл.bbak → npm run restore -- backups/папка --yes
+name: Копия базы
+on:
+  schedule:
+    - cron: "0 21 * * 0" # понедельник 02:00 по Алматы
+  workflow_dispatch:
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Копия базы
+        run: npm run backup
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+      - name: Зашифровать
+        run: npm run seal -- "$(ls -d backups/*/ | head -1)" "bilimtest-$(date -u +%Y-%m-%d).bbak" && rm -rf backups
+        env:
+          BACKUP_PASSWORD: ${{ secrets.BACKUP_PASSWORD }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bilimtest-backup
+          path: "*.bbak"
+          retention-days: 90
