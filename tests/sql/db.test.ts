@@ -8,6 +8,7 @@ import { beforeAll, describe, expect, it } from "vitest";
 import { importSubjects, type Db } from "../../scripts/importer";
 import { loadCurriculum, validateCurriculum, type Curriculum } from "../../scripts/curriculum";
 import { dumpDb, restoreDb, tablesInOrder } from "../../scripts/backup";
+import { collectWeekly, formatWeekly } from "../../scripts/weekly";
 import { applyMoves, cleanupOldTopics, emptyOldTopics, isReferenced, markForTeacher, planMoves, readMappings }
   from "../../scripts/mapping";
 import type { RawSubject } from "../../src/lib/legacy";
@@ -1233,5 +1234,50 @@ describe("задания со сроком (№110)", () => {
     await call("teacherA", "public.delete_assignment($1)", [aid]);
     expect(await call("student", "public.my_assignments()")).toEqual([]);
     await call("teacherA", "public.delete_class($1)", [cls.id]);
+  });
+});
+
+describe("отчёт владельцу за неделю (№112)", () => {
+  it("считает учителей, жалобы и скрытые вопросы за неделю; старое в «за неделю» не попадает", async () => {
+    const q = (await one<{ id: string }>("select id from public.questions where status = 'published' order by legacy_key limit 1"))!;
+    for (const who of ["admin", "teacherA", "teacherB"] as const) {
+      await as(who, (x) => x("select public.submit_report($1, 'Жауабы қате')", [q.id]));
+    }
+    const week = await collectWeekly(asDb(db), new Date(Date.now() - 7 * 864e5));
+    const teachers = (await one<{ n: number }>("select count(*)::int as n from public.profiles where role = 'teacher'"))!.n;
+    expect(week.teachers).toBe(teachers);
+    expect(week.teachersNew).toHaveLength(teachers); // все учителя тестовой базы созданы только что
+    expect(week.hidden).toEqual([expect.objectContaining({ topic: expect.stringContaining(" кл. — ") })]);
+    expect(week.reportsNew).toBeGreaterThanOrEqual(3);
+    expect(week.review).toBeGreaterThanOrEqual(1);
+    const shown = (await one<{ n: number }>("select jsonb_array_length(public.site_catalog() -> 'topics') as n"))!.n;
+    expect(week.topicsShown).toBe(shown);
+
+    const later = await collectWeekly(asDb(db), new Date(Date.now() + 864e5));
+    expect(later).toMatchObject({ teachersNew: [], studentsNew: 0, questionsNew: 0, reportsNew: 0, tests: 0, classesNew: 0,
+      topTopics: [], topAuthors: [], teachers, hidden: week.hidden });
+  });
+
+  it("письмо: «что сделать» — только то, что ждёт владельца", () => {
+    const base = { since: "2026-10-21T03:00:00Z", teachers: 3, teachersNew: [{ name: "Әлия Серікқызы", school: "№12 мектеп", questions: 40 }],
+      students: 50, studentsNew: 7, published: 1500, questionsNew: 40, publishedNew: 40, drafts: 900, review: 1,
+      hidden: [{ topic: "История Казахстана, 6 кл. — Тәуке хан", comment: "Оқушылар қате туралы хабарлады / Ученики сообщили об ошибке: дата неверная" }],
+      reportsNew: 3, reportsOpen: 3, tests: 120, testsGuests: 80, activeStudents: 12, classes: 2, classesNew: 1,
+      assignmentsNew: 4, topicsShown: 44, schoolsWaiting: 0, topTopics: [{ title: "Математика, 5 кл. — Дроби", tests: 30 }],
+      topAuthors: [{ name: "Әлия Серікқызы", questions: 40 }] };
+    const now = new Date("2026-10-28T03:00:00Z");
+    const ok = formatWeekly(base, now, { checksFailed: 0, checksTotal: 168, backup: "success" });
+    expect(ok.subject).toBe("Білімтест за неделю: тестов 120, учителей 3 · всё ✓");
+    expect(ok.text).toContain("неделя 21.10.2026 — 28.10.2026");
+    expect(ok.text).toContain("ничего, всё работает само");
+    expect(ok.text).toContain("новый: Әлия Серікқызы, №12 мектеп — вопросов: 40");
+    expect(ok.text).toContain("История Казахстана, 6 кл. — Тәуке хан: дата неверная");
+    expect(ok.text).toContain("копия базы: сделана ✓");
+
+    const bad = formatWeekly({ ...base, review: 6, schoolsWaiting: 2 }, now, { checksFailed: 3, checksTotal: 168, backup: "failure" });
+    expect(bad.subject).toContain("дел: 4");
+    expect(bad.text).toContain("5 вопр. ждут проверки");
+    expect(bad.text).toContain("2 школ ждут одобрения");
+    expect(formatWeekly(base, now).text).not.toContain("РАБОТА САЙТА");
   });
 });

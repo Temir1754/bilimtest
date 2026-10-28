@@ -1,0 +1,37 @@
+# Отчёт владельцу за неделю — письмом на Gmail (DECISIONS.md №112).
+# Репозиторий публичный — отчёт не сохраняется на GitHub, только уходит письмом.
+name: Отчёт за неделю
+on:
+  schedule:
+    - cron: "0 3 * * 1" # понедельник 08:00 по Алматы (после копии базы в 02:00)
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Как работали автоматические задачи
+        run: |
+          since=$(date -u -d '7 days ago' +%Y-%m-%d)
+          runs=$(gh run list --workflow watch.yml --created ">=$since" --limit 500 --json conclusion)
+          echo "CHECKS_TOTAL=$(echo "$runs" | jq 'length')" >> "$GITHUB_ENV"
+          echo "CHECKS_FAILED=$(echo "$runs" | jq '[.[] | select(.conclusion == "failure")] | length')" >> "$GITHUB_ENV"
+          echo "BACKUP_STATUS=$(gh run list --workflow backup.yml --limit 1 --json conclusion --jq '.[0].conclusion // ""')" >> "$GITHUB_ENV"
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - name: Отчёт
+        run: npm run weekly -- --send
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          GMAIL_USER: ${{ secrets.GMAIL_USER }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          REPORT_TO: ${{ secrets.REPORT_TO }}

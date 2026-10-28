@@ -8,3 +8,6 @@ coverage/
 *.tsbuildinfo
 backups/
 exports/
+
+# Файлы вопросов от учителей (репозиторий публичный)
+data/questions/
