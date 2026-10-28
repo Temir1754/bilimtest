@@ -439,3 +439,18 @@ label.adm-check{display:flex;align-items:center;gap:8px;font-size:14px;font-weig
 .task-head{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
 .task-students{list-style:none;padding:6px 0 0 12px;display:grid;gap:4px}
 .task-students li{display:flex;justify-content:space-between;gap:10px;max-width:420px}
+
+/* «Алғашқы қадамдар» (№113) */
+.adm-start{max-width:880px;margin:0 auto 18px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px 20px;display:grid;gap:8px;font-size:16px}
+.adm-start-head{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.adm-start h2{font-size:20px;margin:0}
+.adm-start .muted{margin:0}
+.adm-start ol{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.adm-start li{display:flex;gap:10px;align-items:flex-start;padding:6px 0}
+.adm-start .mark{flex:none;width:24px;height:24px;border-radius:50%;border:2px solid var(--line);display:grid;place-items:center;font-size:14px;font-weight:700}
+.adm-start li.done .mark{background:var(--good-soft);border-color:var(--good);color:var(--good)}
+.adm-start li.done b{color:var(--muted);font-weight:400}
+.adm-start li.next .mark{border-color:var(--accent)}
+.adm-start .body{display:grid;gap:4px}
+.adm-start .acts{display:flex;gap:16px}
+.adm-start .how{color:var(--muted);line-height:1.5;max-width:70ch}

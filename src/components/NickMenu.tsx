@@ -3,7 +3,9 @@ import { useEffect, useRef, useState } from "react";
 
 export interface NickMenuItem {
   label: string;
-  href: string;
+  href?: string;
+  /** Действие вместо перехода по ссылке. */
+  onClick?: () => void;
 }
 
 export function NickMenu({ name, label, items, logout, onLogout }: {
@@ -36,7 +38,9 @@ export function NickMenu({ name, label, items, logout, onLogout }: {
       </button>
       {open && (
         <div className="acct-menu" role="menu">
-          {items.map((it) => <a key={it.href + it.label} role="menuitem" href={it.href}>{it.label}</a>)}
+          {items.map((it) => it.onClick
+            ? <button key={it.label} type="button" role="menuitem" onClick={() => { setOpen(false); it.onClick!(); }}>{it.label}</button>
+            : <a key={it.href + it.label} role="menuitem" href={it.href}>{it.label}</a>)}
           <button type="button" role="menuitem" onClick={() => { setOpen(false); onLogout(); }}>{logout}</button>
         </div>
       )}

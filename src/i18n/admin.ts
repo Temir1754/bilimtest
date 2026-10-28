@@ -73,6 +73,25 @@ const kk = {
     savePassword: "Құпиясөзді сақтау", passwordSaved: "Жаңа құпиясөз сақталды.", toAdmin: "Әкімші панеліне өту",
   },
 
+  // «Алғашқы қадамдар» — учитель после входа (№113)
+  start: {
+    title: "Алғашқы қадамдар", lede: (done: number, all: number) => `${all} қадамның ${done} орындалды. Белгілер өздігінен қойылады.`,
+    how: "Қалай?", go: "Өту", hide: "Жасыру", reopen: "Алғашқы қадамдар",
+    add: { title: "Алғашқы сұрақты қосыңыз",
+      how: "«Сұрақтар» → сынып → пән → тақырып → «+ Сұрақ қосу». Тест Word немесе Excel файлында болса — тақырыптар бетіндегі «Файл ▾» → «Файлдан жүктеу (Excel, Word)»: файлдағы барлық сұрақ бірден жүктеледі." },
+    publish: { title: "Сұрақты оқушыларға көрсетіңіз",
+      how: (trusted: boolean, min: number) => (trusted
+        ? "Сіз сенімді мұғалімсіз: дайын сұрақты өзіңіз жариялайсыз («Жариялау»)."
+        : "Сұрақ алдымен жобада сақталады. Дайын болғанда «Тексеруге жіберу» басыңыз — әкімші тексеріп, жариялайды.")
+        + ` Тақырыпта кемінде ${min} жарияланған сұрақ болғанда, оқушылар тақырыпты сайтта көреді.` },
+    cls: { title: "Сынып құрыңыз",
+      how: "«Сыныптарым» → пән, сынып және әрпі → «Сынып құру». Сыныптың 6 таңбалы коды мен сілтемесі пайда болады." },
+    join: { title: "Оқушыларды сыныпқа қосыңыз",
+      how: "Оқушы сайтта лақап атпен тіркеліп, «Кабинет» → «Сыныпқа қосылу» бөліміне сынып кодын жазады. Оңайы — сынып бетіндегі сілтемені WhatsApp-топқа жіберу." },
+    task: { title: "Тапсырма беріңіз",
+      how: "Сынып бетінде «Тапсырмалар»: тақырып пен мерзімді таңдап, «Тапсырма беру». Кім орындағанын сол жерден көресіз, ал «Оқушылар × тақырыптар» кім нені түсінбегенін көрсетеді." },
+  },
+
   status: { draft: "Жоба", review: "Тексеруде", published: "Жарияланған" },
   langIn: { kk: "қазақ тілінде", ru: "орыс тілінде", en: "ағылшын тілінде" } as Record<Lang, string>,
 
@@ -387,6 +406,24 @@ const ru: AdminText = {
     savePassword: "Сохранить пароль", passwordSaved: "Новый пароль сохранён.", toAdmin: "Перейти в админку",
   },
 
+  start: {
+    title: "Первые шаги", lede: (done, all) => `Сделано ${done} из ${all}. Галочки ставятся сами.`,
+    how: "Как?", go: "Перейти", hide: "Скрыть", reopen: "Первые шаги",
+    add: { title: "Добавьте первый вопрос",
+      how: "«Вопросы» → класс → предмет → тема → «+ Добавить вопрос». Если тест в файле Word или Excel — на странице тем «Файл ▾» → «Загрузить из файла (Excel, Word)»: все вопросы файла загрузятся сразу." },
+    publish: { title: "Покажите вопрос ученикам",
+      how: (trusted, min) => (trusted
+        ? "Вы доверенный учитель: готовый вопрос публикуете сами («Опубликовать»)."
+        : "Вопрос сначала сохраняется черновиком. Когда готов — нажмите «Отправить на проверку»: админ проверит и опубликует.")
+        + ` Когда в теме не меньше ${min} опубликованных вопросов, ученики видят её на сайте.` },
+    cls: { title: "Создайте класс",
+      how: "«Мои классы» → предмет, класс и буква → «Создать класс». Появятся код класса из 6 знаков и ссылка." },
+    join: { title: "Пригласите учеников в класс",
+      how: "Ученик регистрируется на сайте по нику и в «Кабинете» → «Войти в класс» вводит код. Проще всего — отправить ссылку со страницы класса в WhatsApp-группу." },
+    task: { title: "Дайте задание",
+      how: "На странице класса в «Задания»: выберите тему и срок → «Дать задание». Там же видно, кто выполнил, а «Ученики × темы» показывает, кто что не понял." },
+  },
+
   status: { draft: "Черновик", review: "На проверке", published: "Опубликован" },
   langIn: { kk: "на казахском языке", ru: "на русском языке", en: "на английском языке" },
 
@@ -697,6 +734,24 @@ const en: AdminText = {
     newTitle: "New password", newLede: "At least 6 characters. Remember it or write it down.",
     newPassword: "New password", repeat: "Repeat password", mismatch: "The passwords don't match.",
     savePassword: "Save password", passwordSaved: "Your new password is saved.", toAdmin: "Go to the admin panel",
+  },
+
+  start: {
+    title: "First steps", lede: (done, all) => `${done} of ${all} done. Ticks appear by themselves.`,
+    how: "How?", go: "Go", hide: "Hide", reopen: "First steps",
+    add: { title: "Add your first question",
+      how: "“Questions” → grade → subject → topic → “+ Add question”. If your test is in a Word or Excel file, on the topics page use “File ▾” → “Import from a file (Excel, Word)”: all questions from the file are added at once." },
+    publish: { title: "Show the question to students",
+      how: (trusted, min) => (trusted
+        ? "You are a trusted teacher: you publish ready questions yourself (“Publish”)."
+        : "A question is saved as a draft first. When it is ready, press “Send for review”: the admin checks and publishes it.")
+        + ` Students see a topic on the site once it has at least ${min} published questions.` },
+    cls: { title: "Create a class",
+      how: "“My classes” → subject, grade and letter → “Create class”. You get a 6-character class code and a link." },
+    join: { title: "Invite students to the class",
+      how: "A student signs up on the site with a nickname and enters the code in “Dashboard” → “Join a class”. The easiest way is to send the link from the class page to the WhatsApp group." },
+    task: { title: "Give a task",
+      how: "On the class page, in “Tasks”: choose a topic and a due date → “Give a task”. You see who has done it there, and “Students × topics” shows who didn't understand what." },
   },
 
   status: { draft: "Draft", review: "In review", published: "Published" },

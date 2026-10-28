@@ -12,6 +12,7 @@ import { AdminLang } from "./lang";
 import { ReviewQueue } from "./ReviewQueue";
 import { navTab, parsePath, toPath, type AdminView } from "./route";
 import { SchoolsView } from "./SchoolsView";
+import { setStartHidden, StartGuide, startHidden } from "./StartGuide";
 import { QuestionEditor } from "./QuestionEditor";
 import { Go, GradeStep, MyQuestions, TopicQuestions, TopicsStep, TranslateList, type Nav } from "./Steps";
 import { UsersView } from "./UsersView";
@@ -77,6 +78,11 @@ export function AdminApp({ api, go = (p) => location.replace(p) }: {
   const openExcel = (subjectId: string, grade: number) =>
     api.subjects().then((list) => { const x = list.find((y) => y.id === subjectId); if (x) nav({ name: "excel", slug: x.slug, grade }); });
   const tab = navTab(view);
+  // «Алғашқы қадамдар» (№113): учителю над экранами вкладок, пока не всё сделано и он не скрыл блок.
+  const [hideStart, setHideStart] = useState(false);
+  useEffect(() => { if (me) setHideStart(startHidden(me.id)); }, [me]);
+  const showStart = me?.role === "teacher" && !me.mustChangePassword && !hideStart &&
+    ["grade", "topics", "my", "classes", "class"].includes(view.name);
 
   let body;
   if (me === undefined) body = <p className="loading">{t.loading}</p>;
@@ -156,11 +162,16 @@ export function AdminApp({ api, go = (p) => location.replace(p) }: {
           </div>
           {me && (
             <NickMenu name={nick(me)} label={t.menu.label} logout={t.logout} onLogout={signOut}
-              items={[{ label: t.menu.site, href: "/" }, { label: t.menu.cabinet, href: cabinetPath(me.role) }]} />
+              items={[{ label: t.menu.site, href: "/" }, { label: t.menu.cabinet, href: cabinetPath(me.role) },
+                ...(me.role === "teacher" && hideStart
+                  ? [{ label: t.start.reopen, onClick: () => { setStartHidden(me.id, false); setHideStart(false); } }] : [])]} />
           )}
         </div>
       </div></header>
-      <main id="main"><div className="wrap">{body}</div></main>
+      <main id="main"><div className="wrap">
+        {showStart && me && <StartGuide key={view.name} api={api} me={me} nav={nav} onHide={() => setHideStart(true)} />}
+        {body}
+      </div></main>
     </AdminLang.Provider>
   );
 }
