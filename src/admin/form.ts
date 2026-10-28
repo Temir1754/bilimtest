@@ -168,8 +168,8 @@ export function toQuestion(f: QuestionForm): Question {
 }
 
 /** Может ли пользователь менять вопрос (то же правило, что can_edit_question в базе). */
-export function canEdit(f: QuestionForm, role: Role, userId: string): boolean {
+export function canEdit(f: QuestionForm, role: Role, userId: string, trusted = false): boolean {
   if (role === "admin") return true;
   if (role !== "teacher") return false;
-  return f.id === null || (f.authorId === userId && f.status !== "published");
+  return f.id === null || (f.authorId === userId && (f.status !== "published" || trusted));
 }

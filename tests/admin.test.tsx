@@ -47,7 +47,7 @@ function fakeApi(me: Me | null) {
   const schools: SchoolRow[] = [];
   const person = (id: string, email: string, role: UserRow["role"], extra: Partial<UserRow> = {}): UserRow => ({
     id, email, role, nickname: null, first_name: "", last_name: "", school_id: null, school_region: null, school_kk: null,
-    school_ru: null, school_other: null, grade: null, subjects: null, grades: null, q_total: 0, q_review: 0, q_published: 0, blocked_at: null, must_change_password: false, created_at: "2026-10-27T10:00:00Z", last_sign_in_at: null, ...extra,
+    school_ru: null, school_other: null, grade: null, subjects: null, grades: null, trusted: false, q_total: 0, q_review: 0, q_published: 0, blocked_at: null, must_change_password: false, created_at: "2026-10-27T10:00:00Z", last_sign_in_at: null, ...extra,
   });
   const users: UserRow[] = [
     person("admin", "a@x.kz", "admin"),
@@ -144,6 +144,7 @@ function fakeApi(me: Me | null) {
     }),
     setRole: vi.fn(async (id: string, role: UserRow["role"]) => { users.find((x) => x.id === id)!.role = role; }),
     setBlocked: vi.fn(async (id: string, b: boolean) => { users.find((x) => x.id === id)!.blocked_at = b ? "now" : null; }),
+    setTrusted: vi.fn(async (id: string, v: boolean) => { users.find((x) => x.id === id)!.trusted = v; }),
     createTeacher: vi.fn(async (email: string, data: Parameters<AdminApi["createTeacher"]>[1]) => {
       users.unshift(person("t9", email, "teacher", { nickname: data.nickname, must_change_password: true }));
       return { id: "t9", password: "tempabc234" };
@@ -154,9 +155,12 @@ function fakeApi(me: Me | null) {
     }),
     async settings() { return { ...settings }; },
     saveSettings: vi.fn(async (s: SignupSettings) => { settings = s; }),
-    importQuestions: vi.fn(async (_s: string, _g: number, rows: unknown[]) => ({ questions: rows.length, topics: 1 })),
+    importQuestions: vi.fn(async (_s: string, _g: number, rows: unknown[]) => ({ questions: rows.length, topics: 1, published: 0 })),
     async exportQuestions() { return questions.map((q) => ({ topic: "Дроби", q })); },
-    publish: vi.fn(async (ids: string[]) => { for (const q of questions) if (ids.includes(q.id)) q.status = "published"; }),
+    publish: vi.fn(async (ids: string[]) => {
+      for (const q of questions) if (ids.includes(q.id)) q.status = "published";
+      return ids.length;
+    }),
   };
   return { api, saved, sections, topics, questions, regions, schools, users, person, getSettings: () => settings,
     setScope: (x: typeof scope) => { scope = x; } };
@@ -342,8 +346,9 @@ describe("админка", () => {
     const box = await screen.findByRole("group", { name: "Какой столбец что значит?" });
     await user.click(within(box).getByRole("button", { name: "Дальше" }));
     await user.selectOptions(await screen.findByRole("combobox", { name: "Тема программы: Без темы" }), "Сложение");
-    await user.click(screen.getByRole("button", { name: "Загрузить 1 в черновики" }));
+    await user.click(screen.getByRole("button", { name: "Загрузить 1 и опубликовать" })); // админ: сразу публикует (№94)
     await vi.waitFor(() => expect(api.importQuestions).toHaveBeenCalled());
+    expect((api.importQuestions as ReturnType<typeof vi.fn>).mock.calls[0][3]).toBe(true);
     const rows = (api.importQuestions as ReturnType<typeof vi.fn>).mock.calls[0][2];
     expect(rows[0]).toMatchObject({ topic_id: "t2", text_ru: "2+2?",
       options: [{ text_ru: "3", is_correct: false }, { text_ru: "4", is_correct: true }, { text_ru: "5", is_correct: false }] });
@@ -378,6 +383,28 @@ describe("админка", () => {
     render(<AdminApp api={fakeApi({ id: "teacher", email: "t@x.kz", role: "teacher" }).api} />);
     await screen.findByRole("button", { name: /2\+2\?/ });
     expect(screen.queryByRole("button", { name: "Опубликовать готовые черновики" })).toBeNull();
+  });
+
+  it("доверенный учитель (№94): массовая публикация своих вопросов; в загрузке — «сразу опубликовать»", async () => {
+    const user = userEvent.setup();
+    const { api } = fakeApi({ id: "teacher", email: "t@x.kz", role: "teacher", trusted: true });
+    const ask = vi.spyOn(window, "confirm").mockReturnValue(true);
+    render(<AdminApp api={api} />);
+    await user.click(await screen.findByRole("button", { name: "Опубликовать готовые черновики" }));
+    await vi.waitFor(() => expect(api.publish).toHaveBeenCalled());
+    ask.mockRestore();
+
+    cleanup();
+    history.replaceState(null, "", "/admin/questions/math/5/excel");
+    render(<AdminApp api={api} />);
+    expect((await screen.findByRole("checkbox", { name: /Сразу опубликовать вопросы без ошибок/ }) as HTMLInputElement).checked).toBe(true);
+  });
+
+  it("обычному учителю загрузка — только в черновики, без галочки «опубликовать»", async () => {
+    history.replaceState(null, "", "/admin/questions/math/5/excel");
+    render(<AdminApp api={fakeApi({ id: "teacher", email: "t@x.kz", role: "teacher" }).api} />);
+    expect(await screen.findByText(/Все вопросы попадут в черновики/)).toBeTruthy();
+    expect(screen.queryByRole("checkbox", { name: /Сразу опубликовать/ })).toBeNull();
   });
 
   it("язык админки переключается и запоминается вместе с языком сайта", async () => {
@@ -613,6 +640,22 @@ describe("админка", () => {
     const self = screen.getByRole("complementary", { name: "a" });
     expect(within(self).queryByText("Опасные действия")).toBeNull();
     expect(within(self).queryByRole("button", { name: "Выдать временный пароль" })).toBeNull();
+  });
+
+  it("«Пользователи»: админ делает учителя доверенным (№94) — с подтверждением, в списке пометка", async () => {
+    const user = userEvent.setup();
+    const { api, users, person } = fakeApi({ id: "admin", email: "a@x.kz", role: "admin" });
+    users.push(person("tch", "aigerim@mail.kz", "teacher", { first_name: "Айгерім", last_name: "Сейітова", grades: [5], subjects: ["s1"] }));
+    const ask = vi.spyOn(window, "confirm").mockReturnValue(true);
+    render(<AdminApp api={api} />);
+    await user.click(await screen.findByRole("link", { name: "Пользователи" }));
+    await user.click(await screen.findByText("Айгерім Сейітова"));
+    const panel = screen.getByRole("complementary", { name: "Айгерім Сейітова" });
+    await user.click(within(panel).getByRole("checkbox", { name: /Доверенный учитель/ }));
+    expect(ask).toHaveBeenCalledWith(expect.stringMatching(/доверенным учителем/));
+    expect(api.setTrusted).toHaveBeenCalledWith("tch", true);
+    expect(await screen.findByText("доверенный")).toBeTruthy();
+    ask.mockRestore();
   });
 
   it("«Пользователи»: настройки регистрации — в окне; без почты — полоса с «Выключить»; правка данных ученика", async () => {

@@ -85,6 +85,8 @@ export function UsersView({ api, me, nav }: { api: AdminApi; me: Me; nav: Nav })
   }
   const changeRole = (r: UserRow, next: Role) => confirm(u.confirmRole(who(r), t.roles[next])) && run(() => api.setRole(r.id, next));
   const block = (r: UserRow) => (r.blocked_at || confirm(u.confirmBlock(who(r)))) && run(() => api.setBlocked(r.id, !r.blocked_at));
+  // «Сенімді мұғалім» (№94): включение — с подтверждением, выключение — сразу.
+  const trust = (r: UserRow) => (r.trusted || confirm(u.confirmTrust(who(r)))) && run(() => api.setTrusted(r.id, !r.trusted));
   const reset = (r: UserRow) => confirm(u.confirmReset(who(r))) && run(async () => {
     const { password } = await api.resetUserPassword(r.id);
     setTemp({ who: who(r), password });
@@ -167,6 +169,7 @@ export function UsersView({ api, me, nav }: { api: AdminApi; me: Me; nav: Nav })
                           {r.id === me.id && <span className="muted"> ({u.you})</span>}
                           {isNew(r) && <span className="st published">{u.isNew}</span>}
                           {r.role === "admin" && <span className="st review">{t.roles.admin}</span>}
+                          {r.role === "teacher" && r.trusted && <span className="st published">{u.trustedBadge}</span>}
                           {r.blocked_at && <span className="st returned">{u.blocked}</span>}
                           {r.must_change_password && <span className="st draft">{u.mustChange}</span>}
                           <small>{r.email.endsWith("@students.bilimtest.local") ? u.studentLogin : r.email}</small>
@@ -215,6 +218,10 @@ export function UsersView({ api, me, nav }: { api: AdminApi; me: Me; nav: Nav })
               <span className="q-review"><b>{sel.q_review}</b>{u.q.review}</span>
               <span className="q-pub"><b>{sel.q_published}</b>{u.q.published}</span>
             </div>
+          )}
+          {sel.role === "teacher" && (
+            <label className="adm-check us-trust"><input type="checkbox" checked={sel.trusted} onChange={() => trust(sel)} />
+              <span><b>{u.trusted}</b> <span className="muted">— {u.trustedHint}</span></span></label>
           )}
           <div className="us-actions">
             {sel.role !== "student" && <Go to={{ name: "author", id: sel.id }} nav={nav} className="btn ghost">{u.viewQs}</Go>}

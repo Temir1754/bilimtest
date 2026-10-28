@@ -56,6 +56,7 @@ export function Browser({ api, me, onOpen, onImport }: Props) {
   const [reload, setReload] = useState(0); // меняется — список вопросов загружается заново
   const mainRef = useRef<HTMLElement>(null);
   const isAdmin = me.role === "admin";
+  const canPublish = isAdmin || me.trusted === true; // доверенный учитель публикует свои (№94)
 
   const update = (p: Partial<Sel>) => setSel((s) => {
     const next = { ...s, ...p };
@@ -172,14 +173,14 @@ export function Browser({ api, me, onOpen, onImport }: Props) {
     setNotice("");
     try {
       const pending = (await api.exportQuestions(s.id, sel.grade, tp?.id)).map((x) => x.q)
-        .filter((q) => q.status !== "published");
+        .filter((q) => q.status !== "published" && (isAdmin || q.author_id === me.id));
       if (!pending.length) { setNotice(b.nothingToPublish); return; }
       const ready = pending.filter((q) => publishProblems(fromRow(q), s.only_lang, t).length === 0);
       const skipped = pending.length - ready.length;
       if (!ready.length) { setNotice(b.noneReady); return; }
       if (!confirm(b.confirmPublish(ready.length, skipped))) return;
-      await api.publish(ready.map((q) => q.id));
-      setNotice(b.publishedN(ready.length, skipped));
+      const n = await api.publish(ready.map((q) => q.id));
+      setNotice(b.publishedN(n, pending.length - n));
       setReload((n) => n + 1);
       await loadTopics();
     } catch (e) { setError(e); } finally { setBusy(null); }
@@ -378,7 +379,7 @@ export function Browser({ api, me, onOpen, onImport }: Props) {
                   </button>
                 </>
               )}
-              {isAdmin && subject && (
+              {canPublish && subject && (
                 <button type="button" className="btn ghost sm" disabled={busy !== null} onClick={() => publishReady(subject, topic)}>
                   {busy === "publish" ? b.publishing : topic ? b.publishReady : b.publishAll}
                 </button>

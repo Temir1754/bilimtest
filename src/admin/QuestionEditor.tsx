@@ -81,7 +81,7 @@ export function QuestionEditor({ api, me, id, topicId, nav }: Props) {
   useEffect(() => { if (topic) loadCounter(topic); }, [topic, loadCounter]);
 
   const onlyLang = subject?.only_lang ?? null;
-  const editable = form ? canEdit(form, me.role, me.id) : false;
+  const editable = form ? canEdit(form, me.role, me.id, me.trusted) : false;
   const dirty = form !== null && JSON.stringify(form) !== saved;
 
   useEffect(() => {
@@ -186,6 +186,8 @@ export function QuestionEditor({ api, me, id, topicId, nav }: Props) {
   }
 
   const isAdmin = me.role === "admin";
+  // Доверенный учитель сохраняет свои вопросы сразу опубликованными — как админ (№94).
+  const publisher = isAdmin || me.trusted === true;
   const st = form.status;
   const isNew = form.id === null;
   const langs = onlyLang ? [onlyLang] : LANGS;
@@ -195,7 +197,7 @@ export function QuestionEditor({ api, me, id, topicId, nav }: Props) {
   const incomplete = (l: Lang) => started(l) && !readyIn({ ...form, options: form.options.filter((o) => LANGS.some((x) => o.text[x].trim())) }, l);
   const errors = failure ? [...problems, humanError(failure, t)] : problems;
   // Учитель удаляет свой неопубликованный вопрос, админ — любой (№89).
-  const canDelete = !isNew && (isAdmin || editable);
+  const canDelete = !isNew && (isAdmin || (editable && st !== "published"));
   const topicsView: AdminView | undefined = subject && topic ? { name: "topics", slug: subject.slug, grade: topic.grade } : undefined;
 
   return (
@@ -263,7 +265,7 @@ export function QuestionEditor({ api, me, id, topicId, nav }: Props) {
 
       {editable && (
         <div className="st-actions">
-          {isAdmin ? (
+          {publisher ? (
             <>
               {isNew && <button type="button" className="btn" disabled={busy} onClick={() => save("published", "savedNext", true)}>{e.saveNext}</button>}
               <button type="button" className={isNew ? "btn ghost" : "btn"} disabled={busy}
@@ -319,7 +321,7 @@ export function QuestionEditor({ api, me, id, topicId, nav }: Props) {
               <button type="button" className="btn ghost" disabled={busy || !form.reviewComment.trim()}
                 title={e.returnTitle} onClick={() => save("draft", "returnedMsg")}>{e.returnBtn}</button>
             )}
-            {isAdmin && (
+            {publisher && (
               <button type="button" className="btn ghost" disabled={busy}
                 onClick={() => save("draft", st === "published" ? "unpublishedMsg" : "saved")}>
                 {st === "published" ? e.unpublish : e.saveDraft}

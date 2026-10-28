@@ -310,7 +310,7 @@ describe("загрузка из Excel (import_questions)", () => {
     const title = (await one<{ title_kk: string }>("select title_kk from public.topics where legacy_key = 'math|5|0'"))!.title_kk;
     const r = await run("teacherA", [row(` ${title.toUpperCase()} `, "Импорт 1"), row("Новая тема из Excel", "Импорт 2"),
       row("новая тема из excel", "Импорт 3")]);
-    expect(r).toEqual({ questions: 3, topics: 1 });
+    expect(r).toEqual({ questions: 3, topics: 1, published: 0 });
     const qs = (await db.query<{ status: string; author_id: string; legacy_key: string | null; n: number }>(`
       select q.status, q.author_id, t.legacy_key, (select count(*)::int from public.options o where o.question_id = q.id) as n
       from public.questions q join public.topics t on t.id = q.topic_id
@@ -335,7 +335,7 @@ describe("загрузка из Excel (import_questions)", () => {
       values ($1, $2, 'Бөлім-word', 'Раздел-word') returning id`, [math, grade]))!.id;
     const sec = await section(5);
     const other = await section(6);
-    expect(await run("teacherA", [row("Тема из Word", "Word 1", { section_id: sec })])).toEqual({ questions: 1, topics: 1 });
+    expect(await run("teacherA", [row("Тема из Word", "Word 1", { section_id: sec })])).toEqual({ questions: 1, topics: 1, published: 0 });
     expect(await one("select section_id from public.topics where title_kk = 'Тема из Word'")).toEqual({ section_id: sec });
     await expect(run("teacherA", [row("Ещё тема из Word", "Word 2", { section_id: other })])).rejects.toThrow(/Раздел не найден/);
     // убрать за собой: другие тесты считают разделы
@@ -900,5 +900,78 @@ describe("«Пользователи» и пилот (№79–83)", () => {
       await db.query(`update public.app_settings set value = '{"teacher": true, "student": false}' where key = 'signup'`);
       await db.query(`update public.app_settings set value = value || '{"student_signups_per_hour": 60}' where key = 'limits'`);
     }
+  });
+});
+
+describe("доверенный учитель (№94)", () => {
+  let topic: string;
+  let subject: string;
+  const opts = [{ text_ru: "а", is_correct: true }, { text_ru: "б" }, { text_ru: "в" }];
+  // Вопрос учителя с вариантами; ok = false — без правильного ответа (опубликовать нельзя).
+  const make = (q: Db["query"], ok = true) => q<{ id: string }>(
+    "insert into public.questions (topic_id, text_ru) values ($1, 'Доверие') returning id", [topic])
+    .then(async ([r]) => {
+      await q(`insert into public.options (question_id, sort_order, is_correct, text_ru)
+        values ($1, 0, $2, 'а'), ($1, 1, false, 'б'), ($1, 2, false, 'в')`, [r.id, ok]);
+      return r.id;
+    });
+  const status = async (id: string) => (await one<{ status: string }>("select status from public.questions where id = $1", [id]))!.status;
+
+  beforeAll(async () => {
+    ({ id: topic, subject_id: subject } = (await one<{ id: string; subject_id: string }>(
+      "select id, subject_id from public.topics where legacy_key = 'math|5|0'"))!);
+  });
+
+  it("метку ставит только админ и только учителю; обычный учитель не публикует", async () => {
+    await expect(as("teacherA", (q) => q("select public.admin_set_trusted($1, true)", [ids.teacherA]))).rejects.toThrow(/Только админ/);
+    await expect(as("admin", (q) => q("select public.admin_set_trusted($1, true)", [ids.student]))).rejects.toThrow(/только учитель/);
+    await expect(as("teacherA", (q) => q(
+      "insert into public.questions (topic_id, text_ru, status) values ($1, 'x', 'published')", [topic]))).rejects.toThrow(/row-level security/);
+    const id = await as("teacherA", (q) => make(q));
+    await expect(as("teacherA", (q) => q("select public.publish_ready($1)", [[id]]))).rejects.toThrow(/доверенный/);
+    await expect(as("teacherA", (q) => q("update public.questions set status = 'published' where id = $1", [id])))
+      .rejects.toThrow(/row-level security/);
+    expect(await status(id)).toBe("draft");
+  });
+
+  it("доверенный публикует свои вопросы без ошибок, правит свои опубликованные, но не удаляет и не трогает чужие", async () => {
+    await as("admin", (q) => q("select public.admin_set_trusted($1, true)", [ids.teacherA]));
+    expect(await as("admin", (q) => q("select trusted from public.admin_users(p_search => 'teacherA')"))).toEqual([{ trusted: true }]);
+    const [good, bad] = await as("teacherA", async (q) => [await make(q), await make(q, false)]);
+    expect(await as("teacherA", (q) => q<{ n: number }>("select public.publish_ready($1) as n", [[good, bad]]))).toEqual([{ n: 1 }]);
+    expect([await status(good), await status(bad)]).toEqual(["published", "draft"]);
+    await expect(as("teacherA", (q) => q("update public.questions set status = 'published' where id = $1", [bad])))
+      .rejects.toThrow(/ровно один правильный/);
+
+    await as("teacherA", (q) => q("update public.questions set text_ru = 'Исправлено' where id = $1", [good]));
+    await as("teacherA", (q) => q("update public.options set text_ru = 'а!' where question_id = $1 and sort_order = 0", [good]));
+    expect(await one("select text_ru from public.questions where id = $1", [good])).toEqual({ text_ru: "Исправлено" });
+    expect(await as("teacherA", (q) => q("delete from public.questions where id = $1 returning id", [good]))).toEqual([]);
+
+    const other = await as("teacherB", (q) => make(q));
+    expect(await as("teacherA", (q) => q<{ n: number }>("select public.publish_ready($1) as n", [[other]]))).toEqual([{ n: 0 }]);
+    expect(await status(other)).toBe("draft");
+
+    await as("admin", (q) => q("select public.admin_set_trusted($1, false)", [ids.teacherA]));
+    expect(await as("teacherA", (q) => q("update public.questions set text_ru = 'x' where id = $1 returning id", [good]))).toEqual([]);
+  });
+
+  it("загрузка из файла: у доверенного и админа вопросы без ошибок публикуются сразу, у обычного — черновики", async () => {
+    const rows = JSON.stringify([
+      { topic_id: topic, text_ru: "Файл 1", options: opts },
+      { topic_id: topic, text_ru: "Файл 2", options: [{ text_ru: "а" }, { text_ru: "б" }, { text_ru: "в" }] }, // нет правильного
+    ]);
+    const load = (who: "teacherA" | "admin") => as(who, (q) => q<{ r: { questions: number; published: number } }>(
+      "select public.import_questions($1, 5, $2::jsonb, true) as r", [subject, rows]));
+    expect((await load("teacherA"))[0].r).toMatchObject({ questions: 2, published: 0 });
+    await as("admin", (q) => q("select public.admin_set_trusted($1, true)", [ids.teacherA]));
+    try {
+      expect((await load("teacherA"))[0].r).toMatchObject({ questions: 2, published: 1 });
+      expect((await load("admin"))[0].r).toMatchObject({ questions: 2, published: 1 });
+    } finally {
+      await as("admin", (q) => q("select public.admin_set_trusted($1, false)", [ids.teacherA]));
+    }
+    expect(await one<{ n: number }>("select count(*)::int as n from public.questions where text_ru = 'Файл 1' and status = 'published'"))
+      .toEqual({ n: 2 });
   });
 });

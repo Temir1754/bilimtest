@@ -11,17 +11,20 @@ interface Props {
   api: AdminApi;
   subjectId: string;
   grade: number;
+  /** Админ и доверенный учитель: вопросы без ошибок можно сразу опубликовать (№94). */
+  canPublish?: boolean;
   onClose: () => void;
 }
 
 /** Загрузка вопросов из файла в предмет и класс (выбраны наверху, можно сменить):
  *  Excel по шаблону — как раньше; Excel со своими столбцами и Word — через таблицу-предпросмотр (№91). Всё — в черновики. */
-export function ImportView({ api, subjectId: startSubject, grade: startGrade, onClose }: Props) {
+export function ImportView({ api, subjectId: startSubject, grade: startGrade, canPublish = false, onClose }: Props) {
   const { lang, t } = useT();
   const m = t.imp;
   const [subjectId, setSubjectId] = useState(startSubject);
   const [grade, setGrade] = useState(startGrade);
   const [changing, setChanging] = useState(false);
+  const [publish, setPublish] = useState(canPublish);
   const [subjects, setSubjects] = useState<SubjectRow[]>([]);
   const [inGrade, setInGrade] = useState<string[]>([]);
   const [scope, setScope] = useState<{ subjects: string[]; grades: number[] } | null>(null);
@@ -35,7 +38,7 @@ export function ImportView({ api, subjectId: startSubject, grade: startGrade, on
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<unknown>(null);
   const [readFailed, setReadFailed] = useState<string | null>(null);
-  const [done, setDone] = useState<{ questions: number; topics: number } | null>(null);
+  const [done, setDone] = useState<{ questions: number; topics: number; published: number } | null>(null);
   const [showAll, setShowAll] = useState(false);
 
   useEffect(() => {
@@ -95,7 +98,7 @@ export function ImportView({ api, subjectId: startSubject, grade: startGrade, on
     setBusy(true);
     setError(null);
     try {
-      setDone(await api.importQuestions(subjectId, grade, rows));
+      setDone(await api.importQuestions(subjectId, grade, rows, publish));
       setSheet(null);
       setDrafts(null);
     } catch (e) {
@@ -159,7 +162,12 @@ export function ImportView({ api, subjectId: startSubject, grade: startGrade, on
           </label>
           <span className="hint">{m.wordHelp}</span>
         </li>
-        <li>{m.step3}</li>
+        <li>{canPublish ? m.step3Publish : m.step3}
+          {canPublish && (
+            <label className="adm-check"><input type="checkbox" checked={publish} disabled={busy}
+              onChange={(e) => setPublish(e.target.checked)} /> {m.publishNow}</label>
+          )}
+        </li>
       </ol>
 
       {readFailed && <p className="error" role="alert">{readFailed}</p>}
@@ -167,7 +175,7 @@ export function ImportView({ api, subjectId: startSubject, grade: startGrade, on
       {done && (
         <div className="adm-ready ok" role="status">
           <b>{m.done(done.questions, done.topics)}</b>
-          <p>{m.doneHint}</p>
+          <p>{done.published ? m.donePublished(done.published, done.questions - done.published) : m.doneHint}</p>
           <button type="button" className="btn sm" onClick={onClose}>{m.toQuestions}</button>
         </div>
       )}
@@ -182,7 +190,7 @@ export function ImportView({ api, subjectId: startSubject, grade: startGrade, on
         <>
           <p className="muted">{m.file(fileName, drafts.drafts.length)}</p>
           <DraftPreview key={`${fileName}/${subjectId}/${grade}`} set={drafts} topics={topics} sections={sections} lang={qLang} fixedLang={only !== null}
-            onLang={setQLang} busy={busy}
+            onLang={setQLang} busy={busy} publish={publish}
             onUpload={(ds: Draft[], topicOf) => upload(draftRows(ds, topicOf, qLang))} />
         </>
       )}
@@ -222,7 +230,7 @@ export function ImportView({ api, subjectId: startSubject, grade: startGrade, on
 
           <div className="actions">
             <button type="button" className="btn" disabled={busy || good === 0} onClick={() => upload(toImportRows(parsed.rows))}>
-              {busy ? m.uploading : m.upload(good)}
+              {busy ? m.uploading : publish ? m.uploadPublish(good) : m.upload(good)}
             </button>
           </div>
         </>

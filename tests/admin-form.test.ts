@@ -78,6 +78,8 @@ describe("форма вопроса", () => {
     expect(canEdit(f, "teacher", "teacher")).toBe(true);
     expect(canEdit(f, "teacher", "other")).toBe(false);
     expect(canEdit({ ...f, status: "published" }, "teacher", "teacher")).toBe(false);
+    expect(canEdit({ ...f, status: "published" }, "teacher", "teacher", true)).toBe(true); // доверенный (№94)
+    expect(canEdit({ ...f, status: "published" }, "teacher", "other", true)).toBe(false);
     expect(canEdit({ ...f, status: "published" }, "admin", "x")).toBe(true);
     expect(canEdit(newForm("t1"), "teacher", "x")).toBe(true);
     expect(canEdit(f, "student", "teacher")).toBe(false);

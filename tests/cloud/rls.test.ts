@@ -225,7 +225,7 @@ describe.skipIf(!configured)("Supabase: аккаунты (DECISIONS.md №70–7
     const topic = (await sql`select id from public.topics where subject_id = ${math} and grade = 5 and not archived limit 1`)[0].id;
     const { data, error } = await clients.teacherA.rpc("import_questions", { p_subject_id: math, p_grade: 5, p_rows: row(topic) });
     expect(error).toBeNull();
-    expect(data).toEqual({ questions: 1, topics: 0 });
+    expect(data).toEqual({ questions: 1, topics: 0, published: 0 });
     expect((await sql`select imported, status from public.questions where text_ru = 'Из Word'`)[0]).toEqual({ imported: true, status: "draft" });
     const other = (await sql`select id from public.topics where subject_id = ${math} and grade = 6 limit 1`)[0].id;
     const bad = await clients.teacherA.rpc("import_questions", { p_subject_id: math, p_grade: 5, p_rows: row(other) });
@@ -244,6 +244,24 @@ describe.skipIf(!configured)("Supabase: аккаунты (DECISIONS.md №70–7
     expect(stats.teachers).toBeGreaterThanOrEqual(2);
     const { data: rows } = await clients.admin.rpc("admin_users", { p_role: "teacher", p_school: null });
     expect(rows.find((r: { id: string }) => r.id === user!.id)).toMatchObject({ q_total: expect.any(Number) });
+  });
+
+  it("доверенный учитель (№94): метку ставит админ; доверенный публикует свои вопросы без ошибок", async () => {
+    const { data: { user } } = await clients.teacherA.auth.getUser();
+    expect((await clients.teacherA.rpc("admin_set_trusted", { p_user: user!.id, p_trusted: true })).error).not.toBeNull();
+    const math = (await sql`select id from public.subjects where slug = 'math'`)[0].id;
+    const topic = (await sql`select id from public.topics where subject_id = ${math} and grade = 5 and not archived limit 1`)[0].id;
+    const load = () => clients.teacherA.rpc("import_questions", { p_subject_id: math, p_grade: 5, p_publish: true, p_rows: [
+      { topic_id: topic, text_ru: "Доверие", options: [{ text_ru: "а", is_correct: true }, { text_ru: "б" }, { text_ru: "в" }] }] });
+    expect((await load()).data).toMatchObject({ published: 0 }); // пока не доверенный — черновик
+    expect((await clients.admin.rpc("admin_set_trusted", { p_user: user!.id, p_trusted: true })).error).toBeNull();
+    try {
+      expect((await load()).data).toMatchObject({ published: 1 });
+      const { data: rows } = await clients.admin.rpc("admin_users", { p_role: "teacher", p_school: null });
+      expect(rows.find((r: { id: string }) => r.id === user!.id)).toMatchObject({ trusted: true });
+    } finally {
+      await clients.admin.rpc("admin_set_trusted", { p_user: user!.id, p_trusted: false });
+    }
   });
 
   it("пользователь удаляет свой аккаунт", async () => {

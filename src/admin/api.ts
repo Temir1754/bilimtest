@@ -49,6 +49,7 @@ export interface UserRow {
   grade: number | null; // класс ученика
   subjects: string[] | null; // предметы и классы учителя
   grades: number[] | null;
+  trusted: boolean; // «сенімді мұғалім»: публикует свои вопросы сам (№94)
   q_total: number; // вопросы учителя: всего, на проверке, опубликовано
   q_review: number;
   q_published: number;
@@ -146,6 +147,8 @@ export interface Me {
   nickname?: string | null;
   /** Вошёл с временным паролем — сначала сменить (№80–81). */
   mustChangePassword?: boolean;
+  /** Доверенный учитель: публикует и правит свои вопросы без проверки админа (№94). */
+  trusted?: boolean;
 }
 
 export interface QuestionFilter {
@@ -232,6 +235,7 @@ export interface AdminApi {
   updateUser(id: string, data: UserEdit): Promise<void>;
   setRole(id: string, role: Role): Promise<void>;
   setBlocked(id: string, blocked: boolean): Promise<void>;
+  setTrusted(id: string, trusted: boolean): Promise<void>;
   /** Учитель создаётся функцией на сервере; ответ — временный пароль (показать один раз). */
   createTeacher(email: string, data: TeacherData): Promise<{ id: string; password: string }>;
   /** Новый временный пароль; при входе его нужно сменить. */
@@ -239,10 +243,12 @@ export interface AdminApi {
   settings(): Promise<SignupSettings>;
   saveSettings(s: SignupSettings): Promise<void>;
 
-  /** Загрузка из Excel одной транзакцией; все вопросы — черновики. */
-  importQuestions(subjectId: string, grade: number, rows: unknown[]): Promise<{ questions: number; topics: number }>;
-  /** Публикует вопросы (админ). Перед вызовом их проверяет publishProblems; база проверяет ещё раз. */
-  publish(ids: string[]): Promise<void>;
+  /** Загрузка из файла одной транзакцией; вопросы — черновики. publish (админ и доверенный учитель) —
+   *  вопросы без ошибок сразу публикуются. */
+  importQuestions(subjectId: string, grade: number, rows: unknown[], publish?: boolean):
+    Promise<{ questions: number; topics: number; published: number }>;
+  /** Публикует вопросы без ошибок (админ — любые, доверенный учитель — свои); ответ — сколько опубликовано. */
+  publish(ids: string[]): Promise<number>;
   /** Вопросы с вариантами для выгрузки в Excel, по порядку тем. */
   exportQuestions(subjectId: string, grade: number, topicId?: string): Promise<{ topic: string; q: QuestionRow }[]>;
   /** Все вопросы с пометкой «требует проверки учителем» — для выгрузки в Excel. */
@@ -320,9 +326,11 @@ export function supabaseApi(sb: SupabaseClient): AdminApi {
       const { data } = await sb.auth.getSession();
       const user = data.session?.user;
       if (!user) return null;
-      const p = check(await sb.from("profiles").select("role, nickname, must_change_password").eq("id", user.id).maybeSingle());
+      const [p, ti] = await Promise.all([
+        sb.from("profiles").select("role, nickname, must_change_password").eq("id", user.id).maybeSingle().then(check),
+        sb.from("teacher_info").select("trusted").eq("user_id", user.id).maybeSingle().then(check)]);
       return { id: user.id, email: user.email ?? "", role: (p?.role as Role | undefined) ?? "student", nickname: p?.nickname,
-        mustChangePassword: p?.must_change_password === true };
+        mustChangePassword: p?.must_change_password === true, trusted: ti?.trusted === true };
     },
     onAuthChange(cb) {
       const { data } = sb.auth.onAuthStateChange((event) => {
@@ -482,6 +490,9 @@ export function supabaseApi(sb: SupabaseClient): AdminApi {
     async setBlocked(id, blocked) {
       check(await sb.rpc("set_user_blocked", { p_user: id, p_blocked: blocked }));
     },
+    async setTrusted(id, trusted) {
+      check(await sb.rpc("admin_set_trusted", { p_user: id, p_trusted: trusted }));
+    },
     async createTeacher(email, data) {
       return invoke(sb, "admin-users", { action: "create_teacher", email, data });
     },
@@ -512,16 +523,15 @@ export function supabaseApi(sb: SupabaseClient): AdminApi {
       ]));
     },
 
-    async importQuestions(subjectId, grade, rows) {
-      return check(await sb.rpc("import_questions", { p_subject_id: subjectId, p_grade: grade, p_rows: rows })) as
-        { questions: number; topics: number };
+    async importQuestions(subjectId, grade, rows, publish = false) {
+      return check(await sb.rpc("import_questions", { p_subject_id: subjectId, p_grade: grade, p_rows: rows, p_publish: publish })) as
+        { questions: number; topics: number; published: number };
     },
     async publish(ids) {
-      // Пачками по 100: список id передаётся в адресе запроса, а у адреса есть предел длины.
-      for (let i = 0; i < ids.length; i += 100) {
-        check(await sb.from("questions").update({ status: "published", review_comment: null })
-          .in("id", ids.slice(i, i + 100)));
-      }
+      // Пачками по 500: вопрос с ошибкой база пропускает, остальные публикует.
+      let n = 0;
+      for (let i = 0; i < ids.length; i += 500) n += check(await sb.rpc("publish_ready", { p_ids: ids.slice(i, i + 500) })) as number;
+      return n;
     },
     async exportChecks() {
       const [subjects, rows] = await Promise.all([this.subjects(), sb.from("questions")

@@ -95,7 +95,7 @@ export function AdminApp({ api, go = (p) => location.replace(p) }: {
       ? <QuestionEditor key={view.id} api={api} me={me} id={view.id} topicId="" nav={nav} />
       : <QuestionEditor key={`new-${view.topicId}`} api={api} me={me} id={null} topicId={view.topicId} nav={nav} />;
   } else if (view.name === "excel") {
-    body = <ExcelRoute api={api} slug={view.slug} grade={view.grade} onClose={() => nav({ name: "topics", slug: view.slug, grade: view.grade })} />;
+    body = <ExcelRoute api={api} slug={view.slug} grade={view.grade} canPublish={me.role === "admin" || me.trusted === true} onClose={() => nav({ name: "topics", slug: view.slug, grade: view.grade })} />;
   } else if (view.name === "topics") {
     body = <TopicsStep key={`${view.slug}-${view.grade}`} api={api} me={me} slug={view.slug} grade={view.grade} nav={nav} />;
   } else if (view.name === "topic") {
@@ -159,10 +159,11 @@ export function AdminApp({ api, go = (p) => location.replace(p) }: {
 }
 
 /** Загрузка из Excel: в адресе код предмета, экрану загрузки нужен его id. */
-function ExcelRoute({ api, slug, grade, onClose }: { api: AdminApi; slug: string; grade: number; onClose: () => void }) {
+function ExcelRoute({ api, slug, grade, canPublish, onClose }:
+  { api: AdminApi; slug: string; grade: number; canPublish: boolean; onClose: () => void }) {
   const [id, setId] = useState<string | null>(null);
   useEffect(() => { api.subjects().then((list) => setId(list.find((x) => x.slug === slug)?.id ?? null)); }, [api, slug]);
-  return id ? <ImportView api={api} subjectId={id} grade={grade} onClose={onClose} /> : null;
+  return id ? <ImportView api={api} subjectId={id} grade={grade} canPublish={canPublish} onClose={onClose} /> : null;
 }
 
 /** Новый пароль вместо временного. */
