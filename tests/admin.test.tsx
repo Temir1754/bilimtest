@@ -979,6 +979,32 @@ describe("админка", () => {
     expect(screen.getAllByRole("article")).toHaveLength(6);
   });
 
+  it("ученик забыл пароль (№119): учитель выдаёт временный пароль на странице класса; лимит — понятное сообщение", async () => {
+    localStorage.setItem("bt-start-hidden", JSON.stringify(["teacher"]));
+    const user = userEvent.setup();
+    const { api } = fakeApi({ id: "teacher", email: "t@x.kz", role: "teacher" });
+    await api.createClass("s1", 5, "А");
+    const reset = vi.spyOn(api, "resetUserPassword").mockResolvedValueOnce({ password: "abcd234xyz" })
+      .mockRejectedValueOnce(new Error("rate_limited"));
+    const ask = vi.spyOn(window, "confirm").mockReturnValueOnce(false).mockReturnValue(true);
+    history.replaceState(null, "", "/admin/classes/c1");
+    render(<AdminApp api={api} />);
+    const btn = await screen.findByRole("button", { name: "Айдос К.: выдать временный пароль" });
+    await user.click(btn); // «Отмена» — ничего не происходит
+    expect(reset).not.toHaveBeenCalled();
+    await user.click(btn);
+    expect(ask).toHaveBeenLastCalledWith(expect.stringContaining("Выдать ученику Айдос К. временный пароль?"));
+    expect(reset).toHaveBeenCalledWith("st1");
+    const box = within(await screen.findByRole("status"));
+    expect(box.getByText("Айдос К. (ник: aidos07) — временный пароль:")).toBeTruthy();
+    expect(box.getByText("abcd234xyz")).toBeTruthy();
+    await user.click(box.getByRole("button", { name: "Закрыть" }));
+    expect(screen.queryByText("abcd234xyz")).toBeNull();
+
+    await user.click(btn);
+    expect(await screen.findByText("За час выдано слишком много паролей. Попробуйте позже.")).toBeTruthy();
+  });
+
   it("«Первые шаги» не видны админу и учителю, у которого всё сделано", async () => {
     history.replaceState(null, "", "/admin/classes");
     const { api, questions } = fakeApi({ id: "teacher", email: "t@x.kz", role: "teacher" });

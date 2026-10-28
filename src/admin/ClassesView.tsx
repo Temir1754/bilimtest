@@ -275,6 +275,7 @@ export function ClassPage({ api, id, nav }: { api: AdminApi; id: string; nav: Na
   const [rep, setRep] = useState<ClassReport | null>(null);
   const [subject, setSubject] = useState<SubjectRow | null>(null);
   const [error, setError] = useState<unknown>(null);
+  const [issued, setIssued] = useState<{ name: string; nick: string; password: string } | null>(null);
 
   const load = useCallback(() => api.classReport(id).then((r) => {
     setRep(r);
@@ -288,6 +289,12 @@ export function ClassPage({ api, id, nav }: { api: AdminApi; id: string; nav: Na
   const site = subject ? `${location.origin}/${lang}/${k.grade}/${subject.slug}/` : "";
   const date = (s: string | null) => (s ? new Date(s).toLocaleDateString() : "—");
 
+  // Ученик забыл пароль (№119): временный пароль показывается один раз, при входе ученик придумает новый.
+  async function resetPassword(studentId: string, name: string, nick: string) {
+    if (!confirm(c.confirmReset(name))) return;
+    setIssued(null);
+    try { setIssued({ name, nick, password: (await api.resetUserPassword(studentId)).password }); } catch (e) { setError(e); }
+  }
   async function remove(studentId: string, name: string) {
     if (!confirm(c.confirmRemove(name))) return;
     try { await api.removeMember(id, studentId); await load(); } catch (e) { setError(e); }
@@ -329,6 +336,15 @@ export function ClassPage({ api, id, nav }: { api: AdminApi; id: string; nav: Na
 
       <section>
         <h2>{c.studentsTitle(rep.students.length)}</h2>
+        {issued && (
+          <div className="adm-ready ok cls-issued" role="status">
+            <b>{c.resetDone(issued.name, issued.nick)}</b>
+            <p className="cls-code">{issued.password}</p>
+            <p className="muted">{c.resetHint}</p>
+            <p className="adm-row"><Copy text={c.resetCopy(issued.nick, issued.password)} label={c.memoCopy} />
+              <button type="button" className="btn ghost sm" onClick={() => setIssued(null)}>{c.resetClose}</button></p>
+          </div>
+        )}
         {rep.students.length === 0 ? <><p className="muted">{c.noStudents}</p><p className="muted">{t.hl.noStudents} <Go to={{ name: "memo", id }} nav={nav}>{c.memo} →</Go></p></> : (
           <div className="us-table-wrap"><table className="us-table cls-table">
             <thead><tr><th>{c.student}</th><th>{c.runs}</th><th>{c.percent}</th><th>{c.last}</th><th /></tr></thead>
@@ -341,7 +357,10 @@ export function ClassPage({ api, id, nav }: { api: AdminApi; id: string; nav: Na
                   <td className={s.percent === null ? "" : s.percent >= 80 ? "lvl-ok" : s.percent >= 50 ? "lvl-mid" : "lvl-low"}>
                     {s.percent === null ? "—" : `${s.percent}%`}</td>
                   <td>{date(s.last_at)}</td>
-                  <td><button type="button" className="link danger" onClick={() => remove(s.id, s.display_name || s.nickname)}>{c.remove}</button></td>
+                  <td><span className="cls-acts">
+                    <button type="button" className="link" aria-label={c.resetLabel(s.display_name || s.nickname)}
+                      onClick={() => resetPassword(s.id, s.display_name || s.nickname, s.nickname)}>{c.resetBtn}</button>
+                    <button type="button" className="link danger" onClick={() => remove(s.id, s.display_name || s.nickname)}>{c.remove}</button></span></td>
                 </tr>
               ))}
             </tbody>

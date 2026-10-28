@@ -347,6 +347,36 @@ describe.skipIf(!configured)("Supabase: функции на сервере admin
       .toBeNull();
   }, 60_000);
 
+  it("ученик забыл пароль (№119): учитель его класса выдаёт временный пароль; чужой учитель — нет", async () => {
+    const math = (await sql`select id from public.subjects where slug = 'math'`)[0].id;
+    const id = async (w: Who) => (await sql`select id from auth.users where email = ${email(w)}`)[0].id as string;
+    const [studentId, teacherBId] = [await id("student"), await id("teacherB")];
+    const reset = (c: SupabaseClient, userId: string) => call(c, "admin-users", { action: "reset_password", user_id: userId });
+    const { data: cls, error } = await clients.teacherA.rpc("create_class", { p_subject_id: math, p_grade: 5, p_letter: "П" });
+    expect(error).toBeNull();
+    try {
+      expect((await reset(clients.teacherA, studentId)).code).toBe("forbidden"); // ещё не в классе
+      expect((await clients.student.rpc("join_class", { p_code: cls.join_code, p_name: "Тест" })).error).toBeNull();
+      expect((await reset(clients.teacherB, studentId)).code).toBe("forbidden");
+      expect((await reset(clients.teacherA, teacherBId)).code).toBe("forbidden");
+      expect((await reset(anon(), studentId)).code).toBe("forbidden");
+
+      const r = await reset(clients.teacherA, studentId);
+      expect(r.code).toBeUndefined();
+      expect(r.data!.password).toMatch(/^[a-z2-9]{10}$/);
+      const s = anon();
+      expect((await s.auth.signInWithPassword({ email: email("student"), password: r.data!.password })).error).toBeNull();
+      expect((await s.from("profiles").select("must_change_password").single()).data).toEqual({ must_change_password: true });
+      expect((await sql`select count(*)::int as n from school.password_resets where student_id = ${studentId}`)[0].n).toBe(1);
+    } finally {
+      await clients.teacherA.rpc("delete_class", { p_class_id: cls.id });
+      // Вернуть ученику пароль тестов — следующие запуски входят с ним.
+      const admin = createClient(url, secret, { auth: { persistSession: false } });
+      await admin.auth.admin.updateUserById(studentId, { password: PASSWORD });
+      await sql`update public.profiles set must_change_password = false where id = ${studentId}`;
+    }
+  }, 60_000);
+
   it("регистрация ученика: закрыта / открыта; ник занят; ловушка; лимит частоты; затем вход по нику", async () => {
     const kid = { nickname: "fn_kid", password: "Kid-pass-123", grade: 7, consent: true, website: "" };
     await setSignup(false);

@@ -34,7 +34,7 @@ export function memoText(lang: Lang, m: MemoInput): MemoText {
       `Нажми «Войти в класс». Код подставится сам; если нет — впиши код ${m.code}. В поле «Имя» напиши имя и первую букву фамилии, чтобы учитель тебя узнал.`,
       "Задания учителя: «Кабинет» → «Мои задания» → «Начать».",
     ],
-    codeLabel: "Код класса", save: "Запиши, чтобы не забыть:", nick: "Ник", password: "Пароль",
+    codeLabel: "Код класса", save: "Запиши. Забудешь пароль — скажи учителю:", nick: "Ник", password: "Пароль",
   };
   if (lang === "en") return {
     title: `${m.subject} · ${c} — Bilimtest`,
@@ -45,7 +45,7 @@ export function memoText(lang: Lang, m: MemoInput): MemoText {
       `Press “Join the class”. The code is filled in for you; if not, type ${m.code}. In the “Your name” field write your first name and the first letter of your surname so your teacher knows you.`,
       "Your teacher's tasks are in “Dashboard” → “My tasks” → “Start”.",
     ],
-    codeLabel: "Class code", save: "Write it down so you don't forget:", nick: "Nickname", password: "Password",
+    codeLabel: "Class code", save: "Write it down. Forgot your password? Tell your teacher:", nick: "Nickname", password: "Password",
   };
   return {
     title: `${m.subject} · ${c} — Білімтест`,
@@ -56,7 +56,7 @@ export function memoText(lang: Lang, m: MemoInput): MemoText {
       `«Сыныпқа қосылу» батырмасын бас. Код өзі жазылады; жазылмаса — ${m.code} кодын жаз. «Атың» жолына атың мен тегіңнің бірінші әрпін жаз — мұғалім сені тануы үшін.`,
       "Мұғалімнің тапсырмалары — «Кабинет» → «Тапсырмаларым» → «Бастау».",
     ],
-    codeLabel: "Сынып коды", save: "Ұмытпау үшін жазып қой:", nick: "Лақап ат", password: "Құпиясөз",
+    codeLabel: "Сынып коды", save: "Жазып қой. Құпиясөзді ұмытсаң — мұғаліміңе айт:", nick: "Лақап ат", password: "Құпиясөз",
   };
 }
 

@@ -1278,7 +1278,7 @@ describe("отчёт владельцу за неделю (№112)", () => {
       students: 50, studentsNew: 7, published: 1500, questionsNew: 40, publishedNew: 40, drafts: 900, review: 1,
       hidden: [{ topic: "История Казахстана, 6 кл. — Тәуке хан", comment: "Оқушылар қате туралы хабарлады / Ученики сообщили об ошибке: дата неверная" }],
       reportsNew: 3, reportsOpen: 3, tests: 120, testsGuests: 80, activeStudents: 12, classes: 2, classesNew: 1,
-      assignmentsNew: 4, topicsShown: 44, schoolsWaiting: 0, topTopics: [{ title: "Математика, 5 кл. — Дроби", tests: 30 }],
+      assignmentsNew: 4, resets: 0, topicsShown: 44, schoolsWaiting: 0, topTopics: [{ title: "Математика, 5 кл. — Дроби", tests: 30 }],
       topAuthors: [{ name: "Әлия Серікқызы", questions: 40 }], stuck: [] as WeeklyStuck[] };
     const now = new Date("2026-10-28T03:00:00Z");
     const ok = formatWeekly(base, now, { checksFailed: 0, checksTotal: 168, backup: "success" });
@@ -1303,5 +1303,44 @@ describe("отчёт владельцу за неделю (№112)", () => {
     expect(stuck.text).toContain("2 учит. застряли — напишите им");
     expect(stuck.text).toContain("Айгүл Б. <a@x.kz>, №5 мектеп — ни вопросов, ни класса; 12 дн. на сайте, ни разу не входил");
     expect(stuck.text).toContain("Ерлан С. <e@x.kz> — в классе нет учеников; 9 дн. на сайте, последний вход 25.10.2026");
+  });
+});
+
+describe("учитель сбрасывает пароль своему ученику (№119)", () => {
+  type R = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
+  const call = async (who: keyof typeof ids | null, sql: string, p: unknown[] = []) =>
+    (await as(who, (q) => q<{ r: R }>(`select ${sql} as r`, p)))[0].r;
+  const reset = (who: keyof typeof ids, target: keyof typeof ids) => call(who, "public.begin_student_reset($1)", [ids[target]]);
+  const logged = async () => (await one<{ n: number }>(
+    "select count(*)::int as n from school.password_resets where teacher_id = $1 and student_id = $2", [ids.teacherA, ids.student]))!.n;
+
+  it("только ученику своего класса, не заблокированному; лимит в час; каждый сброс — в журнале", async () => {
+    const subject = (await one<{ id: string }>("select id from public.subjects limit 1"))!.id;
+    const cls = await call("teacherA", "public.create_class($1, 5, 'Р')", [subject]);
+    expect(await reset("teacherA", "student")).toBe("forbidden"); // ещё не в классе
+    await call("student", "public.join_class($1, 'Айдос')", [cls.join_code]);
+
+    expect(await reset("teacherA", "student")).toBe("ok");
+    expect(await logged()).toBe(1);
+    expect(await reset("teacherB", "student")).toBe("forbidden"); // чужой ученик
+    expect(await reset("teacherA", "teacherB")).toBe("forbidden"); // не ученик
+    expect(await reset("teacherA", "admin")).toBe("forbidden");
+    expect(await reset("student", "student")).toBe("forbidden"); // ученик не учитель
+    expect(await reset("admin", "student")).toBe("forbidden"); // админ сбрасывает сам, без этой проверки
+    await expect(call(null, "public.begin_student_reset($1)", [ids.student])).rejects.toThrow(/permission denied/);
+    await expect(as("teacherA", (q) => q("select * from school.password_resets"))).rejects.toThrow(/permission denied/);
+
+    await db.query("update public.profiles set blocked_at = now() where id = $1", [ids.student]);
+    expect(await reset("teacherA", "student")).toBe("forbidden");
+    await db.query("update public.profiles set blocked_at = null where id = $1", [ids.student]);
+
+    await db.query(`update public.app_settings set value = value || '{"student_resets_per_hour": 2}' where key = 'limits'`);
+    expect(await reset("teacherA", "student")).toBe("ok");
+    expect(await reset("teacherA", "student")).toBe("rate_limited");
+    expect(await logged()).toBe(2);
+    await db.query("update public.app_settings set value = value - 'student_resets_per_hour' where key = 'limits'");
+
+    expect((await collectWeekly(asDb(db), new Date(Date.now() - 7 * 864e5))).resets).toBe(2);
+    await call("teacherA", "public.delete_class($1)", [cls.id]);
   });
 });

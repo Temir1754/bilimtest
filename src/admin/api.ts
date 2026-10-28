@@ -366,6 +366,8 @@ export function humanError(e: unknown, t: AdminText): string {
   if (/Дневной лимит загрузки/i.test(m)) return u.importLimit;
   if (/(Тема|Раздел) не найден[а]? в этом предмете/i.test(m)) return u.badTopic;
   if (/Edge Function|FunctionsFetchError|FunctionsRelayError|function not found/i.test(m)) return u.noFunction;
+  if (m === "forbidden") return r.noRights;
+  if (m === "rate_limited") return t.cls.resetLimit;
   return m;
 }
 

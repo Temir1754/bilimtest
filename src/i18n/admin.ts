@@ -48,6 +48,14 @@ const kk = {
     memo: "Оқушыларға жадынама", memoLede: "Тіркелу мен сыныпқа қосылу жолы, сынып коды және QR-код. Басып шығарып таратыңыз немесе WhatsApp-топқа жіберіңіз.",
     memoLang: "Жадынама тілі", memoLayout: "Пішімі", memoPage: "Бір бет", memoSlips: "6 қағаз (қиып тарату)",
     memoPrint: "Басып шығару", memoWa: "WhatsApp-қа жіберу", memoCopy: "Мәтінді көшіру",
+    resetBtn: "Құпиясөз", resetLabel: (n: string) => `${n}: уақытша құпиясөз беру`,
+    confirmReset: (n: string) => `${n} оқушысына уақытша құпиясөз берілсін бе? Ескі құпиясөзі жұмыс істемейді, кіргенде жаңасын ойлап табады.`,
+    resetDone: (n: string, nick: string) => `${n} (лақап аты: ${nick}) — уақытша құпиясөз:`,
+    resetHint: "Оқушыға айтыңыз: лақап атымен және осы құпиясөзбен кіріп, жаңа құпиясөз ойлап тапсын. Құпиясөз бір рет көрсетіледі.",
+    resetCopy: (nick: string, p: string) => `Лақап ат: ${nick}
+Уақытша құпиясөз: ${p}
+Кіргенде жаңа құпиясөз ойлап тап.`,
+    resetClose: "Жабу", resetLimit: "Бір сағатта тым көп құпиясөз берілді. Кейінірек қайталаңыз.",
     deleteClass: "Сыныпты жою", confirmDelete: "Сынып жойылсын ба? Оқушылардың аккаунттары мен нәтижелері қалады.",
   },
 
@@ -392,6 +400,14 @@ const ru: AdminText = {
     memo: "Памятка ученикам", memoLede: "Как зарегистрироваться и войти в класс, код класса и QR-код. Распечатайте и раздайте или отправьте в WhatsApp-группу.",
     memoLang: "Язык памятки", memoLayout: "Вид", memoPage: "Одна страница", memoSlips: "6 листков (разрезать)",
     memoPrint: "Распечатать", memoWa: "Отправить в WhatsApp", memoCopy: "Скопировать текст",
+    resetBtn: "Пароль", resetLabel: (n) => `${n}: выдать временный пароль`,
+    confirmReset: (n) => `Выдать ученику ${n} временный пароль? Старый пароль перестанет работать; при входе ученик придумает новый.`,
+    resetDone: (n, nick) => `${n} (ник: ${nick}) — временный пароль:`,
+    resetHint: "Скажите ученику: войти по нику с этим паролем и придумать новый. Пароль показывается один раз.",
+    resetCopy: (nick, p) => `Ник: ${nick}
+Временный пароль: ${p}
+При входе придумай новый пароль.`,
+    resetClose: "Закрыть", resetLimit: "За час выдано слишком много паролей. Попробуйте позже.",
     deleteClass: "Удалить класс", confirmDelete: "Удалить класс? Аккаунты и результаты учеников останутся.",
   },
 
@@ -732,6 +748,14 @@ const en: AdminText = {
     memo: "Note for students", memoLede: "How to sign up and join the class, the class code and a QR code. Print and hand it out or send it to the WhatsApp group.",
     memoLang: "Note language", memoLayout: "Layout", memoPage: "One page", memoSlips: "6 slips (cut out)",
     memoPrint: "Print", memoWa: "Send to WhatsApp", memoCopy: "Copy text",
+    resetBtn: "Password", resetLabel: (n) => `${n}: give a temporary password`,
+    confirmReset: (n) => `Give ${n} a temporary password? The old password stops working; the student sets a new one when logging in.`,
+    resetDone: (n, nick) => `${n} (nickname: ${nick}) — temporary password:`,
+    resetHint: "Tell the student to log in with their nickname and this password and choose a new one. The password is shown only once.",
+    resetCopy: (nick, p) => `Nickname: ${nick}
+Temporary password: ${p}
+Choose a new password when you log in.`,
+    resetClose: "Close", resetLimit: "Too many passwords given in the last hour. Try again later.",
     deleteClass: "Delete class", confirmDelete: "Delete the class? Student accounts and results stay.",
   },
 

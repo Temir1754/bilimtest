@@ -38,6 +38,7 @@ export interface WeeklyData {
   classes: number;
   classesNew: number;
   assignmentsNew: number;
+  resets: number; // временных паролей ученикам выдали учителя (№119)
   topicsShown: number;
   schoolsWaiting: number;
   topTopics: { title: string; tests: number }[];
@@ -79,6 +80,7 @@ export async function collectWeekly(db: Db, since: Date): Promise<WeeklyData> {
       (select count(*) from school.classes)::int as classes,
       (select count(*) from school.classes where created_at >= $1)::int as classes_new,
       (select count(*) from school.assignments where created_at >= $1)::int as assignments_new,
+      (select count(*) from school.password_resets where created_at >= $1)::int as resets,
       jsonb_array_length(public.site_catalog() -> 'topics') as topics_shown,
       (select count(*) from public.schools where not approved)::int as schools_waiting`, [s]);
   const teachersNew = await db.query<WeeklyTeacher>(`
@@ -120,7 +122,7 @@ export async function collectWeekly(db: Db, since: Date): Promise<WeeklyData> {
     questionsNew: n("questions_new"), publishedNew: n("published_new"), drafts: n("drafts"), review: n("review"),
     reportsNew: n("reports_new"), reportsOpen: n("reports_open"), tests: n("tests"), testsGuests: n("tests_guests"),
     activeStudents: n("active_students"), classes: n("classes"), classesNew: n("classes_new"),
-    assignmentsNew: n("assignments_new"), topicsShown: n("topics_shown"), schoolsWaiting: n("schools_waiting"),
+    assignmentsNew: n("assignments_new"), resets: n("resets"), topicsShown: n("topics_shown"), schoolsWaiting: n("schools_waiting"),
   };
 }
 
@@ -159,6 +161,7 @@ export function formatWeekly(d: WeeklyData, now: Date, health?: WeeklyHealth): {
   lines.push(`• учителей: ${d.teachers}${plus(d.teachersNew.length)}`);
   for (const t of d.teachersNew) lines.push(`    новый: ${t.name}${t.school ? `, ${t.school}` : ""} — вопросов: ${t.questions}`);
   lines.push(`• классов: ${d.classes}${plus(d.classesNew)}; заданий выдано за неделю: ${d.assignmentsNew}`);
+  if (d.resets > 0) lines.push(`• временных паролей ученикам выдали учителя: ${d.resets}`);
   if (d.stuck.length) {
     lines.push("• застряли (зарегистрированы больше недели назад):");
     for (const x of d.stuck.slice(0, 10)) {

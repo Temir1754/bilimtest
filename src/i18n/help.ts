@@ -86,7 +86,7 @@ const kk = (min: number): HelpText => ({
     { id: "faq", title: "Жиі қойылатын сұрақтар", body: [
       `Оқушы менің тақырыбымды көрмейді. — Тақырыпта кемінде ${min} жарияланған сұрақ бар ма және оқушы дұрыс сыныпты ашты ма, тексеріңіз.`,
       "Жарияланған сұрақта қате таптым. — Жарияланған сұрақты әкімші өзгертеді (сенімді мұғалім — өз сұрағын өзі). Әкімшіге жазыңыз.",
-      "Оқушы құпиясөзін ұмытты. — Әзірге әкімші жаңа құпиясөз береді. Оқушының лақап атын әкімшіге жіберіңіз.",
+      "Оқушы құпиясөзін ұмытты. — Сынып бетінде оқушының қатарында «Құпиясөз» басыңыз: уақытша құпиясөз шығады. Оқушы сонымен кіріп, жаңасын ойлап табады.",
       "Файл жүктелмейді. — Word-та «Басқаша сақтау» → .docx, Excel-де → .xlsx етіп сақтап, қайта көріңіз. Кестедегі қызыл жолдарды түзетіңіз.",
     ] },
   ],
@@ -159,7 +159,7 @@ const ru = (min: number): HelpText => ({
     { id: "faq", title: "Частые вопросы", body: [
       `Ученик не видит мою тему. — Проверьте, что в теме не меньше ${min} опубликованных вопросов и что ученик открыл нужный класс.`,
       "Нашёл ошибку в опубликованном вопросе. — Опубликованный вопрос меняет админ (доверенный учитель — свой вопрос сам). Напишите админу.",
-      "Ученик забыл пароль. — Пока новый пароль выдаёт админ. Отправьте админу ник ученика.",
+      "Ученик забыл пароль. — На странице класса в строке ученика нажмите «Пароль»: появится временный пароль. Ученик входит с ним и придумывает новый.",
       "Файл не загружается. — Сохраните его в Word через «Сохранить как» → .docx, в Excel → .xlsx и попробуйте снова. Исправьте красные строки в таблице.",
     ] },
   ],
@@ -232,7 +232,7 @@ const en = (min: number): HelpText => ({
     { id: "faq", title: "Frequently asked questions", body: [
       `A student doesn't see my topic. — Check that the topic has at least ${min} published questions and that the student opened the right grade.`,
       "I found a mistake in a published question. — Published questions are changed by the admin (a trusted teacher changes their own). Write to the admin.",
-      "A student forgot their password. — For now the admin gives a new password. Send the student's nickname to the admin.",
+      "A student forgot their password. — On the class page, press “Password” in the student's row: a temporary password appears. The student logs in with it and chooses a new one.",
       "The file won't upload. — Save it in Word with “Save as” → .docx, in Excel → .xlsx, and try again. Fix the red rows in the table.",
     ] },
   ],
