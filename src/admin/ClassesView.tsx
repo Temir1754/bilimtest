@@ -3,11 +3,100 @@
 // а все тесты ученика по предмету класса попадают в отчёт (№57).
 import { useCallback, useEffect, useState } from "react";
 import { GRADES } from "../lib/types";
-import { humanError, type AdminApi, type ClassReport, type ClassRow, type SubjectRow } from "./api";
+import { humanError, type AdminApi, type ClassMatrix, type ClassReport, type ClassRow, type StudentReport, type SubjectRow } from "./api";
 import { nm, useT } from "./lang";
 import { Go, type Nav } from "./Steps";
 
 export const joinLink = (code: string) => `${location.origin}/me?join=${code}`;
+
+/** Цвет уровня (№58, №62): 80+ — знает, 50–79 — частично, меньше — не знает; мало ответов — серый. */
+export const lvl = (pct: number | null, n = Infinity, min = 5) =>
+  pct === null || n < min ? "lvl-none" : pct >= 80 ? "lvl-ok" : pct >= 50 ? "lvl-mid" : "lvl-low";
+
+/** «Ученики × темы»: строки — ученики, столбцы — темы, в клетке — процент по последним 20 ответам. */
+function Matrix({ api, id, grade, nav }: { api: AdminApi; id: string; grade: number; nav: Nav }) {
+  const { lang, t } = useT();
+  const c = t.cls;
+  const [m, setM] = useState<ClassMatrix | null>(null);
+  useEffect(() => { api.classMatrix(id).then(setM, () => setM(null)); }, [api, id]);
+  if (!m || m.students.length === 0 || m.topics.length === 0) return null;
+  const cell = (s: string, tp: string) => m.cells.find((x) => x.s === s && x.t === tp);
+  return (
+    <section>
+      <h2>{c.matrixTitle}</h2>
+      <p className="muted">{c.matrixHint(m.min_answers)}</p>
+      <div className="mx-wrap"><table className="mx">
+        <thead><tr><th />{m.topics.map((tp) => (
+          <th key={tp.id} title={nm(tp, "title", lang)}><span>{nm(tp, "title", lang)}{tp.grade !== grade ? ` · ${c.otherGrade(tp.grade)}` : ""}</span></th>
+        ))}</tr></thead>
+        <tbody>{m.students.map((s) => (
+          <tr key={s.id}>
+            <th><Go to={{ name: "student", classId: id, id: s.id }} nav={nav}>{s.name}</Go>
+              {s.inactive && <small className="lvl-low"> · {c.inactive}</small>}</th>
+            {m.topics.map((tp) => {
+              const x = cell(s.id, tp.id);
+              return <td key={tp.id} className={x ? lvl(x.pct, x.n, m.min_answers) : ""} title={x ? c.answersN(x.n) : ""}>
+                {x ? (x.n < m.min_answers ? "·" : `${x.pct}`) : ""}</td>;
+            })}
+          </tr>
+        ))}</tbody>
+      </table></div>
+    </section>
+  );
+}
+
+/** Страница ученика (№107): тесты, средний процент, по неделям, уровни тем, вопросы с ошибками. */
+export function StudentPage({ api, classId, id, nav }: { api: AdminApi; classId: string; id: string; nav: Nav }) {
+  const { lang, t } = useT();
+  const c = t.cls;
+  const [r, setR] = useState<StudentReport | null>(null);
+  const [error, setError] = useState<unknown>(null);
+  useEffect(() => { api.studentReport(classId, id).then(setR, setError); }, [api, classId, id]);
+  if (!r) return <div className="st-page">{error !== null ? <p className="error" role="alert">{humanError(error, t)}</p> : <p className="loading">{t.loading}</p>}</div>;
+  const max = Math.max(1, ...r.weeks.map((w) => w.tests));
+  return (
+    <div className="st-page">
+      <Go to={{ name: "class", id: classId }} nav={nav} className="st-back">← {c.backToClass}</Go>
+      <h1>{r.name}</h1>
+      <div className="us-counts">
+        <span><b>{r.runs}</b>{c.runs}</span>
+        <span className={lvl(r.percent)}><b>{r.percent === null ? "—" : `${r.percent}%`}</b>{c.percent}</span>
+      </div>
+      {r.weeks.length > 0 && (
+        <section>
+          <h2>{c.weeksTitle}</h2>
+          <ul className="wk">{r.weeks.map((w) => (
+            <li key={w.week}>
+              <span className="muted">{new Date(w.week).toLocaleDateString()}</span>
+              <i style={{ width: `${(w.tests / max) * 100}%` }} className={lvl(w.percent)} />
+              <span>{c.weekLine(w.tests, w.percent)}</span>
+            </li>
+          ))}</ul>
+        </section>
+      )}
+      {r.topics.length > 0 && (
+        <section>
+          <h2>{c.levelsTitle}</h2>
+          <ul className="cls-topics">{r.topics.map((tp) => (
+            <li key={tp.id}>
+              <span>{nm(tp, "title", lang)}</span>
+              <span className={lvl(tp.pct, tp.n)}>{tp.n < 5 ? c.fewData : `${tp.pct}%`}</span>
+              <span className="muted">{c.answersN(tp.n)}</span>
+            </li>
+          ))}</ul>
+        </section>
+      )}
+      <section>
+        <h2>{c.wrongTitle}</h2>
+        {r.wrong.length === 0 ? <p className="muted">{c.noWrong}</p> : (
+          <ol className="wrong-list">{r.wrong.map((w) => (
+            <li key={w.id}>{nm(w, "text", lang)} <span className="lvl-low">× {w.times}</span></li>
+          ))}</ol>
+        )}
+      </section>
+    </div>
+  );
+}
 
 function Copy({ text, label }: { text: string; label: string }) {
   const { t } = useT();
@@ -150,7 +239,8 @@ export function ClassPage({ api, id, nav }: { api: AdminApi; id: string; nav: Na
             <tbody>
               {rep.students.map((s) => (
                 <tr key={s.id}>
-                  <td><b>{s.display_name || s.nickname}</b>{s.display_name && <small className="muted"> {s.nickname}</small>}</td>
+                  <td><Go to={{ name: "student", classId: id, id: s.id }} nav={nav}><b>{s.display_name || s.nickname}</b></Go>
+                    {s.display_name && <small className="muted"> {s.nickname}</small>}</td>
                   <td>{s.runs}</td>
                   <td className={s.percent === null ? "" : s.percent >= 80 ? "lvl-ok" : s.percent >= 50 ? "lvl-mid" : "lvl-low"}>
                     {s.percent === null ? "—" : `${s.percent}%`}</td>
@@ -162,6 +252,8 @@ export function ClassPage({ api, id, nav }: { api: AdminApi; id: string; nav: Na
           </table></div>
         )}
       </section>
+
+      <Matrix api={api} id={id} grade={k.grade} nav={nav} />
 
       {rep.topics.length > 0 && (
         <section>

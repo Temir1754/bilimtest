@@ -6,7 +6,7 @@ import { loadPrefs, savePrefs } from "../lib/storage";
 import { LANGS } from "../lib/types";
 import { humanError, type AdminApi, type Me } from "./api";
 import { Browser } from "./Browser";
-import { ClassesView, ClassPage } from "./ClassesView";
+import { ClassesView, ClassPage, StudentPage } from "./ClassesView";
 import { ImportView } from "./ImportView";
 import { AdminLang } from "./lang";
 import { ReviewQueue } from "./ReviewQueue";
@@ -105,6 +105,8 @@ export function AdminApp({ api, go = (p) => location.replace(p) }: {
     body = <ClassesView api={api} nav={nav} />;
   } else if (view.name === "class") {
     body = <ClassPage key={view.id} api={api} id={view.id} nav={nav} />;
+  } else if (view.name === "student") {
+    body = <StudentPage key={view.id} api={api} classId={view.classId} id={view.id} nav={nav} />;
   } else if (view.name === "my") {
     body = <MyQuestions api={api} me={me} nav={nav} />;
   } else if (view.name === "translate") {

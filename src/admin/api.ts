@@ -157,6 +157,26 @@ export interface ClassReport {
     answers: number; students: number; percent: number }[];
 }
 
+type Titled = { title_kk: string | null; title_ru: string | null; title_en: string | null };
+
+/** «Ученики × темы» (№107): клетка — ответов (до 20 последних) и процент верных. */
+export interface ClassMatrix {
+  min_answers: number;
+  students: { id: string; name: string; last_at: string | null; inactive: boolean }[];
+  topics: ({ id: string; grade: number } & Titled)[];
+  cells: { s: string; t: string; n: number; pct: number }[];
+}
+
+/** Страница ученика (№107). */
+export interface StudentReport {
+  name: string;
+  runs: number;
+  percent: number | null;
+  weeks: { week: string; tests: number; percent: number }[];
+  topics: ({ id: string; grade: number; n: number; pct: number } & Titled)[];
+  wrong: { id: string; text_kk: string | null; text_ru: string | null; text_en: string | null; times: number }[];
+}
+
 /** Сертификат автора (№103): сколько опубликовано, следующий рубеж, выданные и доступный сейчас. */
 export interface AuthorProgress {
   published: number;
@@ -243,6 +263,8 @@ export interface AdminApi {
   deleteClass(id: string): Promise<void>;
   classReport(id: string): Promise<ClassReport>;
   removeMember(classId: string, studentId: string): Promise<void>;
+  classMatrix(id: string): Promise<ClassMatrix>;
+  studentReport(classId: string, studentId: string): Promise<StudentReport>;
   saveTopic(t: Omit<TopicRow, "id"> & { id?: string }): Promise<void>;
   deleteTopic(id: string): Promise<void>;
 
@@ -451,6 +473,12 @@ export function supabaseApi(sb: SupabaseClient): AdminApi {
     },
     async classReport(id) {
       return check(await sb.rpc("class_report", { p_class_id: id })) as ClassReport;
+    },
+    async classMatrix(id) {
+      return check(await sb.rpc("class_matrix", { p_class_id: id })) as ClassMatrix;
+    },
+    async studentReport(classId, studentId) {
+      return check(await sb.rpc("student_report", { p_class_id: classId, p_student_id: studentId })) as StudentReport;
     },
     async removeMember(classId, studentId) {
       check(await sb.rpc("remove_member", { p_class_id: classId, p_student_id: studentId }));

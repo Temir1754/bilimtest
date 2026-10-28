@@ -100,6 +100,17 @@ function fakeApi(me: Me | null) {
       return { id: "c1", join_code: "ABC234" };
     }),
     deleteClass: vi.fn(async () => { classes.length = 0; }),
+    async classMatrix() {
+      return { min_answers: 5, students: report.students.map((x) => ({ id: x.id, name: x.display_name, last_at: x.last_at, inactive: true })),
+        topics: [{ id: "t1", grade: 5, title_kk: "Бөлшек", title_ru: "Дроби", title_en: "Fractions" },
+          { id: "t9", grade: 4, title_kk: "Қосу", title_ru: "Сложение", title_en: "Addition" }],
+        cells: [{ s: "st1", t: "t1", n: 20, pct: 85 }, { s: "st1", t: "t9", n: 3, pct: 100 }] };
+    },
+    async studentReport() {
+      return { name: "Айдос К.", runs: 3, percent: 45, weeks: [{ week: "2026-10-26", tests: 3, percent: 45 }],
+        topics: [{ id: "t1", grade: 5, title_kk: "Бөлшек", title_ru: "Дроби", title_en: "Fractions", n: 12, pct: 40 }],
+        wrong: [{ id: "q9", text_kk: "1/2 + 1/4 = ?", text_ru: "1/2 + 1/4 = ?", text_en: "1/2 + 1/4 = ?", times: 3 }] };
+    },
     async classReport(id: string) { return { ...report, class: classes.find((c) => c.id === id)! }; },
     removeMember: vi.fn(async (_c: string, sid: string) => { report.students = report.students.filter((x) => x.id !== sid); }),
     teacherScope: vi.fn(async () => scope),
@@ -846,9 +857,22 @@ describe("админка", () => {
     expect(location.pathname).toBe("/admin/classes/c1");
     expect(screen.getByText(/\/me\?join=ABC234/)).toBeTruthy();
     expect(screen.getByText(/\/ru\/\d+\/math\//)).toBeTruthy(); // ссылка для задания — предмет на сайте
-    expect(screen.getByText("Айдос К.")).toBeTruthy();
+    expect(screen.getAllByText("Айдос К.").length).toBeGreaterThan(0);
     expect(screen.getAllByText("45%").map((x) => x.className)).toEqual(["lvl-low", "lvl-low"]); // ученик и тема
-    expect(screen.getByText("Дроби")).toBeTruthy();
+    expect(screen.getAllByText("Дроби").length).toBeGreaterThan(0);
+    // «Ученики × темы»: зелёная клетка 85, мало данных — «·», тема 4 класса помечена, неактивный ученик
+    expect(await screen.findByRole("heading", { name: "Ученики × темы" })).toBeTruthy();
+    expect(screen.getByText("85").className).toBe("lvl-ok");
+    expect(screen.getByText("·").className).toBe("lvl-none");
+    expect(screen.getByText(/Сложение · тема 4 класса/)).toBeTruthy();
+    expect(screen.getByText(/нет тестов больше 7 дней/)).toBeTruthy();
+    await user.click(screen.getAllByRole("link", { name: "Айдос К." })[0]);
+    expect(location.pathname).toBe("/admin/classes/c1/students/st1");
+    expect(await screen.findByRole("heading", { name: "Айдос К." })).toBeTruthy();
+    expect(screen.getByText("тестов: 3 · 45%")).toBeTruthy();
+    expect(screen.getByText("1/2 + 1/4 = ?")).toBeTruthy();
+    expect(screen.getByText("× 3")).toBeTruthy();
+    await user.click(screen.getByRole("link", { name: "← К классу" }));
     await user.click(screen.getByRole("button", { name: "Убрать" }));
     expect(api.removeMember).toHaveBeenCalledWith("c1", "st1");
     expect(await screen.findByText("Пока никто не вошёл.")).toBeTruthy();

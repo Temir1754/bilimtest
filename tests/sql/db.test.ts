@@ -1159,3 +1159,41 @@ describe("резервная копия: данные учеников и сер
     }
   });
 });
+
+describe("кабинет учителя: ученики × темы и страница ученика (№107)", () => {
+  type R = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
+  const call = async (who: keyof typeof ids | null, sql: string, p: unknown[] = []) =>
+    (await as(who, (q) => q<{ r: R }>(`select ${sql} as r`, p)))[0].r;
+
+  it("уровень темы — по последним 20 ответам; чужой учитель и ученик — отказ; вопросы с ошибками", async () => {
+    const t = (await one<{ id: string; subject_id: string }>(`select t.id, t.subject_id from public.topics t where t.grade = 5
+      and (select count(*) from public.questions q where q.topic_id = t.id and q.status = 'published') >= 3
+      and not exists (select 1 from school.answers a where a.topic_id = t.id) limit 1`))!;
+    const qs = (await db.query<{ id: string; ok: string; bad: string }>(`select q.id,
+        (select id from public.options where question_id = q.id and is_correct limit 1) as ok,
+        (select id from public.options where question_id = q.id and not is_correct limit 1) as bad
+      from public.questions q where q.topic_id = $1 and q.status = 'published' order by q.sort_order limit 3`, [t.id])).rows;
+    const cls = await call("teacherA", "public.create_class($1, 5, 'М')", [t.subject_id]);
+    await call("student", "public.join_class($1, 'Айдос')", [cls.join_code]);
+    // 6 ответов: q0 верно ×2, q1 неверно ×2, q2 неверно, затем верно
+    const send = (q: { id: string }, opt: string) => as("student", (x) => x("select public.submit_attempt($1, 5, $2, $3::jsonb)",
+      [t.subject_id, t.id, JSON.stringify([{ question_id: q.id, option_id: opt }])]));
+    for (const [q, o] of [[qs[0], qs[0].ok], [qs[0], qs[0].ok], [qs[1], qs[1].bad], [qs[1], qs[1].bad], [qs[2], qs[2].bad], [qs[2], qs[2].ok]] as const) {
+      await send(q, o);
+    }
+    const m = await call("teacherA", "public.class_matrix($1)", [cls.id]);
+    expect(m.students).toEqual([expect.objectContaining({ id: ids.student, name: "Айдос", inactive: false })]);
+    expect(m.cells).toContainEqual({ s: ids.student, t: t.id, n: 6, pct: 50 });
+    await expect(call("teacherB", "public.class_matrix($1)", [cls.id])).rejects.toThrow(/не найден/);
+
+    const r = await call("teacherA", "public.student_report($1, $2)", [cls.id, ids.student]);
+    expect(r.runs).toBeGreaterThanOrEqual(6);
+    expect(r.topics).toContainEqual(expect.objectContaining({ id: t.id, n: 6, pct: 50 }));
+    expect(r.wrong.map((w: R) => w.id)).toEqual([qs[1].id]); // q2 исправлен последним ответом
+    expect(r.wrong[0].times).toBe(2);
+    expect(r.weeks.length).toBeGreaterThan(0);
+    await expect(call("teacherB", "public.student_report($1, $2)", [cls.id, ids.student])).rejects.toThrow(/не найден/);
+    await expect(call("teacherA", "public.student_report($1, $2)", [cls.id, ids.teacherB])).rejects.toThrow(/не найден/);
+    await call("teacherA", "public.delete_class($1)", [cls.id]);
+  });
+});
