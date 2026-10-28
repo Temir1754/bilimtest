@@ -20,8 +20,17 @@ export const loginEmail = (id: string) => {
 /** Куда ведёт «Кабинет»: ученик — /me; кабинет учителя (/teacher) — шаг 5 плана «Кіру», пока учитель работает в админке. */
 export const cabinetPath = (role: Role) => (role === "student" ? "/me" : "/admin");
 
-/** Куда попадает вошедший: ученик — сразу к тестам, учитель и админ — в админку. */
-export const afterLoginPath = (role: Role) => (role === "student" ? "/" : "/admin");
+/** Код класса из ссылки учителя /me?join=КОД — ждёт, пока ученик войдёт (№102). */
+const JOIN_KEY = "bt-join";
+export function pendingJoin(): string {
+  try { return localStorage.getItem(JOIN_KEY) ?? ""; } catch { return ""; }
+}
+export function setPendingJoin(code: string) {
+  try { if (code) localStorage.setItem(JOIN_KEY, code); else localStorage.removeItem(JOIN_KEY); } catch { /* без хранилища */ }
+}
+
+/** Куда попадает вошедший: ученик — сразу к тестам (или в кабинет, если ждёт код класса), учитель и админ — в админку. */
+export const afterLoginPath = (role: Role) => (role === "student" ? (pendingJoin() ? "/me" : "/") : "/admin");
 
 const stores = () => [sessionStorage, localStorage];
 

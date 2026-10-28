@@ -140,6 +140,23 @@ export interface QuestionItem {
   topics: Pick<TopicRow, "grade" | "subject_id" | "title_kk" | "title_ru" | "title_en">;
 }
 
+/** Класс учителя (№102). students — у учителя; teacher и display_name — у ученика. */
+export interface ClassRow {
+  id: string;
+  subject_id: string;
+  grade: number;
+  letter: string;
+  join_code: string;
+  students?: number;
+}
+
+export interface ClassReport {
+  class: ClassRow;
+  students: { id: string; display_name: string; nickname: string; runs: number; percent: number | null; last_at: string | null }[];
+  topics: { topic_id: string; grade: number | null; title_kk: string | null; title_ru: string | null; title_en: string | null;
+    answers: number; students: number; percent: number }[];
+}
+
 export interface Me {
   id: string;
   email: string;
@@ -210,6 +227,12 @@ export interface AdminApi {
   topicMin(): Promise<number>;
   /** Классы и предметы из анкеты учителя; null — без ограничений (админ или анкеты нет). */
   teacherScope(): Promise<{ subjects: string[]; grades: number[] } | null>;
+  /** «Сыныптарым» (№102): классы учителя, создание и удаление, отчёт, убрать ученика. */
+  classes(): Promise<ClassRow[]>;
+  createClass(subjectId: string, grade: number, letter: string): Promise<{ id: string; join_code: string }>;
+  deleteClass(id: string): Promise<void>;
+  classReport(id: string): Promise<ClassReport>;
+  removeMember(classId: string, studentId: string): Promise<void>;
   saveTopic(t: Omit<TopicRow, "id"> & { id?: string }): Promise<void>;
   deleteTopic(id: string): Promise<void>;
 
@@ -398,6 +421,21 @@ export function supabaseApi(sb: SupabaseClient): AdminApi {
     },
     async topicMin() {
       return Number(check(await sb.rpc("topic_min_questions")) ?? 5);
+    },
+    async classes() {
+      return check(await sb.rpc("my_classes")) as ClassRow[];
+    },
+    async createClass(subjectId, grade, letter) {
+      return check(await sb.rpc("create_class", { p_subject_id: subjectId, p_grade: grade, p_letter: letter })) as { id: string; join_code: string };
+    },
+    async deleteClass(id) {
+      check(await sb.rpc("delete_class", { p_class_id: id }));
+    },
+    async classReport(id) {
+      return check(await sb.rpc("class_report", { p_class_id: id })) as ClassReport;
+    },
+    async removeMember(classId, studentId) {
+      check(await sb.rpc("remove_member", { p_class_id: classId, p_student_id: studentId }));
     },
     async teacherScope() {
       const { data } = await sb.auth.getSession();

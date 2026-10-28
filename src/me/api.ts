@@ -3,11 +3,23 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Role } from "../admin/form";
 import type { MeText } from "../i18n/me";
 import { clearAccount, loginEmail, saveAccount } from "../lib/account";
+import { tx } from "../lib/text";
+import type { Lang } from "../lib/types";
 
 export interface Profile {
   nickname: string;
   role: Role;
   grade: number | null;
+}
+
+/** Класс ученика (№102): предмет, класс, буква, учитель и имя ученика в классе. */
+export interface MyClass {
+  id: string;
+  subject: string; // название предмета на языке кабинета
+  grade: number;
+  letter: string;
+  teacher: string;
+  display_name: string;
 }
 
 export interface MeApi {
@@ -21,6 +33,10 @@ export interface MeApi {
   checkPassword(nickname: string, password: string): Promise<void>;
   changePassword(password: string): Promise<void>;
   deleteAccount(): Promise<void>;
+  /** Классы ученика; войти по коду (имя в классе — по желанию); выйти из класса. */
+  classes(lang: Lang): Promise<MyClass[]>;
+  joinClass(code: string, name: string): Promise<void>;
+  leaveClass(id: string): Promise<void>;
   signOut(): Promise<void>;
 }
 
@@ -31,6 +47,8 @@ export function meError(e: unknown, t: MeText): string {
   if (m === "wrong_password") return r.wrongPassword;
   if (m === "nick_taken") return r.nickTaken;
   if (m === "bad_nickname") return r.badNick;
+  if (/Код класса не найден/.test(m)) return r.badCode;
+  if (/Слишком много попыток/.test(m)) return r.tooMany;
   if (/Password should be|weak.?password/i.test(m)) return r.weak;
   if (/Failed to fetch|NetworkError|Load failed/i.test(m)) return r.network;
   if (/Edge Function|FunctionsFetchError|FunctionsRelayError/i.test(m)) return r.noDb;
@@ -82,6 +100,24 @@ export function supabaseMeApi(sb: SupabaseClient): MeApi {
       check(await sb.rpc("delete_my_account"));
       await sb.auth.signOut({ scope: "local" }); // аккаунта уже нет — убираем вход из браузера
       clearAccount();
+    },
+    async classes(lang) {
+      type Row = { id: string; subject_id: string; grade: number; letter: string; teacher: string; display_name: string };
+      const [rows, subjects] = await Promise.all([
+        sb.rpc("my_classes").then(check) as Promise<Row[]>,
+        sb.from("subjects").select("id, icon, name_kk, name_ru, name_en").then(check) as Promise<{ id: string; icon: string; name_kk: string; name_ru: string; name_en: string }[]>,
+      ]);
+      return rows.map((r) => {
+        const s = subjects.find((x) => x.id === r.subject_id);
+        return { id: r.id, grade: r.grade, letter: r.letter, teacher: r.teacher, display_name: r.display_name,
+          subject: s ? `${s.icon} ${tx({ kk: s.name_kk, ru: s.name_ru, en: s.name_en }, lang)}` : "" };
+      });
+    },
+    async joinClass(code, name) {
+      check(await sb.rpc("join_class", { p_code: code, p_name: name }));
+    },
+    async leaveClass(id) {
+      check(await sb.rpc("leave_class", { p_class_id: id }));
     },
     async signOut() {
       await sb.auth.signOut();

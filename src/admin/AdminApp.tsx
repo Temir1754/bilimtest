@@ -6,6 +6,7 @@ import { loadPrefs, savePrefs } from "../lib/storage";
 import { LANGS } from "../lib/types";
 import { humanError, type AdminApi, type Me } from "./api";
 import { Browser } from "./Browser";
+import { ClassesView, ClassPage } from "./ClassesView";
 import { ImportView } from "./ImportView";
 import { AdminLang } from "./lang";
 import { ReviewQueue } from "./ReviewQueue";
@@ -100,6 +101,10 @@ export function AdminApp({ api, go = (p) => location.replace(p) }: {
     body = <TopicsStep key={`${view.slug}-${view.grade}`} api={api} me={me} slug={view.slug} grade={view.grade} nav={nav} />;
   } else if (view.name === "topic") {
     body = <TopicQuestions key={view.topicId} api={api} me={me} topicId={view.topicId} nav={nav} />;
+  } else if (view.name === "classes") {
+    body = <ClassesView api={api} nav={nav} />;
+  } else if (view.name === "class") {
+    body = <ClassPage key={view.id} api={api} id={view.id} nav={nav} />;
   } else if (view.name === "my") {
     body = <MyQuestions api={api} me={me} nav={nav} />;
   } else if (view.name === "translate") {
@@ -131,8 +136,8 @@ export function AdminApp({ api, go = (p) => location.replace(p) }: {
         </a>
         {me && me.role !== "student" && (
           <nav className="adm-nav" aria-label={t.nav.label}>
-            {/* Учитель: «Сұрақтар» и «Менің сұрақтарым»; админ: ещё «Тексеруде», «Мектептер», «Пайдаланушылар» */}
-            {(me.role === "admin" ? ["questions", "review", "schools", "users"] as const : ["questions", "my"] as const).map((k) => (
+            {/* Учитель: «Сұрақтар», «Менің сұрақтарым» и «Сыныптарым»; админ: ещё «Тексеруде», «Мектептер», «Пайдаланушылар» */}
+            {(me.role === "admin" ? ["questions", "review", "schools", "users"] as const : ["questions", "my", "classes"] as const).map((k) => (
               <Go key={k} to={k === "questions" ? { name: "grade" } : { name: k }} nav={nav}
                 className={tab === k ? "on" : undefined}>{t.nav[k]}</Go>
             ))}

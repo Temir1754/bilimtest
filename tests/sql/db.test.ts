@@ -1036,3 +1036,64 @@ describe("сайт ученика на базе (этап 4, №97)", () => {
     await expect(as(null, (q) => q("select public.site_questions($1, 'de')", [[t.id]]))).rejects.toThrow(/язык kk, ru или en/);
   });
 });
+
+describe("кабинет учителя: классы (№102)", () => {
+  type R = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
+  const call = async (who: keyof typeof ids | null, sql: string, p: unknown[] = []) =>
+    (await as(who, (q) => q<{ r: R }>(`select ${sql} as r`, p)))[0].r;
+  let subject: string;
+  let topic: string;
+  let cls: { id: string; join_code: string };
+  // Ответ ученика на 2 вопроса темы: первый верно, второй неверно.
+  async function solve(who: keyof typeof ids) {
+    const qs = (await db.query<{ id: string; ok: string; bad: string }>(`select q.id,
+        (select id from public.options where question_id = q.id and is_correct limit 1) as ok,
+        (select id from public.options where question_id = q.id and not is_correct limit 1) as bad
+      from public.questions q where q.topic_id = $1 and q.status = 'published' order by q.sort_order limit 2`, [topic])).rows;
+    return call(who, "public.submit_attempt($1, 5, $2, $3::jsonb)", [subject, topic,
+      JSON.stringify([{ question_id: qs[0].id, option_id: qs[0].ok }, { question_id: qs[1].id, option_id: qs[1].bad }])]);
+  }
+
+  beforeAll(async () => {
+    ({ id: topic, subject_id: subject } = (await one<{ id: string; subject_id: string }>(
+      `select t.id, t.subject_id from public.topics t where t.grade = 5
+         and (select count(*) from public.questions q where q.topic_id = t.id and q.status = 'published') >= 2 limit 1`))!);
+  });
+
+  it("класс создаёт учитель; ученик и гость — нет; код из 6 символов", async () => {
+    await expect(call("student", "public.create_class($1, 5, 'А')", [subject])).rejects.toThrow(/учитель/);
+    await expect(call(null, "public.create_class($1, 5, 'А')", [subject])).rejects.toThrow(/permission denied/);
+    cls = await call("teacherA", "public.create_class($1, 5, ' а ')", [subject]) as typeof cls;
+    expect(cls.join_code).toMatch(/^[A-Z2-9]{6}$/);
+    expect(await call("teacherA", "public.my_classes()")).toEqual([expect.objectContaining({ id: cls.id, letter: "А", students: 0 })]);
+    expect(await call("teacherB", "public.my_classes()")).toEqual([]); // чужие классы не видны
+  });
+
+  it("ученик вступает по коду, тесты по предмету класса видит его учитель; чужой учитель — нет", async () => {
+    await expect(call("student", "public.join_class('ZZZZZZ', '')")).rejects.toThrow(/не найден/);
+    await expect(call("teacherB", "public.join_class($1, '')", [cls.join_code])).rejects.toThrow(/ученик/);
+    expect(await call("student", "public.join_class($1, 'Айдос К.')", [cls.join_code.toLowerCase()])).toMatchObject({ id: cls.id });
+    expect(await call("student", "public.my_classes()")).toEqual([expect.objectContaining({ id: cls.id, display_name: "Айдос К." })]);
+
+    expect(await solve("student")).toMatchObject({ ok: true, score: 1, total: 2 });
+    await solve("teacherA"); // учитель решает тест — в school ничего не пишется
+    expect((await one<{ n: number }>("select count(*)::int as n from school.test_runs"))!.n).toBe(1);
+
+    const rep = await call("teacherA", "public.class_report($1)", [cls.id]);
+    expect(rep.students).toEqual([expect.objectContaining({ display_name: "Айдос К.", runs: 1, percent: 50 })]);
+    expect(rep.topics).toEqual([expect.objectContaining({ topic_id: topic, answers: 2, students: 1, percent: 50 })]);
+    await expect(call("teacherB", "public.class_report($1)", [cls.id])).rejects.toThrow(/не найден/);
+    await expect(call("student", "public.class_report($1)", [cls.id])).rejects.toThrow(/не найден/);
+    await expect(as("student", (q) => q("select * from school.test_runs"))).rejects.toThrow(/permission denied/);
+  });
+
+  it("учитель убирает ученика: членство и тесты по предмету класса стираются; удалить класс может только владелец", async () => {
+    await expect(call("teacherB", "public.remove_member($1, $2)", [cls.id, ids.student])).rejects.toThrow(/не найден/);
+    await call("teacherA", "public.remove_member($1, $2)", [cls.id, ids.student]);
+    expect((await one<{ n: number }>("select count(*)::int as n from school.answers where student_id = $1", [ids.student]))!.n).toBe(0);
+    expect(await call("student", "public.my_classes()")).toEqual([]);
+    await expect(call("teacherB", "public.delete_class($1)", [cls.id])).rejects.toThrow(/не найден/);
+    await call("teacherA", "public.delete_class($1)", [cls.id]);
+    expect(await call("teacherA", "public.my_classes()")).toEqual([]);
+  });
+});

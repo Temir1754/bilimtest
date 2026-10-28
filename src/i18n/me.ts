@@ -12,6 +12,11 @@ const kk = {
   logout: "Шығу",
   loading: "Жүктелуде…",
   saved: "Сақталды.",
+  classes: {
+    title: "Сыныптарым", lede: "Мұғалім берген кодты жаз — мұғалім сенің осы пән бойынша нәтижелеріңді көреді.",
+    code: "Сынып коды", name_: "Атың (мұғалім тануы үшін, міндетті емес)", namePh: "Айгерім С.", join: "Сыныпқа қосылу",
+    name: (g: number, l: string) => `${g}${l ? " " + l : ""} сынып`, leave: "Шығу", confirmLeave: "Сыныптан шығасың ба?",
+  },
   grade: { title: "Сыныбың", lede: "Басты бетте осы сыныптың пәндері ашылады." },
   nick: {
     title: "Лақап ат", lede: "Енді осы лақап атпен кіресің. Нағыз атыңды жазба.",
@@ -34,6 +39,7 @@ const kk = {
     nickTaken: "Бұл лақап ат бос емес — басқасын ойлап тап.",
     network: "Интернетке қосылу жоқ. Байланысты тексеріп, қайталаңыз.",
     noDb: "Сайт дерекқорға қосылмаған. Кейінірек көріңіз.",
+    badCode: "Мұндай код жоқ. Мұғалімнен тексеріп ал.", tooMany: "Тым көп әрекет. Кейінірек қайтала.",
   },
 };
 
@@ -49,6 +55,11 @@ const ru: MeText = {
   logout: "Выйти",
   loading: "Загрузка…",
   saved: "Сохранено.",
+  classes: {
+    title: "Мои классы", lede: "Введи код от учителя — учитель увидит твои результаты по этому предмету.",
+    code: "Код класса", name_: "Имя (чтобы учитель узнал, необязательно)", namePh: "Айгерим С.", join: "Войти в класс",
+    name: (g, l) => `${g}${l ? " " + l : ""} класс`, leave: "Выйти", confirmLeave: "Выйти из класса?",
+  },
   grade: { title: "Твой класс", lede: "На главной откроются предметы этого класса." },
   nick: {
     title: "Ник", lede: "Входить теперь будешь с этим ником. Не пиши настоящее имя.",
@@ -71,6 +82,7 @@ const ru: MeText = {
     nickTaken: "Этот ник уже занят — придумай другой.",
     network: "Нет подключения к интернету. Проверь связь и повтори.",
     noDb: "Сайт не подключён к базе. Попробуй позже.",
+    badCode: "Такого кода нет. Уточни у учителя.", tooMany: "Слишком много попыток. Попробуй позже.",
   },
 };
 
@@ -84,6 +96,11 @@ const en: MeText = {
   logout: "Log out",
   loading: "Loading…",
   saved: "Saved.",
+  classes: {
+    title: "My classes", lede: "Enter the code from your teacher — the teacher will see your results in this subject.",
+    code: "Class code", name_: "Your name (so the teacher knows you, optional)", namePh: "Aigerim S.", join: "Join the class",
+    name: (g, l) => `Grade ${g}${l ? " " + l : ""}`, leave: "Leave", confirmLeave: "Leave the class?",
+  },
   grade: { title: "Your grade", lede: "The home page will open the subjects of this grade." },
   nick: {
     title: "Nickname", lede: "You will log in with this nickname from now on. Don't use your real name.",
@@ -106,6 +123,7 @@ const en: MeText = {
     nickTaken: "This nickname is taken — think of another one.",
     network: "No internet connection. Check it and try again.",
     noDb: "The site is not connected to the database. Try later.",
+    badCode: "No such code. Check with your teacher.", tooMany: "Too many attempts. Try later.",
   },
 };
 

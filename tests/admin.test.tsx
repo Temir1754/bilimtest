@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AdminApp } from "../src/admin/AdminApp";
 import type {
   AdminApi, Me, QuestionItem, RegionRow, SchoolRow, SectionRow, SignupSettings, SubjectRow, TopicRow, UserRow,
+  ClassReport, ClassRow,
 } from "../src/admin/api";
 import { fromRow, readyIn, type QuestionRow, type toPayload } from "../src/admin/form";
 import { headers } from "../src/admin/excel";
@@ -57,6 +58,11 @@ function fakeApi(me: Me | null) {
   let user = me;
   let scope: { subjects: string[]; grades: number[] } | null = null;
   const saved: ReturnType<typeof toPayload>[] = [];
+  const classes: ClassRow[] = [];
+  const report: Omit<ClassReport, "class"> = {
+    students: [{ id: "st1", display_name: "Айдос К.", nickname: "aidos07", runs: 3, percent: 45, last_at: "2026-10-27T10:00:00Z" }],
+    topics: [{ topic_id: "t1", grade: 5, title_kk: "Бөлшек", title_ru: "Дроби", title_en: "Fractions", answers: 20, students: 1, percent: 45 }],
+  };
   const api: AdminApi = {
     async me() { return user; },
     onAuthChange: () => () => {},
@@ -86,6 +92,14 @@ function fakeApi(me: Me | null) {
         ready: questions.filter((q) => q.topic_id === t.id && q.status === "published" && readyIn(fromRow(q), lang)).length }));
     },
     async topicMin() { return settings.topic_min_questions; },
+    async classes() { return classes.map((c) => ({ ...c, students: report.students.length })); },
+    createClass: vi.fn(async (subjectId: string, grade: number, letter: string) => {
+      classes.push({ id: "c1", subject_id: subjectId, grade, letter: letter.toUpperCase(), join_code: "ABC234" });
+      return { id: "c1", join_code: "ABC234" };
+    }),
+    deleteClass: vi.fn(async () => { classes.length = 0; }),
+    async classReport(id: string) { return { ...report, class: classes.find((c) => c.id === id)! }; },
+    removeMember: vi.fn(async (_c: string, sid: string) => { report.students = report.students.filter((x) => x.id !== sid); }),
     teacherScope: vi.fn(async () => scope),
     saveTopic: vi.fn(async ({ id, ...x }: Omit<TopicRow, "id"> & { id?: string }) => {
       const old = topics.find((r) => r.id === id);
@@ -797,6 +811,30 @@ describe("админка", () => {
     await user.click(screen.getByRole("button", { name: "Вернуть учителю" }));
     expect(await screen.findByText("Возвращено учителю.")).toBeTruthy();
     expect(saved[0].p_q).toMatchObject({ status: "draft", review_comment: "Добавьте пояснение" });
+  });
+
+  it("«Мои классы» (№102): учитель создаёт класс, видит код и ссылку, отчёт и трудные темы; убирает ученика", async () => {
+    history.replaceState(null, "", "/admin/classes");
+    const user = userEvent.setup();
+    const { api } = fakeApi({ id: "teacher", email: "t@x.kz", role: "teacher" });
+    const ask = vi.spyOn(window, "confirm").mockReturnValue(true);
+    render(<AdminApp api={api} />);
+    expect(await screen.findByText("Классов пока нет.")).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Мои классы" }).className).toBe("on");
+    await user.type(screen.getByLabelText("Буква"), "б");
+    await user.click(screen.getByRole("button", { name: "Создать класс" }));
+    expect(api.createClass).toHaveBeenCalledWith("s1", expect.any(Number), "б");
+    expect(await screen.findByText("ABC234")).toBeTruthy();
+    expect(location.pathname).toBe("/admin/classes/c1");
+    expect(screen.getByText(/\/me\?join=ABC234/)).toBeTruthy();
+    expect(screen.getByText(/\/ru\/\d+\/math\//)).toBeTruthy(); // ссылка для задания — предмет на сайте
+    expect(screen.getByText("Айдос К.")).toBeTruthy();
+    expect(screen.getAllByText("45%").map((x) => x.className)).toEqual(["lvl-low", "lvl-low"]); // ученик и тема
+    expect(screen.getByText("Дроби")).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: "Убрать" }));
+    expect(api.removeMember).toHaveBeenCalledWith("c1", "st1");
+    expect(await screen.findByText("Пока никто не вошёл.")).toBeTruthy();
+    ask.mockRestore();
   });
 
   it("«Мои вопросы»: сначала возвращённые с причиной; «Нужен перевод» — вопросы без RU или EN", async () => {

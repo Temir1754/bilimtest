@@ -11,6 +11,8 @@ export type AdminView =
   | { name: "search" } //                                   /admin/questions/search — все вопросы с фильтрами
   | { name: "translate" } //                                /admin/questions/translate — «Аударма керек»
   | { name: "author"; id: string } //                       /admin/users/id/questions — вопросы учителя (№90)
+  | { name: "classes" } //                                  /admin/classes — «Сыныптарым» (№102)
+  | { name: "class"; id: string } //                        /admin/classes/id — класс: код, отчёт
   | { name: "my" | "review" | "schools" | "users" }; //     /admin/my, /admin/review, …
 
 const Q = "/admin/questions";
@@ -26,6 +28,8 @@ export function toPath(v: AdminView): string {
     case "search": return `${Q}/search`;
     case "translate": return `${Q}/translate`;
     case "author": return `/admin/users/${v.id}/questions`;
+    case "classes": return "/admin/classes";
+    case "class": return `/admin/classes/${v.id}`;
     default: return `/admin/${v.name}`;
   }
 }
@@ -34,6 +38,7 @@ export function toPath(v: AdminView): string {
 export function parsePath(path: string): AdminView {
   const p = path.replace(/\/+$/, "").split("/").slice(2).map(decodeURIComponent); // без "" и "admin"
   if (p[0] === "users" && p[1] && p[2] === "questions") return { name: "author", id: p[1] };
+  if (p[0] === "classes") return p[1] ? { name: "class", id: p[1] } : { name: "classes" };
   if (p[0] === "my" || p[0] === "review" || p[0] === "schools" || p[0] === "users") return { name: p[0] };
   if (p[0] !== "questions" || p.length === 1) return { name: "grade" };
   if (p[1] === "search" && p.length === 2) return { name: "search" };
@@ -48,6 +53,6 @@ export function parsePath(path: string): AdminView {
 }
 
 /** К какой вкладке шапки относится экран. */
-export const navTab = (v: AdminView): "questions" | "my" | "review" | "schools" | "users" =>
-  v.name === "author" ? "users"
+export const navTab = (v: AdminView): "questions" | "my" | "classes" | "review" | "schools" | "users" =>
+  v.name === "author" ? "users" : v.name === "class" || v.name === "classes" ? "classes"
     : v.name === "my" || v.name === "review" || v.name === "schools" || v.name === "users" ? v.name : "questions";

@@ -1,12 +1,13 @@
 // Кабинет ученика /me (план «Кіру», шаг 7): класс, ник, пароль, удаление аккаунта.
 // Не вошёл — на /login; учитель и админ — в /admin (их кабинет пока там).
 // Смена пароля и удаление — только с текущим паролем: в школе компьютер общий.
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { LogoMark, NickMenu } from "../components/NickMenu";
 import { ME, type MeText } from "../i18n/me";
+import { pendingJoin, setPendingJoin } from "../lib/account";
 import { loadPrefs, savePrefs, type Prefs } from "../lib/storage";
-import { GRADES, LANGS } from "../lib/types";
-import { meError, type MeApi, type Profile } from "./api";
+import { GRADES, LANGS, type Lang } from "../lib/types";
+import { meError, type MeApi, type MyClass, type Profile } from "./api";
 import "./me.css";
 
 interface Props {
@@ -25,7 +26,12 @@ export function MeApp({ api, go = (p) => location.assign(p) }: Props) {
     document.title = t.title;
     document.documentElement.lang = prefs.lang;
   }, [t, prefs.lang]);
-  useEffect(() => { api.load().then(setMe, (e) => { setFailure(e); setMe(null); }); }, [api]);
+  useEffect(() => {
+    // Ссылка учителя /me?join=КОД: код запоминается, даже если сначала нужно войти (№102).
+    const code = new URLSearchParams(location.search).get("join");
+    if (code) { setPendingJoin(code.trim().toUpperCase()); history.replaceState(null, "", "/me"); }
+    api.load().then(setMe, (e) => { setFailure(e); setMe(null); });
+  }, [api]);
   useEffect(() => {
     if (me === null && !failure) go("/login");
     else if (me && me.role !== "student") go("/admin");
@@ -41,6 +47,7 @@ export function MeApp({ api, go = (p) => location.assign(p) }: Props) {
       <>
         <h1>{t.heading}</h1>
         <p className="lede">{t.hello(me.nickname)}</p>
+        <ClassesCard api={api} t={t} lang={prefs.lang} />
         <GradeCard api={api} t={t} grade={me.grade}
           onSaved={(grade) => { setMe({ ...me, grade }); updatePrefs({ grade }); }} />
         <NickCard api={api} t={t} nickname={me.nickname} onSaved={(nickname) => setMe({ ...me, nickname })} />
@@ -96,6 +103,48 @@ function useAction(t: MeText) {
 }
 
 /** Класс: нажал — сразу сохранено; на главной откроется этот класс. */
+/** «Сыныптарым»: классы ученика и вход по коду учителя (№102). */
+function ClassesCard({ api, t, lang }: { api: MeApi; t: MeText; lang: Lang }) {
+  const a = useAction(t);
+  const [list, setList] = useState<MyClass[] | null>(null);
+  const [code, setCode] = useState(pendingJoin);
+  const [name, setName] = useState("");
+  const load = useCallback(() => api.classes(lang).then(setList, () => setList([])), [api, lang]);
+  useEffect(() => { load(); }, [load]);
+  function join(e: React.FormEvent) {
+    e.preventDefault();
+    a.run(async () => { await api.joinClass(code.trim(), name.trim()); setPendingJoin(""); setCode(""); await load(); });
+  }
+  return (
+    <section className="me-card" aria-labelledby="me-classes">
+      <h2 id="me-classes">{t.classes.title}</h2>
+      {list && list.length > 0 && (
+        <ul className="me-classes">
+          {list.map((c) => (
+            <li key={c.id}>
+              <span><b>{c.subject}</b> · {t.classes.name(c.grade, c.letter)}{c.teacher && <span className="muted"> · {c.teacher}</span>}</span>
+              <button type="button" className="link" disabled={a.busy}
+                onClick={() => confirm(t.classes.confirmLeave) && a.run(async () => { await api.leaveClass(c.id); await load(); })}>{t.classes.leave}</button>
+            </li>
+          ))}
+        </ul>
+      )}
+      <form onSubmit={join} className="me-join">
+        <p className="muted">{t.classes.lede}</p>
+        <label>{t.classes.code}
+          <input value={code} required maxLength={6} autoCapitalize="characters" autoComplete="off"
+            onChange={(e) => setCode(e.target.value.toUpperCase())} />
+        </label>
+        <label>{t.classes.name_}
+          <input value={name} maxLength={60} placeholder={t.classes.namePh} onChange={(e) => setName(e.target.value)} />
+        </label>
+        <button type="submit" className="btn" disabled={a.busy || code.trim().length !== 6}>{t.classes.join}</button>
+      </form>
+      {a.status}
+    </section>
+  );
+}
+
 function GradeCard({ api, t, grade, onSaved }: { api: MeApi; t: MeText; grade: number | null; onSaved: (g: number) => void }) {
   const a = useAction(t);
   return (

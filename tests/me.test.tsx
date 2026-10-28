@@ -2,13 +2,14 @@
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { MeApi, Profile } from "../src/me/api";
+import type { MeApi, MyClass, Profile } from "../src/me/api";
 import { MeApp } from "../src/me/MeApp";
 
 const PASSWORD = "kid-pass-123";
 
 function fakeApi(profile: Profile | null) {
   let me = profile;
+  const classes: MyClass[] = [];
   const api = {
     load: vi.fn(async () => me),
     setGrade: vi.fn(async (grade: number) => { me = { ...me!, grade }; }),
@@ -22,6 +23,12 @@ function fakeApi(profile: Profile | null) {
     changePassword: vi.fn(async () => {}),
     deleteAccount: vi.fn(async () => { me = null; }),
     signOut: vi.fn(async () => { me = null; }),
+    classes: vi.fn(async () => classes.slice()),
+    joinClass: vi.fn(async (code: string, name: string) => {
+      if (code !== "ABC234") throw new Error("Код класса не найден");
+      classes.push({ id: "c1", subject: "π Математика", grade: 7, letter: "Б", teacher: "Бекмухамед М.", display_name: name });
+    }),
+    leaveClass: vi.fn(async () => { classes.length = 0; }),
   } satisfies MeApi;
   return api;
 }
@@ -132,5 +139,36 @@ describe("кабинет ученика /me", () => {
     await user.click(screen.getByRole("menuitem", { name: "Выйти" }));
     await waitFor(() => expect(go).toHaveBeenCalledWith("/"));
     expect(api.signOut).toHaveBeenCalled();
+  });
+});
+
+describe("кабинет: классы (№102)", () => {
+  it("ссылка учителя /me?join=КОД: код подставлен; вход в класс; неверный код — понятная ошибка", async () => {
+    history.replaceState(null, "", "/me?join=abc234");
+    const user = userEvent.setup();
+    const api = fakeApi(kid());
+    render(<MeApp api={api} go={vi.fn()} />);
+    const code = await screen.findByLabelText("Код класса") as HTMLInputElement;
+    expect(code.value).toBe("ABC234");
+    expect(location.search).toBe(""); // код убран из адреса
+    await user.type(screen.getByLabelText(/Имя/), "Айдос К.");
+    await user.click(screen.getByRole("button", { name: "Войти в класс" }));
+    expect(api.joinClass).toHaveBeenCalledWith("ABC234", "Айдос К.");
+    expect(await screen.findByText("π Математика")).toBeTruthy();
+    expect(localStorage.getItem("bt-join")).toBeNull();
+
+    await user.type(code, "ZZZZZZ");
+    await user.click(screen.getByRole("button", { name: "Войти в класс" }));
+    expect(await screen.findByText("Такого кода нет. Уточни у учителя.")).toBeTruthy();
+  });
+
+  it("не вошёл по ссылке учителя — код ждёт входа, после входа ученик попадает в кабинет", async () => {
+    history.replaceState(null, "", "/me?join=ABC234");
+    const go = vi.fn();
+    render(<MeApp api={fakeApi(null)} go={go} />);
+    await waitFor(() => expect(go).toHaveBeenCalledWith("/login"));
+    expect(localStorage.getItem("bt-join")).toBe("ABC234");
+    const { afterLoginPath } = await import("../src/lib/account");
+    expect(afterLoginPath("student")).toBe("/me");
   });
 });

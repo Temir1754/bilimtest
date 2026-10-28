@@ -26,3 +26,9 @@
   .me-card{padding:16px}
   .me-grades{grid-template-columns:repeat(4,1fr)}
 }
+
+/* «Сыныптарым» ученика (№102) */
+.me-classes{list-style:none;padding:0;margin:0 0 12px;display:grid;gap:6px}
+.me-classes li{display:flex;justify-content:space-between;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line)}
+.me-join{display:grid;gap:10px}
+.me-join input{text-transform:none}

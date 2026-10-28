@@ -274,6 +274,21 @@ describe.skipIf(!configured)("Supabase: аккаунты (DECISIONS.md №70–7
     expect(qs.length).toBe(t.kk);
   });
 
+  it("классы (№102): учитель создаёт, ученик вступает по коду, отчёт видит только учитель класса", async () => {
+    const math = (await sql`select id from public.subjects where slug = 'math'`)[0].id;
+    const { data: cls, error } = await clients.teacherA.rpc("create_class", { p_subject_id: math, p_grade: 5, p_letter: "А" });
+    expect(error).toBeNull();
+    try {
+      expect((await clients.student.rpc("join_class", { p_code: cls.join_code, p_name: "Тест" })).error).toBeNull();
+      const { data: rep } = await clients.teacherA.rpc("class_report", { p_class_id: cls.id });
+      expect(rep.students).toHaveLength(1);
+      expect((await clients.teacherB.rpc("class_report", { p_class_id: cls.id })).error).not.toBeNull();
+      expect((await anon().rpc("my_classes")).error).not.toBeNull();
+    } finally {
+      await clients.teacherA.rpc("delete_class", { p_class_id: cls.id });
+    }
+  });
+
   it("пользователь удаляет свой аккаунт", async () => {
     const em = "delete-me@bilimtest.test";
     expect((await admin().auth.admin.createUser({ email: em, password: PASSWORD, email_confirm: true })).error).toBeNull();

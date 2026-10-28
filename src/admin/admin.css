@@ -396,3 +396,18 @@ label.adm-check{display:flex;align-items:center;gap:8px;font-size:14px;font-weig
 .st-add{justify-self:start;min-height:40px}
 .st-add-sec{justify-self:start;margin-top:8px}
 .st-section > .adm-mini,.st-page > .adm-mini{background:var(--surface);border:1px solid var(--line)}
+
+/* «Сыныптарым» (№102) */
+.cls-list{list-style:none;padding:0;display:grid;gap:10px;margin:16px 0}
+.cls-card{display:grid;gap:4px;padding:14px 16px;border:1px solid var(--line);border-radius:14px;background:var(--surface);text-decoration:none;color:inherit}
+.cls-card:hover{border-color:var(--accent)}
+.cls-new{margin-top:20px;display:grid;gap:12px}
+.cls-code{font-family:var(--display);font-size:40px;letter-spacing:.12em;margin:4px 0}
+.cls-link{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.cls-link code{word-break:break-all;font-size:14px}
+.cls-table td small{display:block}
+.cls-topics{list-style:none;padding:0;display:grid;gap:6px}
+.cls-topics li{display:grid;grid-template-columns:1fr auto auto;gap:12px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line)}
+.lvl-ok{color:var(--good, #1a8f4e);font-weight:700}
+.lvl-mid{color:var(--gold, #b7791f);font-weight:700}
+.lvl-low{color:var(--bad, #c0392b);font-weight:700}
