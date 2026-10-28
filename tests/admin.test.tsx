@@ -361,6 +361,19 @@ describe("админка", () => {
     ask.mockRestore();
   });
 
+  it("без выбранной темы — «Опубликовать все готовые черновики предмета» за одно нажатие", async () => {
+    sessionStorage.setItem("bt-admin", JSON.stringify({ grade: 5, subjectId: "s1", topicId: null }));
+    const user = userEvent.setup();
+    const { api } = fakeApi({ id: "admin", email: "a@x.kz", role: "admin" });
+    const load = vi.spyOn(api, "exportQuestions");
+    const ask = vi.spyOn(window, "confirm").mockReturnValue(true);
+    render(<AdminApp api={api} />);
+    await user.click(await screen.findByRole("button", { name: "Опубликовать все готовые черновики предмета" }));
+    expect(load).toHaveBeenCalledWith("s1", 5, undefined);
+    expect(api.publish).toHaveBeenCalledWith(["q1"]);
+    ask.mockRestore();
+  });
+
   it("учитель не видит массовую публикацию", async () => {
     render(<AdminApp api={fakeApi({ id: "teacher", email: "t@x.kz", role: "teacher" }).api} />);
     await screen.findByRole("button", { name: /2\+2\?/ });

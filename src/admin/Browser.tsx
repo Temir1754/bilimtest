@@ -166,11 +166,12 @@ export function Browser({ api, me, onOpen, onImport }: Props) {
   }
 
   // «Опубликовать готовые черновики»: только вопросы без ошибок (те же проверки, что у кнопки «Опубликовать»).
-  async function publishReady(s: SubjectRow, tp: TopicRow) {
+  // Без темы — во всём предмете класса за одно нажатие.
+  async function publishReady(s: SubjectRow, tp: TopicRow | null) {
     setBusy("publish");
     setNotice("");
     try {
-      const pending = (await api.exportQuestions(s.id, sel.grade, tp.id)).map((x) => x.q)
+      const pending = (await api.exportQuestions(s.id, sel.grade, tp?.id)).map((x) => x.q)
         .filter((q) => q.status !== "published");
       if (!pending.length) { setNotice(b.nothingToPublish); return; }
       const ready = pending.filter((q) => publishProblems(fromRow(q), s.only_lang, t).length === 0);
@@ -377,9 +378,9 @@ export function Browser({ api, me, onOpen, onImport }: Props) {
                   </button>
                 </>
               )}
-              {isAdmin && subject && topic && (
+              {isAdmin && subject && (
                 <button type="button" className="btn ghost sm" disabled={busy !== null} onClick={() => publishReady(subject, topic)}>
-                  {busy === "publish" ? b.publishing : b.publishReady}
+                  {busy === "publish" ? b.publishing : topic ? b.publishReady : b.publishAll}
                 </button>
               )}
               {topic && <button type="button" className="btn sm" onClick={() => onOpen(null, topic.id)}>{b.newQuestion}</button>}

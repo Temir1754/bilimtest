@@ -60,8 +60,8 @@ const kk = {
     confirmDelTopic: (n: string) => `«${n}» тақырыбын жою керек пе? Тек бос тақырыпты жоюға болады.`,
     confirmDelSubject: (n: string) => `«${n}» пәнін жою керек пе? Тек тақырыбы жоқ пәнді жоюға болады.`,
     noText: "мәтінсіз", gradeShort: (g: number) => `${g}-сын.`, missShort: (l: string) => `${l} жоқ`,
-    publishReady: "Дайын жобаларды жариялау", publishing: "Жариялануда…",
-    nothingToPublish: "Бұл тақырыпта жарияланбаған сұрақ жоқ.",
+    publishReady: "Дайын жобаларды жариялау", publishAll: "Пәндегі барлық дайын жобаларды жариялау", publishing: "Жариялануда…",
+    nothingToPublish: "Мұнда жарияланбаған сұрақ жоқ.",
     confirmPublish: (n: number, skip: number) => `${n} сұрақ жарияланады` +
       (skip ? `, ${skip} сұрақ қателерге байланысты өткізіліп жіберіледі` : "") + ". Жалғастыру керек пе?",
     publishedN: (n: number, skip: number) => `Жарияланды: ${n}.` +
@@ -334,8 +334,8 @@ const ru: AdminText = {
     confirmDelTopic: (n) => `Удалить тему «${n}»? Удалить можно только пустую тему.`,
     confirmDelSubject: (n) => `Удалить предмет «${n}»? Удалить можно только предмет без тем.`,
     noText: "без текста", gradeShort: (g) => `${g} кл.`, missShort: (l) => `нет ${l}`,
-    publishReady: "Опубликовать готовые черновики", publishing: "Публикация…",
-    nothingToPublish: "В этой теме нет неопубликованных вопросов.",
+    publishReady: "Опубликовать готовые черновики", publishAll: "Опубликовать все готовые черновики предмета", publishing: "Публикация…",
+    nothingToPublish: "Здесь нет неопубликованных вопросов.",
     confirmPublish: (n, skip) => `Будет опубликовано вопросов: ${n}` +
       (skip ? `, пропущено из-за ошибок: ${skip}` : "") + ". Продолжить?",
     publishedN: (n, skip) => `Опубликовано: ${n}.` +
@@ -606,8 +606,8 @@ const en: AdminText = {
     confirmDelTopic: (n) => `Delete topic “${n}”? Only an empty topic can be deleted.`,
     confirmDelSubject: (n) => `Delete subject “${n}”? Only a subject without topics can be deleted.`,
     noText: "no text", gradeShort: (g) => `gr. ${g}`, missShort: (l) => `no ${l}`,
-    publishReady: "Publish ready drafts", publishing: "Publishing…",
-    nothingToPublish: "There are no unpublished questions in this topic.",
+    publishReady: "Publish ready drafts", publishAll: "Publish all ready drafts in the subject", publishing: "Publishing…",
+    nothingToPublish: "There are no unpublished questions here.",
     confirmPublish: (n, skip) => `${n} questions will be published` +
       (skip ? `, ${skip} skipped because of errors` : "") + ". Continue?",
     publishedN: (n, skip) => `Published: ${n}.` +
