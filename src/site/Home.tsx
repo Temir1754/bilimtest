@@ -1,5 +1,5 @@
 import { tx } from "../lib/text";
-import { GRADES, type Catalog, type Lang } from "../lib/types";
+import { GRADES, topicCount, visibleTopics, type Catalog, type Lang } from "../lib/types";
 import type { UiText } from "../i18n/ui";
 
 interface Props {
@@ -12,9 +12,10 @@ interface Props {
 }
 
 export function Home({ catalog, lang, t, grade, onGrade, onSubject }: Props) {
-  const totalQ = catalog.topics.reduce((n, tp) => n + tp.questionCount, 0);
+  const shown = visibleTopics(catalog, lang);
+  const totalQ = shown.reduce((n, tp) => n + topicCount(tp, lang), 0);
   const cards = catalog.subjects
-    .map((s) => ({ s, tps: catalog.topics.filter((tp) => tp.subjectId === s.id && tp.grade === grade && tp.questionCount > 0) }))
+    .map((s) => ({ s, tps: shown.filter((tp) => tp.subjectId === s.id && tp.grade === grade) }))
     .filter((c) => c.tps.length > 0);
 
   return (
@@ -46,7 +47,7 @@ export function Home({ catalog, lang, t, grade, onGrade, onSubject }: Props) {
               {s.onlyLang && s.onlyLang !== lang && <span className="tag">{s.onlyLang.toUpperCase()}</span>}
             </span>
             <span className="mt">
-              {tps.length} {t.topics} · {tps.reduce((n, tp) => n + tp.questionCount, 0)} {t.qs}
+              {tps.length} {t.topics} · {tps.reduce((n, tp) => n + topicCount(tp, lang), 0)} {t.qs}
             </span>
           </button>
         ))}

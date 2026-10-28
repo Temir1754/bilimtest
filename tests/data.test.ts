@@ -19,7 +19,7 @@ describe("data/*.json", () => {
     expect(cat.subjects).toHaveLength(16);
     expect(cat.topics).toHaveLength(267);
     expect(cat.topics.reduce((n, t) => n + t.questionCount, 0)).toBe(1336);
-    const qs = await localSource.questions(cat.topics.map((t) => t.id));
+    const qs = await localSource.questions(cat.topics.map((t) => t.id), "ru");
     expect(qs).toHaveLength(1336);
     expect(qs.every((q) => q.options.filter((o) => o.correct).length === 1)).toBe(true);
   });

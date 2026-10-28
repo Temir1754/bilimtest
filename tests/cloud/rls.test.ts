@@ -264,6 +264,16 @@ describe.skipIf(!configured)("Supabase: аккаунты (DECISIONS.md №70–7
     }
   });
 
+  it("сайт ученика (этап 4): аноним читает каталог и вопросы темы — только опубликованное", async () => {
+    const { data: c, error } = await anon().rpc("site_catalog");
+    expect(error).toBeNull();
+    expect(c.min).toBeGreaterThan(0);
+    const t = c.topics[0];
+    if (!t) return; // в тестовом проекте может не быть тем выше порога
+    const { data: qs } = await anon().rpc("site_questions", { p_topic_ids: [t.id], p_lang: "kk" });
+    expect(qs.length).toBe(t.kk);
+  });
+
   it("пользователь удаляет свой аккаунт", async () => {
     const em = "delete-me@bilimtest.test";
     expect((await admin().auth.admin.createUser({ email: em, password: PASSWORD, email_confirm: true })).error).toBeNull();

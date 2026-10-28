@@ -975,3 +975,44 @@ describe("доверенный учитель (№94)", () => {
       .toEqual({ n: 2 });
   });
 });
+
+describe("сайт ученика на базе (этап 4, №97)", () => {
+  type Cat = { min: number; subjects: { id: string; only_lang: string | null }[]; sections: { id: string }[];
+    topics: { id: string; subject_id: string; section_id: string | null; kk: number; ru: number; en: number }[] };
+  const catalog = async () => (await as(null, (q) => q<{ c: Cat }>("select public.site_catalog() as c")))[0].c;
+
+  it("каталог доступен анониму: только темы не меньше порога, скрытых нет, у языкового предмета число одно", async () => {
+    const c = await catalog();
+    expect(c.min).toBe(5);
+    expect(c.topics.length).toBeGreaterThan(0);
+    for (const t of c.topics) expect(Math.max(t.kk, t.ru, t.en)).toBeGreaterThanOrEqual(5);
+    const archived = await db.query<{ id: string }>("select id from public.topics where archived");
+    expect(c.topics.filter((t) => archived.rows.some((a) => a.id === t.id))).toEqual([]);
+    const single = c.subjects.filter((s) => s.only_lang).map((s) => s.id);
+    for (const t of c.topics.filter((x) => single.includes(x.subject_id))) expect([t.ru, t.en]).toEqual([t.kk, t.kk]);
+    for (const t of c.topics) expect(c.subjects.some((s) => s.id === t.subject_id)).toBe(true);
+    for (const t of c.topics.filter((x) => x.section_id)) expect(c.sections.some((s) => s.id === t.section_id)).toBe(true);
+
+    await db.query(`update public.app_settings set value = value || '{"topic_min_questions": 1000}' where key = 'limits'`);
+    try {
+      expect((await catalog()).topics).toEqual([]);
+    } finally {
+      await db.query(`update public.app_settings set value = value || '{"topic_min_questions": 5}' where key = 'limits'`);
+    }
+  });
+
+  it("вопросы темы: только опубликованные и полные на языке, с id вариантов; черновик не виден", async () => {
+    const t = (await catalog()).topics[0];
+    const draft = await as("admin", async (q) => (await q<{ id: string }>(
+      "insert into public.questions (topic_id, text_ru) values ($1, 'Черновик сайта') returning id", [t.id]))[0].id);
+    type Q = { id: string; text_ru: string | null; options: { id: string; is_correct: boolean }[] };
+    const qs = (await as(null, (q) => q<{ r: Q[] }>("select public.site_questions($1, 'ru') as r", [[t.id]])))[0].r;
+    expect(qs.length).toBe(t.ru);
+    expect(qs.some((x) => x.id === draft)).toBe(false);
+    for (const x of qs) {
+      expect(x.options.filter((o) => o.is_correct)).toHaveLength(1);
+      expect(x.options.every((o) => o.id)).toBe(true);
+    }
+    await expect(as(null, (q) => q("select public.site_questions($1, 'de')", [[t.id]]))).rejects.toThrow(/язык kk, ru или en/);
+  });
+});

@@ -70,6 +70,27 @@ describe("сайт ученика", () => {
     expect(screen.getByText("лучший 80%")).toBeTruthy();
   });
 
+  it("из базы: темы группами по разделам; тема ниже порога на языке ученика скрыта (№48, №49)", async () => {
+    const db: DataSource = {
+      async catalog() {
+        const c = await source.catalog();
+        return { ...c, min: 5,
+          sections: [{ id: "sec1", subjectId: "math", grade: 5, title: { kk: "Б", ru: "Дроби и проценты", en: "F" }, sort: 0 }],
+          topics: [...c.topics.map((tp) => tp.id === "t1" ? { ...tp, sectionId: "sec1", ready: { kk: 5, ru: 5, en: 5 } } : tp),
+            { id: "t4", subjectId: "math", grade: 5, sectionId: "sec1", title: { kk: "Т", ru: "Проценты", en: "P" }, sort: 1,
+              questionCount: 6, ready: { kk: 6, ru: 2, en: 6 } }] };
+      },
+      questions: source.questions,
+    };
+    const user = userEvent.setup();
+    render(<App source={db} />);
+    await user.click(await screen.findByRole("button", { name: /Математика/ }));
+    expect(screen.getByRole("heading", { name: "Дроби и проценты" })).toBeTruthy();
+    expect(screen.queryByText("Проценты")).toBeNull(); // на русском только 2 готовых вопроса
+    await user.click(screen.getByRole("button", { name: "KK" }));
+    expect(await screen.findAllByText("Т", { selector: "b" })).toHaveLength(2); // на казахском видны обе темы
+  });
+
   it("переключает язык интерфейса", async () => {
     const user = userEvent.setup();
     render(<App source={source} />);

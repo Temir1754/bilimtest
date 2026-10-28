@@ -4,7 +4,7 @@ import { UI } from "../i18n/ui";
 import { answer, mixedQuiz, percent, score, topicQuiz, type Quiz } from "../lib/quiz";
 import { loadBest, loadPrefs, recordBest, savePrefs, type Best } from "../lib/storage";
 import { tx } from "../lib/text";
-import { LANGS, type Catalog, type DataSource, type Lang } from "../lib/types";
+import { LANGS, visibleTopics, type Catalog, type DataSource, type Lang } from "../lib/types";
 import { AccountMenu } from "./AccountMenu";
 import { Home } from "./Home";
 import { QuizView } from "./QuizView";
@@ -43,9 +43,9 @@ export function App({ source }: { source: DataSource }) {
   const sid = view.name === "home" ? null : view.sid;
   const subject = catalog?.subjects.find((s) => s.id === sid) ?? null;
   const topics = useMemo(
-    () => (catalog && sid ? catalog.topics.filter((tp) => tp.subjectId === sid && tp.grade === grade)
+    () => (catalog && sid ? visibleTopics(catalog, lang).filter((tp) => tp.subjectId === sid && tp.grade === grade)
       .sort((a, b) => a.sort - b.sort) : []),
-    [catalog, sid, grade],
+    [catalog, sid, grade, lang],
   );
 
   const go = (v: View, top = false) => {
@@ -55,7 +55,7 @@ export function App({ source }: { source: DataSource }) {
 
   async function start(subjectId: string, topicId: string | null) {
     const ids = topicId ? [topicId] : topics.map((tp) => tp.id);
-    const qs = await source.questions(ids);
+    const qs = await source.questions(ids, lang);
     const quiz = topicId ? topicQuiz(topicId, qs) : mixedQuiz(qs);
     if (quiz.items.length) go({ name: "quiz", sid: subjectId, quiz, index: 0 }, true);
   }
@@ -88,7 +88,7 @@ export function App({ source }: { source: DataSource }) {
       onGrade={(g) => updatePrefs({ grade: g })}
       onSubject={(id) => go({ name: "subject", sid: id }, true)} />;
   } else if (view.name === "subject") {
-    body = <SubjectView subject={subject} topics={topics} grade={grade} lang={lang} t={t} best={best}
+    body = <SubjectView subject={subject} topics={topics} sections={catalog.sections} grade={grade} lang={lang} t={t} best={best}
       onBack={() => go({ name: "home" })}
       onStart={(id) => start(subject.id, id)}
       onMixed={() => start(subject.id, null)} />;
