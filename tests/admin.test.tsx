@@ -855,6 +855,7 @@ describe("админка", () => {
     expect(api.createClass).toHaveBeenCalledWith("s1", expect.any(Number), "б");
     expect(await screen.findByText("ABC234")).toBeTruthy();
     expect(location.pathname).toBe("/admin/classes/c1");
+    expect(screen.getByRole("button", { name: "Выгрузить в Excel" })).toBeTruthy();
     expect(screen.getByText(/\/me\?join=ABC234/)).toBeTruthy();
     expect(screen.getByText(/\/ru\/\d+\/math\//)).toBeTruthy(); // ссылка для задания — предмет на сайте
     expect(screen.getAllByText("Айдос К.").length).toBeGreaterThan(0);

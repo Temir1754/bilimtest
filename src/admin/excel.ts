@@ -4,7 +4,9 @@
 // Разбор строк — без библиотеки (легко тестировать); сама библиотека xlsx загружается только при работе с файлом.
 import { ADMIN, type AdminText } from "../i18n/admin";
 import { LANGS, type Lang } from "../lib/types";
+import type { ClassMatrix, ClassReport } from "./api";
 import { requiredLangs, type L3, type QuestionRow } from "./form";
+import { nm } from "./lang";
 
 const UP = (l: Lang) => l.toUpperCase();
 const GROUPS = ["text", "o0", "o1", "o2", "o3", "explanation"] as const;
@@ -145,4 +147,20 @@ export async function download(name: string, sheets: Record<string, string[][]>)
     XLSX.utils.book_append_sheet(wb, ws, title);
   }
   XLSX.writeFile(wb, name);
+}
+
+/** Отчёт класса в Excel (№108): лист учеников и лист «ученики × темы» (процент по последним 20 ответам;
+ *  меньше min_answers ответов — «·»). */
+export function classSheets(rep: ClassReport, m: ClassMatrix, lang: Lang, t: AdminText): Record<string, string[][]> {
+  const c = t.cls;
+  const date = (s: string | null) => (s ? new Date(s).toLocaleDateString(lang === "en" ? "en-GB" : lang === "ru" ? "ru-RU" : "kk-KZ") : "");
+  const students = [[c.student, c.nick, c.runs, c.percent, c.last],
+    ...rep.students.map((s) => [s.display_name || s.nickname, s.nickname, String(s.runs), s.percent === null ? "" : `${s.percent}%`, date(s.last_at)])];
+  const title = (tp: ClassMatrix["topics"][number]) => nm(tp, "title", lang) + (tp.grade !== rep.class.grade ? ` (${c.otherGrade(tp.grade)})` : "");
+  const topics = [[c.student, ...m.topics.map(title)],
+    ...m.students.map((s) => [s.name, ...m.topics.map((tp) => {
+      const x = m.cells.find((y) => y.s === s.id && y.t === tp.id);
+      return !x ? "" : x.n < m.min_answers ? "·" : `${x.pct}%`;
+    })])];
+  return { [c.sheetStudents]: students, [c.sheetTopics]: topics };
 }

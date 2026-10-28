@@ -40,6 +40,8 @@ const kk = {
     backToClass: "Сыныпқа", weeksTitle: "Апталар бойынша", weekLine: (t: number, p: number) => `${t} тест · ${p}%`,
     levelsTitle: "Тақырыптар бойынша деңгей", fewData: "дерек аз",
     wrongTitle: "Қате жауап берген сұрақтары", noWrong: "Қате жауап жоқ — керемет!",
+    excel: "Excel-ге түсіру", file: (g: number, l: string) => `synyp-${g}${l}`, nick: "Лақап ат",
+    sheetStudents: "Оқушылар", sheetTopics: "Тақырыптар",
     deleteClass: "Сыныпты жою", confirmDelete: "Сынып жойылсын ба? Оқушылардың аккаунттары мен нәтижелері қалады.",
   },
 
@@ -349,6 +351,8 @@ const ru: AdminText = {
     backToClass: "К классу", weeksTitle: "По неделям", weekLine: (t, p) => `тестов: ${t} · ${p}%`,
     levelsTitle: "Уровень по темам", fewData: "мало данных",
     wrongTitle: "Вопросы с ошибками", noWrong: "Ошибок нет — отлично!",
+    excel: "Выгрузить в Excel", file: (g, l) => `klass-${g}${l}`, nick: "Ник",
+    sheetStudents: "Ученики", sheetTopics: "Темы",
     deleteClass: "Удалить класс", confirmDelete: "Удалить класс? Аккаунты и результаты учеников останутся.",
   },
 
@@ -656,6 +660,8 @@ const en: AdminText = {
     backToClass: "Back to class", weeksTitle: "By week", weekLine: (t, p) => `${t} tests · ${p}%`,
     levelsTitle: "Level by topic", fewData: "not enough data",
     wrongTitle: "Questions answered wrong", noWrong: "No mistakes — great!",
+    excel: "Export to Excel", file: (g, l) => `class-${g}${l}`, nick: "Nickname",
+    sheetStudents: "Students", sheetTopics: "Topics",
     deleteClass: "Delete class", confirmDelete: "Delete the class? Student accounts and results stay.",
   },
 

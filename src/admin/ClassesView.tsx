@@ -4,6 +4,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { GRADES } from "../lib/types";
 import { humanError, type AdminApi, type ClassMatrix, type ClassReport, type ClassRow, type StudentReport, type SubjectRow } from "./api";
+import { classSheets, download } from "./excel";
 import { nm, useT } from "./lang";
 import { Go, type Nav } from "./Steps";
 
@@ -205,6 +206,12 @@ export function ClassPage({ api, id, nav }: { api: AdminApi; id: string; nav: Na
     if (!confirm(c.confirmRemove(name))) return;
     try { await api.removeMember(id, studentId); await load(); } catch (e) { setError(e); }
   }
+  async function exportExcel() {
+    try {
+      const m = await api.classMatrix(id);
+      await download(`${c.file(k.grade, k.letter)}.xlsx`, classSheets(rep!, m, lang, t));
+    } catch (e) { setError(e); }
+  }
   async function del() {
     if (!confirm(c.confirmDelete)) return;
     try { await api.deleteClass(id); nav({ name: "classes" }); } catch (e) { setError(e); }
@@ -215,6 +222,8 @@ export function ClassPage({ api, id, nav }: { api: AdminApi; id: string; nav: Na
       <Go to={{ name: "classes" }} nav={nav} className="st-back">← {c.title}</Go>
       <h1>{c.name(k.grade, k.letter)} · {subject ? `${subject.icon} ${nm(subject, "name", lang)}` : "…"}</h1>
       {error !== null && <p className="error" role="alert">{humanError(error, t)}</p>}
+
+      <p><button type="button" className="btn ghost sm" onClick={exportExcel}>{c.excel}</button></p>
 
       <section className="st-card cls-join">
         <h2>{c.joinTitle}</h2>

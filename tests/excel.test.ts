@@ -1,6 +1,6 @@
 import * as XLSX from "xlsx";
 import { describe, expect, it } from "vitest";
-import { checkSheet, exportHeaders, exportSheet, headers, parseSheet, templateSheets, toImportRows } from "../src/admin/excel";
+import { checkSheet, classSheets, exportHeaders, exportSheet, headers, parseSheet, templateSheets, toImportRows } from "../src/admin/excel";
 import { ADMIN } from "../src/i18n/admin";
 import type { QuestionRow } from "../src/admin/form";
 
@@ -83,5 +83,20 @@ describe("Excel", () => {
 
   it("чужая таблица без столбцов шаблона — понятная ошибка", () => {
     expect(parseSheet([["Имя", "Фамилия"], ["А", "Б"]], null, T).problems[0]).toMatch(/Скачайте шаблон/);
+  });
+});
+
+describe("отчёт класса в Excel (№108)", () => {
+  it("лист учеников и лист «ученики × темы»; мало ответов — «·»; тема другого класса подписана", () => {
+    const rep = { class: { id: "c1", subject_id: "s1", grade: 5, letter: "А", join_code: "ABC234" },
+      students: [{ id: "st1", display_name: "Айдос К.", nickname: "aidos07", runs: 3, percent: 45, last_at: null }], topics: [] };
+    const m = { min_answers: 5, students: [{ id: "st1", name: "Айдос К.", last_at: null, inactive: true }],
+      topics: [{ id: "t1", grade: 5, title_kk: "Бөлшек", title_ru: "Дроби", title_en: "Fractions" },
+        { id: "t9", grade: 4, title_kk: "Қосу", title_ru: "Сложение", title_en: "Addition" }],
+      cells: [{ s: "st1", t: "t1", n: 20, pct: 85 }, { s: "st1", t: "t9", n: 3, pct: 100 }] };
+    expect(classSheets(rep, m, "ru", ADMIN.ru)).toEqual({
+      Ученики: [["Ученик", "Ник", "Тестов", "Средний", "Последний тест"], ["Айдос К.", "aidos07", "3", "45%", ""]],
+      Темы: [["Ученик", "Дроби", "Сложение (тема 4 класса)"], ["Айдос К.", "85%", "·"]],
+    });
   });
 });
