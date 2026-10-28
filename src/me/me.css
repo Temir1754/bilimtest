@@ -37,3 +37,9 @@
 .me-runs{list-style:none;padding:0;margin:0;display:grid;gap:4px}
 .me-runs li{display:flex;justify-content:space-between;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line)}
 .lvl-ok{color:var(--good);font-weight:700} .lvl-mid{color:var(--gold);font-weight:700} .lvl-low{color:var(--bad);font-weight:700}
+
+/* Отчёт родителю (№106) */
+.me-report{margin:0 0 14px;display:grid;gap:8px}
+.me-report-text{white-space:pre-wrap;font:inherit;font-size:15px;margin:0;padding:12px 14px;border-radius:12px;background:var(--bg);border:1px solid var(--line)}
+.me-report .me-row{display:flex;flex-wrap:wrap;gap:8px}
+.me-report a.btn{text-decoration:none;display:inline-block}

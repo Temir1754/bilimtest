@@ -12,6 +12,13 @@ const kk = {
   logout: "Шығу",
   loading: "Жүктелуде…",
   saved: "Сақталды.",
+  report: {
+    lede: "Аптаның есебін ата-анаңа жібер:", whatsapp: "WhatsApp-қа жіберу", telegram: "Telegram-ға жіберу",
+    none: "Осы аптада тест тапсырмадың — есеп әлі жоқ.",
+    head: (n: string) => `Білімтест: ${n} — апталық есеп`,
+    summary: (tests: number, q: number, p: number) => `${tests} тест, ${q} сұрақ, орташа ${p}%`,
+    best: "Жақсы", weak: "Қайталау керек",
+  },
   runs: { title: "Нәтижелерім", none: "Әзірге тест тапсырмадың. Кез келген тест осында сақталады.", mixed: "аралас тест" },
   classes: {
     title: "Сыныптарым", lede: "Мұғалім берген кодты жаз — мұғалім сенің осы пән бойынша нәтижелеріңді көреді.",
@@ -56,6 +63,13 @@ const ru: MeText = {
   logout: "Выйти",
   loading: "Загрузка…",
   saved: "Сохранено.",
+  report: {
+    lede: "Отправь отчёт за неделю родителям:", whatsapp: "Отправить в WhatsApp", telegram: "Отправить в Telegram",
+    none: "На этой неделе тестов не было — отчёта пока нет.",
+    head: (n) => `Білімтест: ${n} — отчёт за неделю`,
+    summary: (tests, q, p) => `тестов: ${tests}, вопросов: ${q}, в среднем ${p}%`,
+    best: "Хорошо", weak: "Повторить",
+  },
   runs: { title: "Мои результаты", none: "Пока нет тестов. Любой пройденный тест сохранится здесь.", mixed: "смешанный тест" },
   classes: {
     title: "Мои классы", lede: "Введи код от учителя — учитель увидит твои результаты по этому предмету.",
@@ -98,6 +112,13 @@ const en: MeText = {
   logout: "Log out",
   loading: "Loading…",
   saved: "Saved.",
+  report: {
+    lede: "Send this week's report to your parents:", whatsapp: "Send via WhatsApp", telegram: "Send via Telegram",
+    none: "No tests this week — no report yet.",
+    head: (n) => `Bilimtest: ${n} — weekly report`,
+    summary: (tests, q, p) => `${tests} tests, ${q} questions, average ${p}%`,
+    best: "Strong", weak: "Needs review",
+  },
   runs: { title: "My results", none: "No tests yet. Every test you take is saved here.", mixed: "mixed test" },
   classes: {
     title: "My classes", lede: "Enter the code from your teacher — the teacher will see your results in this subject.",

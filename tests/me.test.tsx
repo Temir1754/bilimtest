@@ -29,8 +29,8 @@ function fakeApi(profile: Profile | null) {
       classes.push({ id: "c1", subject: "π Математика", grade: 7, letter: "Б", teacher: "Бекмухамед М.", display_name: name });
     }),
     leaveClass: vi.fn(async () => { classes.length = 0; }),
-    runs: vi.fn(async () => [{ subject: "π Математика", topic: "Дроби", grade: 7, score: 9, total: 10, finished_at: "2026-10-27T10:00:00Z" },
-      { subject: "π Математика", topic: "", grade: 7, score: 4, total: 10, finished_at: "2026-10-26T10:00:00Z" }]),
+    runs: vi.fn(async () => [{ subject: "π Математика", topic: "Дроби", grade: 7, score: 9, total: 10, finished_at: new Date(Date.now() - 864e5).toISOString() },
+      { subject: "π Математика", topic: "", grade: 7, score: 4, total: 10, finished_at: new Date(Date.now() - 2 * 864e5).toISOString() }]),
   } satisfies MeApi;
   return api;
 }
@@ -182,5 +182,18 @@ describe("кабинет: мои результаты (№104)", () => {
     expect(await screen.findByText("9/10 · 90%")).toBeTruthy();
     expect(screen.getByText("4/10 · 40%").className).toBe("lvl-low");
     expect(screen.getByText(/смешанный тест/)).toBeTruthy();
+  });
+});
+
+describe("отчёт родителю (№106)", () => {
+  it("кнопки WhatsApp и Telegram с готовым текстом за неделю", async () => {
+    history.replaceState(null, "", "/me");
+    render(<MeApp api={fakeApi(kid())} go={vi.fn()} />);
+    const wa = await screen.findByRole("link", { name: "Отправить в WhatsApp" });
+    const text = decodeURIComponent(wa.getAttribute("href")!.split("text=")[1]);
+    expect(text).toContain("Білімтест: aidos07 — отчёт за неделю");
+    expect(text).toContain("тестов: 2, вопросов: 20, в среднем 65%");
+    expect(text).toContain("Хорошо: Дроби (90%)");
+    expect(screen.getByRole("link", { name: "Отправить в Telegram" }).getAttribute("href")).toMatch(/^https:\/\/t\.me\/share\/url/);
   });
 });

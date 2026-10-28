@@ -7,6 +7,7 @@ import { ME, type MeText } from "../i18n/me";
 import { pendingJoin, setPendingJoin } from "../lib/account";
 import { loadPrefs, savePrefs, type Prefs } from "../lib/storage";
 import { GRADES, LANGS, type Lang } from "../lib/types";
+import { reportText, weekStats } from "./report";
 import { meError, type MeApi, type MyClass, type MyRun, type Profile } from "./api";
 import "./me.css";
 
@@ -47,7 +48,7 @@ export function MeApp({ api, go = (p) => location.assign(p) }: Props) {
       <>
         <h1>{t.heading}</h1>
         <p className="lede">{t.hello(me.nickname)}</p>
-        <RunsCard api={api} t={t} lang={prefs.lang} />
+        <RunsCard api={api} t={t} lang={prefs.lang} nickname={me.nickname} />
         <ClassesCard api={api} t={t} lang={prefs.lang} />
         <GradeCard api={api} t={t} grade={me.grade}
           onSaved={(grade) => { setMe({ ...me, grade }); updatePrefs({ grade }); }} />
@@ -105,14 +106,28 @@ function useAction(t: MeText) {
 
 /** Класс: нажал — сразу сохранено; на главной откроется этот класс. */
 /** «Нәтижелерім»: последние тесты из аккаунта (№104). */
-function RunsCard({ api, t, lang }: { api: MeApi; t: MeText; lang: Lang }) {
+function RunsCard({ api, t, lang, nickname }: { api: MeApi; t: MeText; lang: Lang; nickname: string }) {
   const [runs, setRuns] = useState<MyRun[] | null>(null);
   useEffect(() => { api.runs(lang).then(setRuns, () => setRuns([])); }, [api, lang]);
   if (!runs) return null;
   const date = (s: string) => new Date(s).toLocaleDateString(lang === "en" ? "en-GB" : lang === "ru" ? "ru-RU" : "kk-KZ");
+  const week = weekStats(runs);
+  const text = week ? reportText(nickname, week, t, location.origin) : "";
   return (
     <section className="me-card" aria-labelledby="me-runs">
       <h2 id="me-runs">{t.runs.title}</h2>
+      {/* Отчёт родителю за неделю (№106): ученик отправляет сам — WhatsApp или Telegram */}
+      {week ? (
+        <div className="me-report">
+          <p className="muted">{t.report.lede}</p>
+          <pre className="me-report-text">{text}</pre>
+          <p className="me-row">
+            <a className="btn" href={`https://wa.me/?text=${encodeURIComponent(text)}`} target="_blank" rel="noopener">{t.report.whatsapp}</a>
+            <a className="btn ghost" href={`https://t.me/share/url?url=${encodeURIComponent(location.origin)}&text=${encodeURIComponent(text)}`}
+              target="_blank" rel="noopener">{t.report.telegram}</a>
+          </p>
+        </div>
+      ) : runs.length > 0 && <p className="muted">{t.report.none}</p>}
       {runs.length === 0 ? <p className="muted">{t.runs.none}</p> : (
         <ul className="me-runs">
           {runs.slice(0, 10).map((r, i) => {
