@@ -3,6 +3,9 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { App } from "../src/site/App";
 import type { DataSource, Question } from "../src/lib/types";
+import { UI } from "../src/i18n/ui";
+
+const t = UI.ru;
 
 const questions: Question[] = Array.from({ length: 5 }, (_, i) => ({
   id: `q${i}`, topicId: "t1", text: { kk: `Сұрақ ${i}`, ru: `Вопрос ${i}`, en: `Question ${i}` },
@@ -46,14 +49,14 @@ describe("сайт ученика", () => {
     expect(screen.queryByRole("button", { name: /Химия/ })).toBeNull(); // в 5 классе нет вопросов
   });
 
-  it("проходит тест с клавиатуры и сохраняет лучший результат", async () => {
+  it("проходит тест с клавиатуры, сохраняет лучший результат и прогресс; ошибка — в «Работу над ошибками» (№96)", async () => {
     const user = userEvent.setup();
     render(<App source={source} />);
     await user.click(await screen.findByRole("button", { name: /Математика/ }));
     await user.click(screen.getByRole("button", { name: "Начать" }));
 
     for (let i = 0; i < 5; i++) {
-      await screen.findByText(`Вопрос ${i}`);
+      await screen.findByText(`${t.question} ${i + 1} / 5`);
       // Отвечаем правильно на первые 4 вопроса, на последний — неправильно.
       const opts = screen.getAllByRole("button").filter((b) => b.classList.contains("opt"));
       const right = opts.findIndex((b) => b.textContent?.includes("верно"));
@@ -68,6 +71,19 @@ describe("сайт ученика", () => {
 
     await act(() => user.click(screen.getByRole("button", { name: "К темам" })));
     expect(screen.getByText("лучший 80%")).toBeTruthy();
+    expect(screen.getByText(/выучено 4 из 5/)).toBeTruthy();
+    expect(Object.keys(JSON.parse(localStorage.getItem("bt-history")!))).toHaveLength(5);
+
+    // работа над ошибками: только вопрос, где ответ был неверным
+    await user.click(screen.getByRole("button", { name: "Работа над ошибками · 1" }));
+    expect(await screen.findByText(`${t.question} 1 / 1`)).toBeTruthy();
+    const opts = screen.getAllByRole("button").filter((b) => b.classList.contains("opt"));
+    await user.keyboard(String(opts.findIndex((b) => b.textContent?.includes("верно")) + 1));
+    await user.keyboard("{Enter}");
+    const back = await screen.findByRole("button", { name: "К темам" });
+    await act(() => user.click(back));
+    expect(screen.getByText(/выучено 5 из 5/)).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /Работа над ошибками/ })).toBeNull();
   });
 
   it("из базы: темы группами по разделам; тема ниже порога на языке ученика скрыта (№48, №49)", async () => {

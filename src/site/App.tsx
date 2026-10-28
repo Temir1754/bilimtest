@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { LogoMark } from "../components/NickMenu";
 import { UI } from "../i18n/ui";
-import { answer, mixedQuiz, percent, score, topicQuiz, type Quiz } from "../lib/quiz";
-import { loadBest, loadPrefs, recordBest, savePrefs, type Best } from "../lib/storage";
+import { answer, isCorrect, mistakesQuiz, mixedQuiz, percent, score, topicProgress, topicQuiz, type Quiz } from "../lib/quiz";
+import { loadBest, loadHistory, loadPrefs, recordAnswer, recordBest, savePrefs, type Best } from "../lib/storage";
 import { tx } from "../lib/text";
 import { LANGS, visibleTopics, type Catalog, type DataSource, type Lang } from "../lib/types";
 import { AccountMenu } from "./AccountMenu";
@@ -14,12 +14,13 @@ import { SubjectView } from "./SubjectView";
 type View =
   | { name: "home" }
   | { name: "subject"; sid: string }
-  | { name: "quiz"; sid: string; quiz: Quiz; index: number }
-  | { name: "result"; sid: string; quiz: Quiz };
+  | { name: "quiz"; sid: string; quiz: Quiz; index: number; mistakes?: boolean }
+  | { name: "result"; sid: string; quiz: Quiz; mistakes?: boolean };
 
 export function App({ source }: { source: DataSource }) {
   const [prefs, setPrefs] = useState(loadPrefs);
   const [best, setBest] = useState<Best>(loadBest);
+  const [history, setHistory] = useState(loadHistory);
   const [catalog, setCatalog] = useState<Catalog | null>(null);
   const [failed, setFailed] = useState(false);
   const [view, setView] = useState<View>({ name: "home" });
@@ -56,13 +57,27 @@ export function App({ source }: { source: DataSource }) {
   async function start(subjectId: string, topicId: string | null) {
     const ids = topicId ? [topicId] : topics.map((tp) => tp.id);
     const qs = await source.questions(ids, lang);
-    const quiz = topicId ? topicQuiz(topicId, qs) : mixedQuiz(qs);
+    const quiz = topicId ? topicQuiz(topicId, qs, history) : mixedQuiz(qs);
     if (quiz.items.length) go({ name: "quiz", sid: subjectId, quiz, index: 0 }, true);
   }
 
+  // «Қателермен жұмыс»: вопросы тем предмета, где последний ответ был неверным.
+  const mistakeTopics = topics.filter((tp) => topicProgress(history, tp.id).wrong > 0);
+  async function startMistakes(subjectId: string) {
+    if (!mistakeTopics.length) return;
+    const quiz = mistakesQuiz(await source.questions(mistakeTopics.map((tp) => tp.id), lang), history);
+    if (quiz.items.length) go({ name: "quiz", sid: subjectId, quiz, index: 0, mistakes: true }, true);
+  }
+
+  // Ответ записывается в историю тренажёра: по ней выбираются следующие 10 вопросов темы.
   const pick = useCallback((j: number) => {
-    setView((v) => (v.name === "quiz" ? { ...v, quiz: answer(v.quiz, v.index, j) } : v));
-  }, []);
+    if (view.name !== "quiz") return;
+    const quiz = answer(view.quiz, view.index, j);
+    if (quiz === view.quiz) return;
+    const item = quiz.items[view.index];
+    setView({ ...view, quiz });
+    setHistory((h) => recordAnswer(h, item.question.id, item.question.topicId, isCorrect(item, j)));
+  }, [view]);
 
   const next = useCallback(() => {
     if (view.name !== "quiz" || view.quiz.answers[view.index] === null) return;
@@ -72,12 +87,12 @@ export function App({ source }: { source: DataSource }) {
       return;
     }
     if (quiz.topicId) setBest((b) => recordBest(b, quiz.topicId!, percent(score(quiz), quiz.items.length)));
-    go({ name: "result", sid, quiz }, true);
+    go({ name: "result", sid, quiz, mistakes: view.mistakes }, true);
   }, [view]);
 
-  const topicTitle = (quiz: Quiz) => {
+  const topicTitle = (quiz: Quiz, mistakes?: boolean) => {
     const tp = topics.find((x) => x.id === quiz.topicId);
-    return tp ? tx(tp.title, lang) : t.mixed;
+    return tp ? tx(tp.title, lang) : mistakes ? t.mistakes : t.mixed;
   };
 
   let body;
@@ -91,18 +106,20 @@ export function App({ source }: { source: DataSource }) {
     body = <SubjectView subject={subject} topics={topics} sections={catalog.sections} grade={grade} lang={lang} t={t} best={best}
       onBack={() => go({ name: "home" })}
       onStart={(id) => start(subject.id, id)}
+      history={history} mistakes={mistakeTopics.reduce((n, tp) => n + topicProgress(history, tp.id).wrong, 0)}
+      onMistakes={() => startMistakes(subject.id)}
       onMixed={() => start(subject.id, null)} />;
   } else if (view.name === "quiz") {
     body = <QuizView quiz={view.quiz} index={view.index} lang={lang} t={t}
-      heading={`${tx(subject.name, lang)} · ${topicTitle(view.quiz)}`}
+      heading={`${tx(subject.name, lang)} · ${topicTitle(view.quiz, view.mistakes)}`}
       onBack={() => go({ name: "subject", sid: subject.id })}
       onPick={pick} onNext={next} />;
   } else {
     const i = topics.findIndex((tp) => tp.id === view.quiz.topicId);
-    body = <ResultView quiz={view.quiz} title={topicTitle(view.quiz)} lang={lang} t={t}
+    body = <ResultView quiz={view.quiz} title={topicTitle(view.quiz, view.mistakes)} lang={lang} t={t}
       hasNext={i >= 0 && i < topics.length - 1}
       onBack={() => go({ name: "subject", sid: subject.id })}
-      onRetry={() => start(subject.id, view.quiz.topicId)}
+      onRetry={() => (view.mistakes ? startMistakes(subject.id) : start(subject.id, view.quiz.topicId))}
       onNextTopic={() => start(subject.id, topics[i + 1].id)} />;
   }
 

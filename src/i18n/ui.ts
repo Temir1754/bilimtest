@@ -22,6 +22,9 @@ const kk = {
   skip: "Мазмұнға өту",
   login: "Кіру", privacy: "Құпиялылық саясаты",
   menu: { label: "Аккаунт мәзірі", cabinet: "Кабинет", admin: "Әкімші панелі", logout: "Шығу" },
+  // тренажёр (№96)
+  known: (k: number, n: number) => `меңгерілді ${k} / ${n}`, mistakes: "Қателермен жұмыс", mistakesHint: "қате жауап берген сұрақтарың",
+  why: "Түсіндірме:", tenOf: (n: number) => `әр жолы ${n} сұрақтың 10-ы`,
 };
 
 export type UiText = typeof kk;
@@ -47,6 +50,9 @@ const ru: UiText = {
   skip: "Перейти к содержимому",
   login: "Войти", privacy: "Политика конфиденциальности",
   menu: { label: "Меню аккаунта", cabinet: "Кабинет", admin: "Админка", logout: "Выйти" },
+  // тренажёр (№96)
+  known: (k, n) => `выучено ${k} из ${n}`, mistakes: "Работа над ошибками", mistakesHint: "вопросы, где ты ошибся",
+  why: "Пояснение:", tenOf: (n) => `каждый раз 10 из ${n} вопросов`,
 };
 
 const en: UiText = {
@@ -70,6 +76,9 @@ const en: UiText = {
   skip: "Skip to content",
   login: "Log in", privacy: "Privacy policy",
   menu: { label: "Account menu", cabinet: "Dashboard", admin: "Admin panel", logout: "Log out" },
+  // тренажёр (№96)
+  known: (k, n) => `learned ${k} of ${n}`, mistakes: "Work on mistakes", mistakesHint: "questions you got wrong",
+  why: "Explanation:", tenOf: (n) => `10 of ${n} questions each time`,
 };
 
 export const UI: Record<Lang, UiText> = { kk, ru, en };

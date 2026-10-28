@@ -71,6 +71,9 @@ export function QuizView({ quiz, index, heading, lang, t, onBack, onPick, onNext
       <div className={`fb ${done ? (ok ? "ok" : "no") : ""}`} aria-live="polite">
         {done && (ok ? t.right : <>{t.wrong} <Rich text={tx(item.options[correctIndex(item)].text, lang)} /></>)}
       </div>
+      {done && tx(item.question.explanation, lang) && (
+        <div className="expl"><b>{t.why}</b> <Rich text={tx(item.question.explanation, lang)} /></div>
+      )}
       <div className="qnav">
         <span className="label" style={{ textTransform: "none", letterSpacing: 0, fontWeight: 400 }}>{t.keys}</span>
         <button ref={nextBtn} type="button" className="btn" disabled={!done} onClick={onNext}>

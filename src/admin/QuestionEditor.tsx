@@ -352,8 +352,8 @@ function Preview({ form, subject, topic, label }: {
 }) {
   const [lang, setLang] = useState<Lang>(subject?.only_lang ?? "kk");
   const question = useMemo(() => toQuestion({ ...form, options: form.options.filter((o) => LANGS.some((l) => o.text[l].trim())) }), [form]);
-  const [quiz, setQuiz] = useState<Quiz>(() => topicQuiz(form.topicId, [question], keepOrder));
-  useEffect(() => setQuiz(topicQuiz(form.topicId, [question], keepOrder)), [form.topicId, question]);
+  const [quiz, setQuiz] = useState<Quiz>(() => topicQuiz(form.topicId, [question], {}, keepOrder));
+  useEffect(() => setQuiz(topicQuiz(form.topicId, [question], {}, keepOrder)), [form.topicId, question]);
   const explanation = question.explanation ? tx(question.explanation, lang) : "";
 
   return (
@@ -366,7 +366,7 @@ function Preview({ form, subject, topic, label }: {
       <QuizView quiz={quiz} index={0} lang={lang} t={UI[lang]}
         heading={`${subject ? nm(subject, "name", lang) : ""} · ${topic ? nm(topic, "title", lang) : ""}`}
         onBack={() => {}} onPick={(j) => setQuiz((q) => answer(q, 0, j))}
-        onNext={() => setQuiz(topicQuiz(form.topicId, [question], keepOrder))} />
+        onNext={() => setQuiz(topicQuiz(form.topicId, [question], {}, keepOrder))} />
       {quiz.answers[0] !== null && explanation && (
         <p className="note"><Rich text={explanation} /></p>
       )}

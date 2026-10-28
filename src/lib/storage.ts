@@ -1,5 +1,6 @@
 // Настройки и лучшие результаты ученика — только в его браузере (как раньше).
 // Ключи bt-prefs и bt-best те же, что у старого сайта, поэтому прежние результаты сохраняются.
+import type { History } from "./quiz";
 import { GRADES, LANGS, type Lang } from "./types";
 
 export interface Prefs {
@@ -32,6 +33,18 @@ export function loadPrefs(): Prefs {
 }
 
 export const savePrefs = (p: Prefs) => write("bt-prefs", p);
+
+/** История ответов по вопросам (тренажёр, №96). У вошедшего ученика позже — в аккаунте. */
+export function loadHistory(): History {
+  const h = read<History>("bt-history");
+  return h && typeof h === "object" ? h : {};
+}
+
+export function recordAnswer(h: History, questionId: string, topicId: string, ok: boolean): History {
+  const next = { ...h, [questionId]: { t: topicId, ok } };
+  write("bt-history", next);
+  return next;
+}
 
 export type Best = Record<string, number>;
 

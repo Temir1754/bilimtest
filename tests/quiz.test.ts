@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
-  answer, correctIndex, isCorrect, level, mixedQuiz, MIXED_SIZE, percent, score, shuffle, topicQuiz,
+  answer, correctIndex, isCorrect, level, mistakesQuiz, mixedQuiz, MIXED_SIZE, percent, pickQuestions, QUIZ_SIZE, score,
+  shuffle, topicProgress, topicQuiz, type History,
 } from "../src/lib/quiz";
 import type { Question } from "../src/lib/types";
 
@@ -24,10 +25,10 @@ describe("shuffle", () => {
 });
 
 describe("topicQuiz", () => {
-  it("оставляет порядок вопросов, а правильный ответ находится после перемешивания", () => {
+  it("варианты перемешаны, правильный ответ находится после перемешивания", () => {
     const qs = [q("a"), q("b"), q("c")];
-    const quiz = topicQuiz("t", qs, seeded(7));
-    expect(quiz.items.map((it) => it.question.id)).toEqual(["a", "b", "c"]);
+    const quiz = topicQuiz("t", qs, {}, seeded(7));
+    expect(quiz.items.map((it) => it.question.id).sort()).toEqual(["a", "b", "c"]);
     for (const it of quiz.items) {
       expect(it.options).toHaveLength(4);
       expect(it.options.filter((o) => o.correct)).toHaveLength(1);
@@ -38,6 +39,31 @@ describe("topicQuiz", () => {
   it("поддерживает 3 варианта ответа", () => {
     const quiz = topicQuiz("t", [q("a", 3)]);
     expect(quiz.items[0].options).toHaveLength(3);
+  });
+});
+
+describe("тренажёр (№96)", () => {
+  const qs = Array.from({ length: 25 }, (_, i) => q(`q${i}`));
+  const h: History = { q0: { t: "t", ok: true }, q1: { t: "t", ok: false }, q2: { t: "t", ok: false }, q3: { t: "t", ok: true } };
+
+  it("10 вопросов: сначала ошибки, потом новые, решённые верно — в конце", () => {
+    const picked = pickQuestions(qs, h, QUIZ_SIZE, seeded(2)).map((x) => x.id);
+    expect(picked).toHaveLength(10);
+    expect(picked.slice(0, 2).sort()).toEqual(["q1", "q2"]);
+    expect(picked.some((id) => id === "q0" || id === "q3")).toBe(false); // новых хватает
+    expect(pickQuestions(qs.slice(0, 4), h, QUIZ_SIZE, seeded(2)).map((x) => x.id).slice(2).sort()).toEqual(["q0", "q3"]);
+  });
+
+  it("каждый раз — другой набор новых вопросов", () => {
+    const a = topicQuiz("t", qs, {}, seeded(1)).items.map((x) => x.question.id);
+    const b = topicQuiz("t", qs, {}, seeded(9)).items.map((x) => x.question.id);
+    expect(a).not.toEqual(b);
+  });
+
+  it("«Қателермен жұмыс» — только ошибки; прогресс темы", () => {
+    expect(mistakesQuiz(qs, h, seeded(4)).items.map((x) => x.question.id).sort()).toEqual(["q1", "q2"]);
+    expect(topicProgress(h, "t")).toEqual({ known: 2, wrong: 2 });
+    expect(topicProgress(h, "other")).toEqual({ known: 0, wrong: 0 });
   });
 });
 
@@ -57,7 +83,7 @@ describe("mixedQuiz", () => {
 
 describe("проверка ответов и подсчёт", () => {
   it("засчитывает только правильный вариант", () => {
-    let quiz = topicQuiz("t", [q("a"), q("b"), q("c")], seeded(5));
+    let quiz = topicQuiz("t", [q("a"), q("b"), q("c")], {}, seeded(5));
     const right = (k: number) => correctIndex(quiz.items[k]);
     quiz = answer(quiz, 0, right(0));
     quiz = answer(quiz, 1, (right(1) + 1) % 4);

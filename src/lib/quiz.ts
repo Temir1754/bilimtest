@@ -25,9 +25,33 @@ export interface Quiz {
 
 export const MIXED_SIZE = 10;
 
-/** Тест по теме: вопросы по порядку, варианты перемешаны. */
-export function topicQuiz(topicId: string, questions: Question[], rnd: Rng = Math.random): Quiz {
-  return makeQuiz(topicId, questions, rnd);
+/** Ответы ученика по вопросам: q — id вопроса → тема и верен ли последний ответ (тренажёр, №96). */
+export type History = Record<string, { t: string; ok: boolean }>;
+
+export const QUIZ_SIZE = 10;
+
+/** Тренажёр (№96): сначала вопросы, где последний ответ был неверным, потом новые, потом решённые верно;
+ *  внутри каждой группы — случайный порядок. */
+export function pickQuestions(questions: Question[], history: History, size = QUIZ_SIZE, rnd: Rng = Math.random): Question[] {
+  const rank = (q: Question) => (history[q.id] ? (history[q.id].ok ? 2 : 0) : 1);
+  return [0, 1, 2].flatMap((r) => shuffle(questions.filter((q) => rank(q) === r), rnd)).slice(0, size);
+}
+
+/** Тест по теме: 10 вопросов тренажёра, варианты перемешаны. */
+export function topicQuiz(topicId: string, questions: Question[], history: History = {}, rnd: Rng = Math.random): Quiz {
+  return makeQuiz(topicId, pickQuestions(questions, history, QUIZ_SIZE, rnd), rnd);
+}
+
+/** «Қателермен жұмыс»: вопросы, где последний ответ был неверным. */
+export function mistakesQuiz(questions: Question[], history: History, rnd: Rng = Math.random): Quiz {
+  return makeQuiz(null, shuffle(questions.filter((q) => history[q.id]?.ok === false), rnd).slice(0, QUIZ_SIZE), rnd);
+}
+
+/** Сколько вопросов темы ученик знает (последний ответ верный) и сколько ошибок ждут исправления. */
+export function topicProgress(history: History, topicId: string): { known: number; wrong: number } {
+  let known = 0, wrong = 0;
+  for (const h of Object.values(history)) if (h.t === topicId) h.ok ? known++ : wrong++;
+  return { known, wrong };
 }
 
 /** Смешанный тест: MIXED_SIZE случайных вопросов из всех тем предмета. */
