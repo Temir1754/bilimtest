@@ -8,7 +8,7 @@ import { beforeAll, describe, expect, it } from "vitest";
 import { importSubjects, type Db } from "../../scripts/importer";
 import { loadCurriculum, validateCurriculum, type Curriculum } from "../../scripts/curriculum";
 import { dumpDb, restoreDb, tablesInOrder } from "../../scripts/backup";
-import { collectWeekly, formatWeekly } from "../../scripts/weekly";
+import { collectWeekly, formatWeekly, type WeeklyStuck } from "../../scripts/weekly";
 import { applyMoves, cleanupOldTopics, emptyOldTopics, isReferenced, markForTeacher, planMoves, readMappings }
   from "../../scripts/mapping";
 import type { RawSubject } from "../../src/lib/legacy";
@@ -1258,13 +1258,28 @@ describe("отчёт владельцу за неделю (№112)", () => {
       topTopics: [], topAuthors: [], teachers, hidden: week.hidden });
   });
 
+  it("застрявший учитель (№117): неделя без вопросов и класса, затем класс без учеников; с учеником — уже нет", async () => {
+    const id = "00000000-0000-0000-0000-0000000000c7";
+    await db.query("insert into auth.users (id, email, email_confirmed_at) values ($1, 'slow@test.local', now())", [id]);
+    await db.query("update public.profiles set role = 'teacher', first_name = 'Айгүл', created_at = now() - interval '10 days' where id = $1", [id]);
+    const find = async () => (await collectWeekly(asDb(db), new Date(Date.now() - 7 * 864e5))).stuck.filter((x) => x.email === "slow@test.local");
+    expect(await find()).toEqual([expect.objectContaining({ name: "Айгүл", why: "nothing", days: 10, lastSeen: null })]);
+
+    const subject = (await one<{ id: string }>("select id from public.subjects limit 1"))!.id;
+    const cls = (await one<{ id: string }>("insert into school.classes (teacher_id, subject_id, grade, join_code) values ($1, $2, 5, 'SLW234') returning id", [id, subject]))!.id;
+    expect(await find()).toEqual([expect.objectContaining({ why: "noStudents" })]);
+    await db.query("insert into school.class_members (class_id, student_id) values ($1, $2)", [cls, ids.student]);
+    expect(await find()).toEqual([]);
+    await db.query("update public.profiles set created_at = now() where id = $1", [id]); // не мешать подсчёту новых учителей выше
+  });
+
   it("письмо: «что сделать» — только то, что ждёт владельца", () => {
     const base = { since: "2026-10-21T03:00:00Z", teachers: 3, teachersNew: [{ name: "Әлия Серікқызы", school: "№12 мектеп", questions: 40 }],
       students: 50, studentsNew: 7, published: 1500, questionsNew: 40, publishedNew: 40, drafts: 900, review: 1,
       hidden: [{ topic: "История Казахстана, 6 кл. — Тәуке хан", comment: "Оқушылар қате туралы хабарлады / Ученики сообщили об ошибке: дата неверная" }],
       reportsNew: 3, reportsOpen: 3, tests: 120, testsGuests: 80, activeStudents: 12, classes: 2, classesNew: 1,
       assignmentsNew: 4, topicsShown: 44, schoolsWaiting: 0, topTopics: [{ title: "Математика, 5 кл. — Дроби", tests: 30 }],
-      topAuthors: [{ name: "Әлия Серікқызы", questions: 40 }] };
+      topAuthors: [{ name: "Әлия Серікқызы", questions: 40 }], stuck: [] as WeeklyStuck[] };
     const now = new Date("2026-10-28T03:00:00Z");
     const ok = formatWeekly(base, now, { checksFailed: 0, checksTotal: 168, backup: "success" });
     expect(ok.subject).toBe("Білімтест за неделю: тестов 120, учителей 3 · всё ✓");
@@ -1279,5 +1294,14 @@ describe("отчёт владельцу за неделю (№112)", () => {
     expect(bad.text).toContain("5 вопр. ждут проверки");
     expect(bad.text).toContain("2 школ ждут одобрения");
     expect(formatWeekly(base, now).text).not.toContain("РАБОТА САЙТА");
+
+    const stuck = formatWeekly({ ...base, stuck: [
+      { name: "Айгүл Б.", email: "a@x.kz", school: "№5 мектеп", why: "nothing", days: 12, lastSeen: null },
+      { name: "Ерлан С.", email: "e@x.kz", school: "", why: "noStudents", days: 9, lastSeen: "2026-10-25T10:00:00Z" },
+    ] }, now);
+    expect(stuck.subject).toContain("дел: 1");
+    expect(stuck.text).toContain("2 учит. застряли — напишите им");
+    expect(stuck.text).toContain("Айгүл Б. <a@x.kz>, №5 мектеп — ни вопросов, ни класса; 12 дн. на сайте, ни разу не входил");
+    expect(stuck.text).toContain("Ерлан С. <e@x.kz> — в классе нет учеников; 9 дн. на сайте, последний вход 25.10.2026");
   });
 });

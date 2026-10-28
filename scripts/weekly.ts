@@ -8,6 +8,16 @@ export interface WeeklyTeacher {
   questions: number;
 }
 
+/** Учитель застрял (№117): зарегистрирован больше 7 дней назад, и ничего не начал или в его классах нет учеников. */
+export interface WeeklyStuck {
+  name: string;
+  email: string;
+  school: string;
+  why: "nothing" | "noStudents";
+  days: number; // дней с регистрации
+  lastSeen: string | null; // последний вход
+}
+
 export interface WeeklyData {
   since: string;
   teachers: number;
@@ -32,6 +42,7 @@ export interface WeeklyData {
   schoolsWaiting: number;
   topTopics: { title: string; tests: number }[];
   topAuthors: { name: string; questions: number }[];
+  stuck: WeeklyStuck[];
 }
 
 /** Состояние автоматических задач GitHub за неделю (передаёт weekly.yml); без него раздел не пишется. */
@@ -87,9 +98,24 @@ export async function collectWeekly(db: Db, since: Date): Promise<WeeklyData> {
     select ${name} as name, count(*)::int as questions
     from public.questions q join public.profiles p on p.id = q.author_id
     where q.created_at >= $1 group by p.id order by questions desc, name limit 5`, [s]);
+  // Ничего не начал: ни вопросов, ни классов. Класс без учеников: классы есть, никто не вошёл.
+  // Учитель только с вопросами и без класса не застрял — так тоже работают. Заблокированных не считаем.
+  const stuck = await db.query<WeeklyStuck>(`
+    select name, email, school, why, days, last_seen as "lastSeen" from (
+      select ${name} as name, coalesce(u.email, '') as email,
+        coalesce(nullif(sc.name_kk, ''), sc.name_ru, p.school_other, '') as school,
+        (extract(epoch from (now() - p.created_at)) / 86400)::int as days, u.last_sign_in_at as last_seen,
+        (select count(*) from public.questions q where q.author_id = p.id) as qs,
+        (select count(*) from school.classes k where k.teacher_id = p.id) as cls,
+        (select count(*) from school.class_members m join school.classes k on k.id = m.class_id where k.teacher_id = p.id) as kids,
+        case when (select count(*) from school.classes k where k.teacher_id = p.id) = 0 then 'nothing' else 'noStudents' end as why
+      from public.profiles p left join auth.users u on u.id = p.id left join public.schools sc on sc.id = p.school_id
+      where p.role = 'teacher' and p.blocked_at is null and p.created_at < $1
+    ) x where (qs = 0 and cls = 0) or (cls > 0 and kids = 0)
+    order by days desc`, [s]);
   const n = (k: string) => Number(c[k]);
   return {
-    since: s, teachersNew, hidden, topTopics, topAuthors,
+    since: s, teachersNew, hidden, topTopics, topAuthors, stuck,
     teachers: n("teachers"), students: n("students"), studentsNew: n("students_new"), published: n("published"),
     questionsNew: n("questions_new"), publishedNew: n("published_new"), drafts: n("drafts"), review: n("review"),
     reportsNew: n("reports_new"), reportsOpen: n("reports_open"), tests: n("tests"), testsGuests: n("tests_guests"),
@@ -108,6 +134,7 @@ const plus = (n: number) => (n > 0 ? ` (+${n} за неделю)` : "");
 export function formatWeekly(d: WeeklyData, now: Date, health?: WeeklyHealth): { subject: string; text: string } {
   const todo: string[] = [];
   if (d.review - d.hidden.length > 0) todo.push(`${d.review - d.hidden.length} вопр. ждут проверки во вкладке «Тексеруде» (/admin)`);
+  if (d.stuck.length > 0) todo.push(`${d.stuck.length} учит. застряли — напишите им (список в разделе «Учителя»)`);
   if (d.schoolsWaiting > 0) todo.push(`${d.schoolsWaiting} школ ждут одобрения (/admin → «Мектептер»)`);
   if (health && health.checksFailed > 0) todo.push(`проверка сайта не прошла ${health.checksFailed} раз — посмотрите Actions на GitHub`);
   if (health && health.backup !== "success") todo.push(`последняя копия базы: ${health.backup || "нет запуска"} — посмотрите Actions на GitHub`);
@@ -132,6 +159,15 @@ export function formatWeekly(d: WeeklyData, now: Date, health?: WeeklyHealth): {
   lines.push(`• учителей: ${d.teachers}${plus(d.teachersNew.length)}`);
   for (const t of d.teachersNew) lines.push(`    новый: ${t.name}${t.school ? `, ${t.school}` : ""} — вопросов: ${t.questions}`);
   lines.push(`• классов: ${d.classes}${plus(d.classesNew)}; заданий выдано за неделю: ${d.assignmentsNew}`);
+  if (d.stuck.length) {
+    lines.push("• застряли (зарегистрированы больше недели назад):");
+    for (const x of d.stuck.slice(0, 10)) {
+      const seen = x.lastSeen ? `последний вход ${day(new Date(x.lastSeen))}` : "ни разу не входил";
+      lines.push(`    ${x.name}${x.email ? ` <${x.email}>` : ""}${x.school ? `, ${x.school}` : ""} — ${x.why === "nothing" ? "ни вопросов, ни класса" : "в классе нет учеников"}; ${x.days} дн. на сайте, ${seen}`);
+    }
+    if (d.stuck.length > 10) lines.push(`    … и ещё ${d.stuck.length - 10}`);
+    lines.push("    Подсказка: «Нұсқаулық» в админке и «Оқушыларға жадынама» на странице класса.");
+  }
   lines.push("");
 
   lines.push("ВОПРОСЫ");
