@@ -214,6 +214,8 @@ export interface AdminApi {
   deleteTopic(id: string): Promise<void>;
 
   questions(f: QuestionFilter): Promise<QuestionItem[]>;
+  /** Сколько вопросов автора в каждом статусе — для вкладок «Менің сұрақтарым». */
+  authorCounts(authorId: string): Promise<Record<Status, number>>;
   question(id: string): Promise<QuestionRow>;
   saveQuestion(p: ReturnType<typeof toPayload>): Promise<string>;
   deleteQuestion(id: string): Promise<void>;
@@ -429,6 +431,16 @@ export function supabaseApi(sb: SupabaseClient): AdminApi {
       const s = cleanSearch(f.search ?? "");
       if (s) q = q.or(["kk", "ru", "en"].map((l) => `text_${l}.ilike."*${s}*"`).join(","));
       return check(await q) as unknown as QuestionItem[];
+    },
+    async authorCounts(authorId) {
+      const n = async (st: Status) => {
+        const { count, error } = await sb.from("questions").select("id", { count: "exact", head: true })
+          .eq("author_id", authorId).eq("status", st);
+        if (error) throw error;
+        return count ?? 0;
+      };
+      const [draft, review, published] = await Promise.all([n("draft"), n("review"), n("published")]);
+      return { draft, review, published };
     },
     async question(id) {
       return check(await sb.from("questions").select(QUESTION_COLS).eq("id", id).single()) as unknown as QuestionRow;

@@ -8,6 +8,7 @@ import {
 } from "./api";
 import { publishReadyIn, TitleForm } from "./Browser";
 import { download, exportSheet } from "./excel";
+import type { Status } from "./form";
 import { nm, useT } from "./lang";
 import { toPath, type AdminView } from "./route";
 import { flatTopics, groupTopics, renumber, swap, type Group } from "./tree";
@@ -444,19 +445,38 @@ const order = (q: QuestionItem) => (q.status === "draft" && q.review_comment ? 0
 export function MyQuestions({ api, me, nav, authorId }: { api: AdminApi; me: Me; nav: Nav; authorId?: string }) {
   const { t } = useT();
   const author = authorId ?? me.id;
+  const [tab, setTab] = useState<Status | "all">("all");
+  const [counts, setCounts] = useState<Record<Status, number> | null>(null);
   const [items, setItems] = useState<QuestionItem[] | null>(null);
   const [error, setError] = useState<unknown>(null);
+  useEffect(() => { api.authorCounts(author).then(setCounts, setError); }, [api, author]);
+  // Вкладка — фильтр в базе: в списке не больше 300 вопросов, а у учителя их может быть больше.
   useEffect(() => {
-    api.questions({ authorId: author }).then((qs) => setItems(qs.slice().sort((a, b) => order(a) - order(b))), setError);
-  }, [api, author]);
+    setItems(null);
+    api.questions({ authorId: author, status: tab === "all" ? undefined : tab })
+      .then((qs) => setItems(qs.slice().sort((a, b) => order(a) - order(b))), setError);
+  }, [api, author, tab]);
+  const total = counts ? counts.draft + counts.review + counts.published : undefined;
   return (
     <div className="st-page">
       {authorId && <Go to={{ name: "users" }} nav={nav} className="st-back">← {t.nav.users}</Go>}
       <h1>{authorId ? t.steps.authorTitle : t.steps.myTitle}</h1>
       <Failure error={error} />
+      {total !== 0 && (
+        <div className="us-tabs st-my-tabs" role="group" aria-label={t.steps.byStatus}>
+          {(["all", "draft", "review", "published"] as const).filter((k) => k !== "review" || counts?.review).map((k) => (
+            <button key={k} type="button" aria-pressed={tab === k} onClick={() => setTab(k)}>
+              {k === "all" ? t.steps.allStatuses : t.status[k]} <span className="muted">{k === "all" ? total ?? "…" : counts?.[k] ?? "…"}</span>
+            </button>
+          ))}
+        </div>
+      )}
       {items === null ? error === null && <p className="loading">{t.loading}</p>
-        : items.length === 0 ? <p className="muted">{authorId ? t.steps.authorEmpty : t.steps.myEmpty}</p>
-        : <QuestionCards items={items} me={me} nav={nav} showTopic />}
+        : items.length === 0 ? <p className="muted">{tab !== "all" ? t.steps.noneInTab : authorId ? t.steps.authorEmpty : t.steps.myEmpty}</p>
+        : <>
+          <QuestionCards items={items} me={me} nav={nav} showTopic />
+          {items.length >= 300 && <p className="muted">{t.browse.first300}</p>}
+        </>}
     </div>
   );
 }

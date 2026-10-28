@@ -92,6 +92,11 @@ function fakeApi(me: Me | null) {
       if (old) Object.assign(old, x); else topics.push({ ...x, id: `t${topics.length + 1}` });
     }),
     async deleteTopic() {},
+    async authorCounts(id: string) {
+      const mine = questions.filter((q) => q.author_id === id);
+      return { draft: 0, review: 0, published: 0, ...Object.fromEntries((["draft", "review", "published"] as const)
+        .map((st) => [st, mine.filter((q) => q.status === st).length])) };
+    },
     async questions(f) {
       return questions.filter((q) => (!f.topicId || q.topic_id === f.topicId) && (!f.status || q.status === f.status) &&
         (!f.authorId || q.author_id === f.authorId) && (!f.needsTranslation || !q.text_ru || !q.text_en) &&
@@ -803,6 +808,13 @@ describe("админка", () => {
     const items = await screen.findAllByRole("listitem");
     expect(within(items[0]).getByText("Возвращён")).toBeTruthy();
     expect(within(items[0]).getByText(/Нет правильного ответа/)).toBeTruthy();
+    // вкладки по статусу с числами; фильтр — в базе
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: "Черновик 1" }));
+    await vi.waitFor(() => expect(screen.getAllByRole("listitem")).toHaveLength(1));
+    expect(screen.getByRole("button", { name: "Все 2" })).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: "Опубликован 0" }));
+    expect(await screen.findByText("Здесь вопросов нет.")).toBeTruthy();
     cleanup();
 
     history.replaceState(null, "", "/admin/questions/translate");
