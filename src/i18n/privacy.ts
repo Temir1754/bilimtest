@@ -1,10 +1,9 @@
 // Политика конфиденциальности (/privacy) на трёх языках. ЧЕРНОВИК — текст должен проверить юрист (DECISIONS.md №44, №83).
-// Контакт администратора — CONTACT ниже.
+// Контакт администратора — CONTACT в contact.ts.
 import type { Lang } from "../lib/types";
+import { CONTACT } from "./contact";
 
-/** Контакт администратора сайта для вопросов о данных и удаления аккаунта.
- *  На время пилота — личный адрес владельца; потом заменить на отдельный ящик сайта (ROADMAP). */
-export const CONTACT = "temir3099@gmail.com";
+export { CONTACT };
 
 export interface PrivacyText {
   title: string;

@@ -193,6 +193,35 @@ describe("сайт ученика", () => {
     sessionStorage.removeItem("bt-me");
   });
 
+  it("главная гостя: две кнопки, пример задания, учителям, частые вопросы; у вошедшего ученика их нет (№120)", async () => {
+    const user = userEvent.setup();
+    render(<App source={source} />);
+    expect(await screen.findByRole("heading", { level: 1, name: /Пройди тест/ })).toBeTruthy();
+    expect(screen.getByRole("link", { name: /Выбрать тест/ }).getAttribute("href")).toBe("#catalog");
+    expect(screen.getByRole("link", { name: /Я учитель/ }).getAttribute("href")).toBe("#teachers");
+    expect(screen.getByText("2", { selector: ".facts2 b" })).toBeTruthy(); // предметов — только с видимыми темами (химии нет)
+    // пример: неверный ответ → подсказка и правильный; «Ещё раз» — снова можно отвечать
+    await user.click(screen.getByRole("button", { name: "½" }));
+    expect(screen.getByText("Неверно. Правильный ответ — 1.")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "1" }).className).toBe("ok");
+    await user.click(screen.getByRole("button", { name: "Ещё раз" }));
+    await user.click(screen.getByRole("button", { name: "1" }));
+    expect(screen.getByText("Верно!")).toBeTruthy();
+    // учителям: вход и адрес администратора; выбор класса — в разделе «Выбери тест»
+    expect(screen.getByRole("link", { name: /Войти в кабинет/ }).getAttribute("href")).toBe("/login");
+    expect(screen.getByRole("link", { name: /@/ }).getAttribute("href")).toMatch(/^mailto:/);
+    expect(screen.getByRole("region", { name: "Выбери тест" }).querySelector(".grades")).toBeTruthy();
+    expect(screen.getByText("Нужна ли регистрация?")).toBeTruthy();
+    cleanup();
+
+    sessionStorage.setItem("bt-me", JSON.stringify({ name: "aidos07", role: "student" }));
+    render(<App source={source} />);
+    expect(await screen.findByText("5 класс", { selector: "b" })).toBeTruthy();
+    expect(screen.queryByRole("link", { name: /Я учитель/ })).toBeNull();
+    expect(screen.queryByText("Нужна ли регистрация?")).toBeNull();
+    sessionStorage.removeItem("bt-me");
+  });
+
   it("переключает язык интерфейса", async () => {
     const user = userEvent.setup();
     render(<App source={source} />);
