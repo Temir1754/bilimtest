@@ -17,7 +17,11 @@ export interface HomeText {
   };
   catalog: string;
   how: { h: string; steps: [string, string][] };
-  teachers: { h: string; lede: string; items: [string, string][]; login: string; access: string; mail: string };
+  /** flow — схема «от файла до задания» (№122): заголовок и текст шага. */
+  teachers: {
+    h: string; lede: string; flowH: string; flow: [string, string][]; cert: string;
+    login: string; access: string; mail: string;
+  };
   faq: { h: string; items: [string, string][] };
 }
 
@@ -48,13 +52,15 @@ const kk: HomeText = {
   teachers: {
     h: "Мұғалімдерге",
     lede: "Тегін кабинет: сұрақтарыңызды қосып, сыныпқа тапсырма беріңіз — кім нені түсінбегенін сайт өзі көрсетеді.",
-    items: [
-      ["Сұрақтар", "Қолмен немесе Word пен Excel файлынан жүктеу. Сақтамас бұрын сайт қателерді көрсетеді."],
-      ["Сынып", "Сынып коды мен QR-коды бар жадынама — оқушылар өздері қосылады."],
-      ["Тапсырма", "Тақырып пен мерзімді таңдайсыз, тексерудің керегі жоқ."],
-      ["Есеп", "«Оқушылар × тақырыптар» кестесі, әр оқушының беті, Excel-ге жүктеу."],
-      ["Сертификат", "50, 100, 250 және одан көп жарияланған сұрақ үшін автор сертификаты."],
+    flowH: "Файлдан тапсырмаға дейін",
+    flow: [
+      ["Файлды жүктеңіз", "Word немесе Excel-дегі тестіңіз — немесе сұрақты қолмен жазыңыз."],
+      ["Тексеріңіз", "Сақтамас бұрын сайт қателерді көрсетеді: жауабы жоқ, артық нұсқа."],
+      ["Сынып ашыңыз", "Код пен QR-коды бар жадынама — оқушылар өздері қосылады."],
+      ["Тапсырма беріңіз", "Тақырып пен мерзімді таңдайсыз, тексерудің керегі жоқ."],
+      ["Есепті көріңіз", "«Оқушылар × тақырыптар» кестесі: кім нені түсінбеді. Excel-ге жүктеу."],
     ],
+    cert: "50, 100, 250 және одан көп жарияланған сұрақ үшін — автор сертификаты.",
     login: "Кабинетке кіру",
     access: "Мұғалім аккаунтын әзірге сайт әкімшісі ашады. Жазыңыз:",
     mail: "Білімтест: мұғалім аккаунты",
@@ -62,6 +68,7 @@ const kk: HomeText = {
   faq: {
     h: "Жиі қойылатын сұрақтар",
     items: [
+      ["Білімтест деген не?", "4–11 сыныптарға арналған тегін тест жаттықтырушысы: тақырыптар мектеп бағдарламасы бойынша, сұрақтарды мұғалімдер жазады. Қате жауап берген сұрақтар қайта шығады — тақырыпты меңгергенше."],
       ["Тіркелу керек пе?", "Жоқ. Тест тапсыру үшін тіркелудің керегі жоқ — нәтижелер осы құрылғыда сақталады. Тіркелсең, нәтижелер аккаунтыңда сақталады және мұғалімнің сыныбына қосыла аласың."],
       ["Тегін бе?", "Иә, тесттер мен мұғалім кабинеті тегін."],
       ["Сұрақтар қай тілде?", "Сайт қазақ, орыс және ағылшын тілдерінде. Сұрақтардың көбі әзірге қазақша, орысша мен ағылшынша аудармасы қосылып жатыр. Тілдік пәндердің тесттері — сол тілде."],
@@ -99,13 +106,15 @@ const ru: HomeText = {
   teachers: {
     h: "Учителям",
     lede: "Бесплатный кабинет: добавьте свои вопросы и дайте классу задание — сайт сам покажет, кто что не понял.",
-    items: [
-      ["Вопросы", "Вручную или из файла Word и Excel. До сохранения сайт показывает ошибки."],
-      ["Класс", "Памятка с кодом и QR-кодом класса — ученики подключаются сами."],
-      ["Задание", "Выбираете тему и срок, проверять ничего не нужно."],
-      ["Отчёт", "Таблица «ученики × темы», страница каждого ученика, выгрузка в Excel."],
-      ["Сертификат", "Сертификат автора за 50, 100, 250 и больше опубликованных вопросов."],
+    flowH: "От файла до задания",
+    flow: [
+      ["Загрузите файл", "Ваш тест в Word или Excel — или вопрос вручную."],
+      ["Проверьте", "До сохранения сайт показывает ошибки: нет ответа, лишний вариант."],
+      ["Откройте класс", "Памятка с кодом и QR-кодом — ученики подключаются сами."],
+      ["Дайте задание", "Выбираете тему и срок, проверять ничего не нужно."],
+      ["Смотрите отчёт", "Таблица «ученики × темы»: кто что не понял. Выгрузка в Excel."],
     ],
+    cert: "За 50, 100, 250 и больше опубликованных вопросов — сертификат автора.",
     login: "Войти в кабинет",
     access: "Аккаунт учителя пока открывает администратор сайта. Напишите:",
     mail: "Білімтест: аккаунт учителя",
@@ -113,6 +122,7 @@ const ru: HomeText = {
   faq: {
     h: "Частые вопросы",
     items: [
+      ["Что такое Білімтест?", "Бесплатный тренажёр тестов для 4–11 классов: темы по школьной программе, вопросы пишут учителя. Вопросы с ошибками возвращаются, пока тема не выучена."],
       ["Нужна ли регистрация?", "Нет. Тесты можно проходить без регистрации — результаты сохраняются на этом устройстве. С аккаунтом результаты сохраняются в нём, и можно вступить в класс учителя."],
       ["Это бесплатно?", "Да, тесты и кабинет учителя бесплатны."],
       ["На каком языке вопросы?", "Сайт работает на казахском, русском и английском. Большинство вопросов пока на казахском, перевод на русский и английский добавляется. Тесты по языковым предметам — на языке предмета."],
@@ -150,13 +160,15 @@ const en: HomeText = {
   teachers: {
     h: "For teachers",
     lede: "A free dashboard: add your questions and give your class an assignment — the site shows who did not understand what.",
-    items: [
-      ["Questions", "By hand or from a Word or Excel file. The site shows errors before saving."],
-      ["Class", "A handout with the class code and QR code — students join on their own."],
-      ["Assignment", "Choose a topic and a due date; nothing to grade."],
-      ["Report", "A “students × topics” table, a page for each student, export to Excel."],
-      ["Certificate", "An author certificate for 50, 100, 250 or more published questions."],
+    flowH: "From file to assignment",
+    flow: [
+      ["Upload a file", "Your test in Word or Excel — or type a question by hand."],
+      ["Check it", "Before saving, the site shows errors: missing answer, extra option."],
+      ["Open a class", "A handout with the code and QR code — students join on their own."],
+      ["Give an assignment", "Choose a topic and a due date; nothing to grade."],
+      ["See the report", "A “students × topics” table: who did not understand what. Export to Excel."],
     ],
+    cert: "An author certificate for 50, 100, 250 or more published questions.",
     login: "Log in to the dashboard",
     access: "For now, teacher accounts are opened by the site administrator. Write to:",
     mail: "Bilimtest: teacher account",
@@ -164,6 +176,7 @@ const en: HomeText = {
   faq: {
     h: "Questions and answers",
     items: [
+      ["What is Bilimtest?", "A free test trainer for grades 4–11: topics follow the school curriculum, questions are written by teachers. Questions you miss come back until you learn the topic."],
       ["Do I need to sign up?", "No. You can take tests without an account — results are saved on this device. With an account, results are saved to it and you can join your teacher's class."],
       ["Is it free?", "Yes, the tests and the teacher dashboard are free."],
       ["What language are the questions in?", "The site works in Kazakh, Russian and English. Most questions are in Kazakh for now; Russian and English translations are being added. Language subjects are tested in that language."],

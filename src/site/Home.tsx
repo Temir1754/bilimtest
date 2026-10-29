@@ -128,9 +128,18 @@ export function Home({ catalog, lang, t, grade, onGrade, onSubject, ownGrade = f
       <section id="teachers" className="home-sec teachers" tabIndex={-1} aria-labelledby="teachers-h">
         <h2 id="teachers-h" className="sec-h">{h.teachers.h}</h2>
         <p className="lede">{h.teachers.lede}</p>
-        <ul className="feat">
-          {h.teachers.items.map(([title, text]) => <li key={title}><b>{title}</b><p>{text}</p></li>)}
-        </ul>
+        {/* Схема «от файла до задания» (№122): шаги по порядку, на телефоне — столбиком */}
+        <h3 className="flow-h">{h.teachers.flowH}</h3>
+        <ol className="flow">
+          {h.teachers.flow.map(([title, text], i) => (
+            <li key={title}>
+              <span className="flow-n" aria-hidden="true">{i + 1}</span>
+              {i === 0 && <span className="flow-files" aria-hidden="true"><i>.docx</i><i>.xlsx</i></span>}
+              <b>{title}</b><p>{text}</p>
+            </li>
+          ))}
+        </ol>
+        <p className="flow-cert">{h.teachers.cert}</p>
         <div className="teach-acts">
           <a className="btn-lg" href="/login">{h.teachers.login} <span aria-hidden="true">→</span></a>
           <p>{h.teachers.access}{" "}

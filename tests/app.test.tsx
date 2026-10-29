@@ -193,7 +193,7 @@ describe("сайт ученика", () => {
     sessionStorage.removeItem("bt-me");
   });
 
-  it("главная гостя: две кнопки, пример задания, учителям, частые вопросы; у вошедшего ученика их нет (№120)", async () => {
+  it("главная гостя: две кнопки, пример задания, схема для учителя, частые вопросы; у вошедшего ученика их нет (№120, №122)", async () => {
     const user = userEvent.setup();
     render(<App source={source} />);
     expect(await screen.findByRole("heading", { level: 1, name: /Пройди тест/ })).toBeTruthy();
@@ -211,6 +211,9 @@ describe("сайт ученика", () => {
     expect(screen.getByRole("link", { name: /Войти в кабинет/ }).getAttribute("href")).toBe("/login");
     expect(screen.getByRole("link", { name: /@/ }).getAttribute("href")).toMatch(/^mailto:/);
     expect(screen.getByRole("region", { name: "Выбери тест" }).querySelector(".grades")).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "От файла до задания" })).toBeTruthy(); // схема для учителя (№122)
+    expect(screen.getAllByText(/^(Загрузите файл|Проверьте|Откройте класс|Дайте задание|Смотрите отчёт)$/)).toHaveLength(5);
+    expect(screen.getByText("Что такое Білімтест?")).toBeTruthy();
     expect(screen.getByText("Нужна ли регистрация?")).toBeTruthy();
     cleanup();
 

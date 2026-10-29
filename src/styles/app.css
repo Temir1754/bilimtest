@@ -233,17 +233,14 @@ a.logo{color:inherit;text-decoration:none}
 .home-sec{margin:0 0 56px;scroll-margin-top:16px}
 .home-sec:focus{outline:none}
 .sec-h{font-size:clamp(22px,3vw,30px);margin:0 0 18px}
-.how,.feat{list-style:none;padding:0;margin:0;display:grid;gap:12px}
+.how{list-style:none;padding:0;margin:0;display:grid;gap:12px}
 .how{grid-template-columns:repeat(auto-fit,minmax(240px,1fr))}
-.feat{grid-template-columns:repeat(auto-fit,minmax(200px,1fr));margin-top:20px}
-.how li,.feat li{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:20px}
+.how li{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:20px}
 .how-n{display:grid;place-items:center;width:34px;height:34px;border-radius:50%;background:var(--blue);color:var(--surface);font-family:var(--display);font-weight:700;margin-bottom:12px}
-.how b,.feat b{display:block;font-size:18px;margin-bottom:6px}
-.how p,.feat p{margin:0;color:var(--muted);font-size:15px}
+.how b{display:block;font-size:18px;margin-bottom:6px}
+.how p{margin:0;color:var(--muted);font-size:15px}
 .teachers{background:var(--accent);color:var(--accent-ink);border-radius:28px;padding:32px clamp(18px,4vw,40px)}
 .teachers .lede{color:inherit;opacity:.85}
-.teachers .feat li{background:color-mix(in srgb,var(--accent-ink) 8%,transparent);border-color:color-mix(in srgb,var(--accent-ink) 18%,transparent)}
-.teachers .feat p{color:inherit;opacity:.8}
 .teachers .btn-lg{background:var(--accent-ink);color:var(--accent);border-color:var(--accent-ink)}
 .teach-acts{display:flex;flex-wrap:wrap;align-items:center;gap:14px 22px;margin-top:22px}
 .teach-acts p{margin:0;font-size:15px;opacity:.9}
@@ -255,12 +252,31 @@ a.logo{color:inherit;text-decoration:none}
 .faq summary::after{content:"+";flex:none;font-size:22px;line-height:1;color:var(--blue);transition:transform .2s}
 .faq details[open] summary::after{transform:rotate(45deg)}
 .faq details p{margin:0 0 16px;color:var(--muted)}
-.teachers .feat{grid-template-columns:repeat(auto-fit,minmax(160px,1fr))}
 @media (max-width:560px){
   .demo-wrap{padding:18px 12px;border-radius:24px}
   .demo{padding:16px}
   .facts2{gap:6px 24px;margin-bottom:28px}
   .facts2 b{font-size:20px}
-  .how li,.feat li{padding:16px}
+  .how li{padding:16px}
   .home-sec{margin-bottom:44px}
+}
+
+/* Схема для учителя «от файла до задания» (№122): в ряд со стрелками, на телефоне — столбиком с линией */
+.flow-h{font-size:18px;margin:26px 0 14px;color:inherit}
+.flow{list-style:none;padding:0;margin:0;display:grid;grid-template-columns:repeat(5,1fr);gap:22px}
+.flow li{position:relative;border-radius:18px;padding:18px 16px;
+  background:color-mix(in srgb,var(--accent-ink) 8%,transparent);border:1px solid color-mix(in srgb,var(--accent-ink) 18%,transparent)}
+.flow li + li::before{content:"→";position:absolute;left:-18px;top:30px;font-weight:700;opacity:.7}
+.flow-n{display:grid;place-items:center;width:30px;height:30px;border-radius:50%;background:var(--lime);color:#143A35;font-weight:800;margin-bottom:10px}
+.flow-files{display:flex;gap:6px;margin-bottom:10px}
+.flow-files i{font-style:normal;font-size:13px;font-weight:700;padding:2px 8px;border-radius:6px;background:var(--accent-ink);color:var(--accent)}
+.flow b{display:block;font-size:17px;margin-bottom:6px}
+.flow p{margin:0;font-size:14px;opacity:.85}
+.flow-cert{margin:16px 0 0;font-size:15px;opacity:.85}
+@media (max-width:900px){
+  .flow{grid-template-columns:1fr;gap:12px}
+  .flow li{display:grid;grid-template-columns:30px 1fr;column-gap:14px;padding:14px 16px}
+  .flow-n{grid-row:span 3;margin:0}
+  .flow-files{margin-bottom:6px}
+  .flow li + li::before{content:"";left:30px;top:-13px;width:2px;height:12px;background:currentColor;opacity:.35}
 }
