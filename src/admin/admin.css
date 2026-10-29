@@ -442,7 +442,7 @@ label.adm-check{display:flex;align-items:center;gap:8px;font-size:14px;font-weig
 
 /* «Алғашқы қадамдар» (№113) */
 .adm-start{max-width:880px;margin:0 auto 18px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px 20px;display:grid;gap:8px;font-size:16px}
-.adm-start-head{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.adm-start-head{display:flex;align-items:center;gap:12px}
 .adm-start h2{font-size:20px;margin:0}
 .adm-start .muted{margin:0}
 .adm-start ol{list-style:none;margin:0;padding:0;display:grid;gap:6px}
@@ -505,3 +505,15 @@ h1 .help-q{width:26px;height:26px;font-size:15px}
 /* Временный пароль ученику (№119) */
 .cls-acts{white-space:nowrap;display:inline-flex;gap:14px}
 .cls-issued .cls-code{margin:4px 0}
+
+/* Компактный вид «Алғашқы қадамдар» (№123): счётчик, полоска, один следующий шаг */
+.adm-start-count{font-weight:700;color:var(--muted);font-variant-numeric:tabular-nums;margin-right:auto}
+.adm-start-bar{height:6px;border-radius:3px;background:var(--line);overflow:hidden}
+.adm-start-bar i{display:block;height:100%;background:var(--good);transition:width .3s}
+.adm-start-next{display:grid;gap:6px;justify-items:start}
+.adm-start-next .kick{font-size:13px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
+.adm-start-next b{font-size:18px}
+.adm-start-next .acts{display:flex;flex-wrap:wrap;align-items:center;gap:8px 16px;margin-top:2px}
+.adm-start-next .btn{min-height:44px}
+.adm-start-all{justify-self:start;min-height:32px}
+.adm-start .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}

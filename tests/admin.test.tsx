@@ -896,19 +896,28 @@ describe("админка", () => {
     ask.mockRestore();
   });
 
-  it("«Первые шаги» (№113): галочки по делам учителя, «Как?» — подсказка, «Перейти», «Скрыть» и возврат из меню", async () => {
+  it("«Первые шаги» (№113, №123): следующий шаг, «Как?» — подсказка, «Все 5 шагов», «Скрыть» и возврат из меню", async () => {
     history.replaceState(null, "", "/admin/my");
     const user = userEvent.setup();
     const { api } = fakeApi({ id: "teacher", email: "t@x.kz", role: "teacher" });
     vi.spyOn(api, "topicMin").mockResolvedValue(10);
     render(<AdminApp api={api} />);
     const box = within(await screen.findByRole("region", { name: "Первые шаги" }));
-    expect(box.getByText("Сделано 1 из 5. Галочки ставятся сами.")).toBeTruthy(); // вопросы есть, опубликованных нет
+    // компактно (№123): счётчик, полоска и только следующий шаг — вопросы есть, опубликованных нет
+    expect(box.getByText("1 / 5")).toBeTruthy();
+    expect(box.getByRole("progressbar", { name: "Сделано 1 из 5" }).getAttribute("aria-valuenow")).toBe("1");
+    expect(box.getByText("Следующий шаг · 2 из 5")).toBeTruthy();
+    expect(box.queryAllByRole("listitem")).toHaveLength(0);
+    await user.click(box.getByRole("button", { name: "Как?" }));
+    expect(box.getByText(/«Отправить на проверку».*не меньше 10 опубликованных/)).toBeTruthy();
+    expect(box.getByRole("button", { name: "Перейти к моим вопросам →" })).toBeTruthy();
+    // полный список — по кнопке; у галочки — подпись для экранного диктора
+    await user.click(box.getByRole("button", { name: "Все 5 шагов" }));
+    expect(box.getByText("Сделано 1 из 5. Галочки ставятся сами.")).toBeTruthy();
     const steps = box.getAllByRole("listitem");
     expect(steps.map((li) => li.className)).toEqual(["done", "next", "", "", ""]);
-    await user.click(within(steps[1]).getByRole("button", { name: "Как?" }));
-    expect(within(steps[1]).getByText(/«Отправить на проверку».*не меньше 10 опубликованных/)).toBeTruthy();
-    await user.click(within(steps[2]).getByRole("button", { name: "Перейти →" }));
+    expect(steps[0].textContent).toContain(", сделано");
+    await user.click(within(steps[2]).getByRole("button", { name: "Создать класс →" }));
     expect(location.pathname).toBe("/admin/classes");
 
     await user.click(await screen.findByRole("button", { name: "Скрыть" }));
@@ -925,6 +934,7 @@ describe("админка", () => {
     vi.spyOn(api, "topicMin").mockResolvedValue(10);
     render(<AdminApp api={api} />);
     const box = within(await screen.findByRole("region", { name: "Первые шаги" }));
+    await user.click(box.getByRole("button", { name: "Все 5 шагов" }));
     await user.click(box.getAllByRole("button", { name: "Как?" })[1]); // «Создайте класс»
     await user.click(box.getByRole("link", { name: "Подробнее →" }));
     expect(location.pathname).toBe("/admin/help/class");
@@ -1003,6 +1013,31 @@ describe("админка", () => {
 
     await user.click(btn);
     expect(await screen.findByText("За час выдано слишком много паролей. Попробуйте позже.")).toBeTruthy();
+  });
+
+  it("«Первые шаги» (№123): кнопки ведут к коду класса (памятка) и к заданиям класса с учениками", async () => {
+    history.replaceState(null, "", "/admin/my");
+    const user = userEvent.setup();
+    const { api, questions } = fakeApi({ id: "teacher", email: "t@x.kz", role: "teacher" });
+    questions[0].status = "published";
+    const classes = vi.spyOn(api, "classes").mockResolvedValue([{ id: "c1", subject_id: "s1", grade: 5, letter: "А", join_code: "ABC234", students: 0 }]);
+    vi.spyOn(api, "classReport").mockReturnValue(new Promise(() => {})); // проверяем только адрес перехода, страницу класса не ждём
+    render(<AdminApp api={api} />);
+    let box = within(await screen.findByRole("region", { name: "Первые шаги" }));
+    expect(box.getByText("Следующий шаг · 4 из 5")).toBeTruthy();
+    await user.click(box.getByRole("button", { name: "Открыть памятку и код →" }));
+    expect(location.pathname).toBe("/admin/classes/c1/memo");
+    cleanup();
+
+    history.replaceState(null, "", "/admin/my");
+    classes.mockResolvedValue([
+      { id: "c1", subject_id: "s1", grade: 5, letter: "А", join_code: "ABC234", students: 0 },
+      { id: "c2", subject_id: "s1", grade: 5, letter: "Б", join_code: "XYZ567", students: 4 },
+    ]);
+    render(<AdminApp api={api} />);
+    box = within(await screen.findByRole("region", { name: "Первые шаги" }));
+    await user.click(box.getByRole("button", { name: "Дать задание →" }));
+    expect(location.pathname).toBe("/admin/classes/c2");
   });
 
   it("«Первые шаги» не видны админу и учителю, у которого всё сделано", async () => {

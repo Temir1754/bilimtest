@@ -1,4 +1,5 @@
-// «Алғашқы қадамдар» (DECISIONS.md №113): пять шагов для нового учителя над экранами админки.
+// «Алғашқы қадамдар» (DECISIONS.md №113, компактный вид — №123): над экранами админки нового учителя.
+// Видно только следующий шаг с кнопкой-действием; полный список из пяти — по кнопке «Барлық 5 қадам».
 // Галочки ставятся сами — по вопросам, классам, ученикам и заданиям учителя. «Қалай?» раскрывает подсказку.
 // Все шаги сделаны или учитель нажал «Жасыру» — блок не показывается; вернуть — пункт в меню аккаунта.
 import { useEffect, useState } from "react";
@@ -20,7 +21,11 @@ export function setStartHidden(id: string, hidden: boolean) {
   } catch { /* приватный режим — блок просто снова появится */ }
 }
 
-export interface StartState { add: boolean; publish: boolean; cls: boolean; join: boolean; task: boolean }
+export interface StartState {
+  add: boolean; publish: boolean; cls: boolean; join: boolean; task: boolean;
+  /** Класс для кнопок «код» и «задание»: с учениками, иначе первый. */
+  classId?: string;
+}
 
 export async function loadStart(api: AdminApi, me: Me): Promise<StartState> {
   const [counts, classes] = await Promise.all([api.authorCounts(me.id), api.classes()]);
@@ -31,15 +36,22 @@ export async function loadStart(api: AdminApi, me: Me): Promise<StartState> {
     cls: classes.length > 0,
     join: classes.some((c) => (c.students ?? 0) > 0),
     task: tasks.some((n) => n > 0),
+    classId: (classes.find((c) => (c.students ?? 0) > 0) ?? classes[0])?.id,
   };
 }
 
 const ORDER = ["add", "publish", "cls", "join", "task"] as const;
-const TARGET: Record<(typeof ORDER)[number], AdminView> = {
-  add: { name: "grade" }, publish: { name: "my" }, cls: { name: "classes" }, join: { name: "classes" }, task: { name: "classes" },
-};
+type Step = (typeof ORDER)[number];
+/** Куда ведёт кнопка шага: код класса — памятка с кодом и QR, задание — страница класса (там «Тапсырмалар»). */
+function target(k: Step, classId?: string): AdminView {
+  if (k === "add") return { name: "grade" };
+  if (k === "publish") return { name: "my" };
+  if (k === "join" && classId) return { name: "memo", id: classId };
+  if (k === "task" && classId) return { name: "class", id: classId };
+  return { name: "classes" };
+}
 /** Статья «Нұсқаулық» к шагу (№114). */
-const ARTICLE: Record<(typeof ORDER)[number], string> = { add: "add", publish: "status", cls: "class", join: "class", task: "task" };
+const ARTICLE: Record<Step, string> = { add: "add", publish: "status", cls: "class", join: "class", task: "task" };
 
 export function StartGuide({ api, me, nav, onHide }: { api: AdminApi; me: Me; nav: Nav; onHide: () => void }) {
   const { t } = useT();
@@ -47,6 +59,7 @@ export function StartGuide({ api, me, nav, onHide }: { api: AdminApi; me: Me; na
   const [state, setState] = useState<StartState | null>(null);
   const [min, setMin] = useState(10);
   const [open, setOpen] = useState<string | null>(null);
+  const [all, setAll] = useState(false);
 
   useEffect(() => {
     let alive = true;
@@ -57,38 +70,58 @@ export function StartGuide({ api, me, nav, onHide }: { api: AdminApi; me: Me; na
 
   if (!state) return null;
   const done = ORDER.filter((k) => state[k]).length;
-  if (done === ORDER.length) return null;
   const next = ORDER.find((k) => !state[k]);
+  if (!next) return null;
+  const how = (k: Step) => (k === "publish" ? s.publish.how(me.trusted === true, min) : s[k].how);
+  const howText = (k: Step) => (
+    <span className="how">{how(k)} <Go to={{ name: "help", id: ARTICLE[k] }} nav={nav}>{s.more} →</Go></span>
+  );
 
   return (
     <section className="adm-start" aria-labelledby="adm-start-h">
       <div className="adm-start-head">
         <h2 id="adm-start-h">{s.title}</h2>
-        <button type="button" className="btn ghost" onClick={() => { setStartHidden(me.id, true); onHide(); }}>{s.hide}</button>
+        <span className="adm-start-count">{done} / {ORDER.length}</span>
+        <button type="button" className="link" onClick={() => { setStartHidden(me.id, true); onHide(); }}>{s.hide}</button>
       </div>
-      <p className="muted">{s.lede(done, ORDER.length)}</p>
-      <ol>
-        {ORDER.map((k) => {
-          const how = k === "publish" ? s.publish.how(me.trusted === true, min) : s[k].how;
-          return (
-            <li key={k} className={state[k] ? "done" : k === next ? "next" : undefined}>
-              <span className="mark">{state[k] ? "✓" : ""}</span>
-              <span className="body">
-                <b>{s[k].title}</b>
-                {!state[k] && (
-                  <span className="acts">
-                    <button type="button" className="link" aria-expanded={open === k} onClick={() => setOpen(open === k ? null : k)}>{s.how}</button>
-                    <button type="button" className="link" onClick={() => nav(TARGET[k])}>{s.go} →</button>
-                  </span>
-                )}
-                {open === k && !state[k] && (
-                  <span className="how">{how} <Go to={{ name: "help", id: ARTICLE[k] }} nav={nav}>{s.more} →</Go></span>
-                )}
-              </span>
-            </li>
-          );
-        })}
-      </ol>
+      <div className="adm-start-bar" role="progressbar" aria-label={s.progress(done, ORDER.length)}
+        aria-valuemin={0} aria-valuemax={ORDER.length} aria-valuenow={done}><i style={{ width: `${(done / ORDER.length) * 100}%` }} /></div>
+
+      {!all ? (
+        <div className="adm-start-next">
+          <span className="kick">{s.next(ORDER.indexOf(next) + 1, ORDER.length)}</span>
+          <b>{s[next].title}</b>
+          <div className="acts">
+            <button type="button" className="btn" onClick={() => nav(target(next, state.classId))}>{s.btn[next]} →</button>
+            <button type="button" className="link" aria-expanded={open === next} onClick={() => setOpen(open === next ? null : next)}>{s.how}</button>
+          </div>
+          {open === next && howText(next)}
+        </div>
+      ) : (
+        <>
+          <p className="muted">{s.lede(done, ORDER.length)}</p>
+          <ol>
+            {ORDER.map((k) => (
+              <li key={k} className={state[k] ? "done" : k === next ? "next" : undefined}>
+                <span className="mark" aria-hidden="true">{state[k] ? "✓" : ""}</span>
+                <span className="body">
+                  <b>{s[k].title}<span className="sr">, {state[k] ? s.doneMark : s.todoMark}</span></b>
+                  {!state[k] && (
+                    <span className="acts">
+                      <button type="button" className="link" aria-expanded={open === k} onClick={() => setOpen(open === k ? null : k)}>{s.how}</button>
+                      <button type="button" className="link" onClick={() => nav(target(k, state.classId))}>{s.btn[k]} →</button>
+                    </span>
+                  )}
+                  {open === k && !state[k] && howText(k)}
+                </span>
+              </li>
+            ))}
+          </ol>
+        </>
+      )}
+      <button type="button" className="link adm-start-all" aria-expanded={all} onClick={() => setAll(!all)}>
+        {all ? s.less : s.all(ORDER.length)}
+      </button>
     </section>
   );
 }
